@@ -1,0 +1,12 @@
+/* afmpeg docs — project accent overrides.
+ * Kept minimal; the Material theme defaults carry the rest. */
+
+:root {
+  --md-primary-fg-color: #1f6feb;
+  --md-accent-fg-color: #388bfd;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #1f6feb;
+  --md-accent-fg-color: #58a6ff;
+}

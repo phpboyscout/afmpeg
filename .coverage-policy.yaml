@@ -1,0 +1,23 @@
+# Coverage policy — the machine-readable form of the per-package ≥90% rule
+# (the go-tool-base line; see the library-first-tdd method).
+#
+# Enforced advisorily by scripts/coverage-policy.sh (the non-blocking
+# `coverage-policy` CI job). A package must be at or above `threshold` OR appear
+# in `excluded` (with a rationale) OR match a `not_counted` prefix — otherwise it
+# is flagged.
+#
+# To add an exclusion you MUST give a reason.
+
+threshold: 90
+
+# Module-relative path prefixes that are NEVER measured: generated code, binary
+# entry points, the embedded-wasm wiring, and the (Go-free) build pipeline.
+not_counted:
+  - mocks/
+  - cmd/
+  - build/
+  - internal/wasm
+
+# Packages permitted below the threshold, each with a rationale. Empty for now —
+# the core packages (internal/vfs, pkg/afmpeg) carry the full bar (specs 0003/0004).
+excluded: []

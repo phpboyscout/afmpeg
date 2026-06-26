@@ -9,6 +9,14 @@ coverage.*
 /internal/wasm/ffmpeg.wasm
 /internal/wasm/*.wasm
 
+# docs site build + tooling caches
+/site/
+/dist/
+/.cache/
+
+# locally-saved CI logs
+*.log
+
 # editor / OS
 .DS_Store
 *.swp

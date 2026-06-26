@@ -1,0 +1,11 @@
+# gitleaks configuration
+#
+# Extends the default ruleset shipped with gitleaks. No project-specific
+# allowlist yet — add file-scoped entries here if a test fixture legitimately
+# needs to carry credential-shaped strings (e.g. a redaction corpus).
+#
+# Uses the top-level [allowlist] (singular) form for compatibility with the
+# gitleaks-action bundled binary.
+
+[extend]
+useDefault = true
