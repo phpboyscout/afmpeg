@@ -1,9 +1,10 @@
 # 0001 — afmpeg: pure-Go FFmpeg on a virtual filesystem
 
-Status: **DRAFT / INTENT** (scaffold — the build has not started. This is the design
-+ requirements; a future session implements it. Pause for review on §10 before any
-implementation.)
-Date: 2026-06-26
+Status: **APPROVED / INTENT** (scaffold — the build has not started. This is the design
++ requirements. The §10 decisions were resolved on 2026-06-26 (see §10) and the work is
+decomposed into component specs 0002–0006; those are implemented test-first, each citing
+this spec. This remains the source-of-truth thesis.)
+Date: 2026-06-26 (§10 resolved 2026-06-26)
 Provenance: extracted from the keryx ffmpeg-render-binding spike
 (`keryx/docs/development/spikes/ffmpeg-render-binding.md`), which found no existing
 option delivered "in-memory + pure-Go + the filters/codecs we need".
@@ -190,18 +191,43 @@ straight to afmpeg. Until then keryx stays local-only + native ffmpeg.
 - **Build maintenance.** Owning an FFmpeg-WASI build is ongoing work (version bumps,
   toolchain drift). Weigh vs the materialise↔readback bridge keryx can use meanwhile.
 
-## 10. Decisions to confirm before building
+## 10. Decisions — RESOLVED 2026-06-26
 
-- **D-A — name.** `afmpeg` is provisional. Confirm or rename (touches `go.mod` +
-  imports + docs).
-- **D-B — WASM source.** Adapt go-ffmpreg's build vs build the pipeline from scratch
-  vs (interim) develop against go-ffmpreg's stock wasm despite its missing filters.
-- **D-C — licensing posture** (§9) — GPL-only vs GPL+LGPL builds; embed vs separate
-  artifact. Gates any public release.
-- **D-D — concurrency model** — one invocation at a time per `Runtime`, or a pool of
-  module instances for parallel renders.
-- **D-E — scope of v1** — just `Run(fs, args…)` (raw ffmpeg over a vfs) first, or the
-  timeline helper (R-AF-7) too.
+All five gating decisions were walked with Matt and resolved before any component spec
+was drafted. The resolutions below are binding on specs 0002–0006.
+
+- **D-A — name. RESOLVED: keep `afmpeg`** (afero + ffmpeg). Confirmed unclaimed — no
+  GitHub repo, no Go module of that name; the `afero` root is the distinguishing signal
+  vs the existing Go ffmpeg bindings. `go.mod` (`gitlab.com/phpboyscout/afmpeg`) stands.
+- **D-B — WASM source. RESOLVED: adapt go-ffmpreg's `build.sh`** as the proven wasi-sdk
+  start point, extending its `./configure` to add the R-AF-3 set (xfade, AAC, the audio
+  filters). Not from scratch; not interim-stock-only. Owned by **spec 0002**.
+- **D-C — licensing posture. RESOLVED: permissive Go package + separable GPL wasm.** The
+  Go code is permissively licensed (Apache-2.0/MIT — confirm in 0002); the GPL/x264
+  `ffmpeg.wasm` ships as a **separate downloadable artifact, never `//go:embed`-ed**, so
+  the copyleft obligation only attaches to a consumer who fetches+bundles it. keyrx uses
+  the GPL/x264 build now (private; top quality). An **LGPL/openh264 variant is tracked**
+  (R-AF-10) for public/permissive consumers. Rationale: x264 is the *single* GPL piece in
+  keyrx's render — AAC (native LGPL encoder), xfade, scale/fps, amix/adelay/volume/afade/
+  alimiter, mp4 mux are all already LGPL-clean — so the GPL surface is one separable
+  encoder, not the whole pipeline. Owned by **spec 0002**.
+- **D-D — concurrency model. RESOLVED (provisional): one invocation at a time per
+  `Runtime`**, with a pooled/parallel mode as a documented follow-up. Final shape and the
+  instance-pool design are owned by **spec 0004** (its local decision against the wazero
+  module wiring).
+- **D-E — scope of v1. RESOLVED: raw `Run(ctx, fs, args…)` + `Probe` first** (the novel
+  bridge + invocation core — specs 0003/0004). The timeline render helper (R-AF-7) and the
+  keyrx `Renderer` backend follow as **spec 0005**, once `Run` is proven end-to-end.
+
+### Component spec map (the compartmentalised work)
+
+| Spec | Phase (§8) | Scope | Requirements owned |
+|---|---|---|---|
+| **0002** wasm-build-pipeline | 1 | FFmpeg+x264 → `wasm32-wasi` (adapt go-ffmpreg); reproducible Docker build; licence variants | R-AF-3, R-AF-6, R-AF-10; D-B, D-C |
+| **0003** vfs-bridge | 2 | afero.Fs → wazero `experimental/sys.FS` adapter (the core); `/tmp`, `/dev/null`; seek-on-write | R-AF-2 |
+| **0004** runtime-and-api | 2 | `New`/`Run`/`Probe`/`Result`/`Close`; module wiring; stderr/exit; ctx-cancel | R-AF-1, R-AF-4, R-AF-5, R-AF-8; D-D, D-E |
+| **0005** render-helper + keyrx-backend | 3 | R-AF-7 timeline helper mirroring `provider.Timeline`; keyrx `Renderer` adapter; native parity | R-AF-7 |
+| **0006** hardening-roadmap | 4 | LGPL build-out, wasm-threads/SIMD perf, native backend seam, `cmd/afmpeg` CLI | R-AF-11, R-AF-12, R-AF-13 |
 
 ## 11. Alternatives considered
 
