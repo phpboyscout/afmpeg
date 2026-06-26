@@ -1,0 +1,16 @@
+# Go
+/bin/
+*.test
+*.out
+coverage.*
+
+# the embedded FFmpeg WASM build artifact (built by the wasm pipeline, not committed
+# raw until the build is reproducible + licensing is settled — see spec §7/§9)
+/internal/wasm/ffmpeg.wasm
+/internal/wasm/*.wasm
+
+# editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
