@@ -83,6 +83,7 @@ linters:
           - unparam
           - mnd
           - dupl
+          - cyclop
       - path: _test\.go
         text: "G102|G112|G306"
         linters:
