@@ -16,10 +16,10 @@ Available:
 - **[Run ffmpeg over an in-memory filesystem](run-in-memory.md)** — build a `Runtime`,
   supply the `ffmpeg.wasm` module (`WithModuleFile` / `WithModuleBytes` / `WithModuleFS`),
   transcode against an `afero.MemMapFs`, probe a duration, and cancel a render.
+- **[Compose an ffmpeg command with the builder](compose-a-command.md)** — assemble any
+  invocation (inputs / filtergraph / outputs) as typed data, struct or `NewCommand`.
 
 Planned (land with their features):
 
-- **Compose any ffmpeg command with the builder** — typed inputs/filtergraph/outputs
-  (spec [0005](../development/specs/0005-render-helper-and-keyrx-backend.md)).
 - **Build the FFmpeg WASM module** — the reproducible pipeline
   (spec [0002](../development/specs/0002-wasm-build-pipeline.md)).
