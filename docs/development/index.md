@@ -31,6 +31,13 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 - **Library before CLI.** Logic lives in `pkg/`; any command layer is a thin adapter.
 - **Test-first from the spec's contracts**, table-driven with `t.Parallel()`; the
   per-package coverage bar is **≥90%** on new `pkg/` code.
+- **Every package carries a `doc.go`.** The package-level documentation lives in a
+  dedicated `doc.go` (not scattered above a random file's `package` clause), so the
+  package's purpose is discoverable in one place and on `pkg.go.dev`.
+- **Docs land with the code, not after.** A change that adds or reshapes a component
+  ships its [Diátaxis](https://diataxis.fr/) documentation in the same MR — an
+  explanation page for a new component, a how-to for a new task, reference for a new
+  config/CLI surface. Docs are part of "done", never an afterthought.
 - **Verify before PR:** `just ci` (tidy, generate, test, race, lint).
 
 ## Local workflow
