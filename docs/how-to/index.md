@@ -11,18 +11,14 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 Goal-oriented, practical recipes for someone who already knows the basics. Each guide
 solves one specific problem.
 
-!!! note "Coming with the implementation"
-    These guides land alongside the features they cover. afmpeg is currently at the
-    scaffold/intent stage.
+Available:
 
-Planned:
+- **[Run ffmpeg over an in-memory filesystem](run-in-memory.md)** — build a `Runtime`,
+  supply the `ffmpeg.wasm` module (`WithModuleFile` / `WithModuleBytes` / `WithModuleFS`),
+  transcode against an `afero.MemMapFs`, probe a duration, and cancel a render.
 
-- **Supply the `ffmpeg.wasm` module** — afmpeg does not embed the GPL build; how to point
-  the runtime at the module artifact (`WithModuleFile` / `WithModuleBytes` / `WithModuleFS`)
-  — spec [0004](../development/specs/0004-runtime-and-api.md), decision D-C.
-- **Run against an in-memory filesystem** — wire an `afero.MemMapFs` and verify no host
-  filesystem access (spec [0003](../development/specs/0003-vfs-bridge.md)).
-- **Probe a media file's duration** over the fs bridge.
+Planned (land with their features):
+
 - **Use afmpeg as a keryx render backend** — select `providers.render: afmpeg`
   (spec [0005](../development/specs/0005-render-helper-and-keyrx-backend.md)).
 - **Build the FFmpeg WASM module** — the reproducible pipeline
