@@ -50,3 +50,16 @@ just lint       # golangci-lint
 just ci         # the full local gate
 just docs-serve # preview this site
 ```
+
+### Integration test (real ffmpeg)
+
+The runtime has a gated integration test that loads a **real** `ffmpeg.wasm` and transcodes
+in memory. It skips unless pointed at a module:
+
+```sh
+AFMPEG_TEST_FFMPEG_WASM=/path/to/ffmpeg.wasm go test ./pkg/afmpeg/ -run Integration -v
+```
+
+The runtime provides the `env` setjmp/longjmp host module and the WebAssembly feature set a
+real FFmpeg build needs (spec [0004](specs/0004-runtime-and-api.md) R-0004-9), so any
+real-FFmpeg wasm — the future spec-0002 build, or an interim one — loads and runs.

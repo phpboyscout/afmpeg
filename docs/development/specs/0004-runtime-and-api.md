@@ -107,19 +107,35 @@ Notes:
   unit tests).
 - `R-0004-7` One `Run` at a time per `Runtime` (D-0004-B); concurrent `Run` calls serialise
   safely (no data race — `go test -race`).
-- `R-0004-8` The R-AF-3 end-to-end: with the real 0002 module, `Run` executes the §3-of-0002
+- `R-0004-8` The R-AF-3 end-to-end: with a real ffmpeg module, `Run` executes a real ffmpeg
   command against a `MemMapFs` and produces a valid mp4 read back in memory — **no host fs
   access** (composes 0003's R-AF-2).
+- `R-0004-9` **(Added 2026-06-27, via the spec-0002 de-risk.)** The runtime can load a real
+  ffmpeg.wasm. A real FFmpeg build needs more than plain WASI: it imports an **`env` host
+  module** providing `__wasm_setjmp` / `__wasm_longjmp` (FFmpeg uses C setjmp/longjmp, which
+  WebAssembly lacks; the build lowers them to host calls), and it requires the WebAssembly
+  **core feature set** SIMD + bulk-memory + non-trapping-float + mutable-global +
+  reference-types + sign-extension + **extended-const + tail-call**. `New` enables that
+  feature set and registers the `env` module (`setjmp.go`), implementing setjmp/longjmp with
+  wazero's experimental Snapshotter — original code, no GPL imported.
+
+### Resolved via de-risk (2026-06-27)
+R-0004-9 was discovered by wiring an interim real module (go-ffmpreg's stock `ffmpreg.wasm`,
+GPL — used only as a runtime test fixture, never a dependency) and finding a plain-WASI
+runtime cannot even instantiate it. With the env module + features added, **afmpeg's own
+`New`/`Run` transcodes testsrc → an H.264 (libx264) mp4 entirely in a `MemMapFs`, no host fs**
+(ffmpeg n5.1.9). This closes the project's biggest integration risk *before* 0002 builds the
+real artifact. The validation lives as a gated integration test (`AFMPEG_TEST_FFMPEG_WASM`).
 
 ## 6. Test strategy (TDD)
 
 - **Unit** (no real wasm): a stub/stand-in module exercises `New`/`Run`/`Close` wiring,
   option handling, stderr capture, exit-code surfacing, ctx-cancel, and the serialise-on-`Run`
   guard (`-race`). The vfs bridge is 0003 (already tested); here it's composed.
-- **Integration** (env-gated, per env-gated-integration-tests): with the real `ffmpeg.wasm`
-  fetched as an artifact, run the full R-AF-3 transcode over `MemMapFs`, assert a valid mp4
-  and no host-fs access. Gated (slow, needs the artifact) — mirrors go-tool-base
-  `INT_TEST`/`just test-integration`.
+- **Integration** (env-gated via `AFMPEG_TEST_FFMPEG_WASM=/path/to/ffmpeg.wasm`,
+  `integration_test.go`): load a real ffmpeg.wasm and run a transcode over `MemMapFs`, assert
+  a valid mp4 and no host-fs access. Skips when the env var is unset, so the default unit run
+  stays fast and module-free. Implemented and passing against go-ffmpreg's stock build.
 - Coverage ≥90% on new `pkg/afmpeg` code (excluding the gated integration path).
 
 ## 7. Definition of done
