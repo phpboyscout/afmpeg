@@ -13,6 +13,8 @@ solves one specific problem.
 
 Available:
 
+- **[Obtain an ffmpeg.wasm module](obtain-a-module.md)** — supply the module from a file,
+  bytes, an afero fs, or a URL with checksum-verified caching (`WithModuleURL`).
 - **[Run ffmpeg over an in-memory filesystem](run-in-memory.md)** — build a `Runtime`,
   supply the `ffmpeg.wasm` module (`WithModuleFile` / `WithModuleBytes` / `WithModuleFS`),
   transcode against an `afero.MemMapFs`, probe a duration, and cancel a render.
