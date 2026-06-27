@@ -18,30 +18,37 @@ func TestTail(t *testing.T) {
 	}
 }
 
-func TestParseDuration(t *testing.T) {
+func TestParseDurationFromStderr(t *testing.T) {
 	t.Parallel()
 
-	dur, err := parseDuration("  12.34\n")
-	if err != nil || dur != 12.34 {
-		t.Fatalf("parseDuration = %v err=%v, want 12.34", dur, err)
+	tests := []struct {
+		name    string
+		stderr  string
+		want    float64
+		wantErr bool
+	}{
+		{"simple", "  Duration: 00:00:12.34, start: 0.0", 12.34, false},
+		{"hours-minutes", "Duration: 01:23:45.67, bitrate: 1", 1*3600 + 23*60 + 45.67, false},
+		{"na", "  Duration: N/A, start: 0.0", 0, true},
+		{"missing", "No such file or directory", 0, true},
 	}
 
-	if _, err := parseDuration("not-a-number"); err == nil {
-		t.Fatal("parseDuration(non-numeric): want an error")
-	}
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-func TestProbeArgs(t *testing.T) {
-	t.Parallel()
+			got, err := parseDurationFromStderr(tt.stderr)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("want an error, got %v", got)
+				}
 
-	args := probeArgs("clip.mp4")
+				return
+			}
 
-	joined := strings.Join(args, " ")
-	if !strings.Contains(joined, "-show_entries format=duration") {
-		t.Fatalf("probeArgs missing duration query: %v", args)
-	}
-
-	if args[len(args)-1] != "clip.mp4" {
-		t.Fatalf("probeArgs last arg = %q, want the path", args[len(args)-1])
+			if err != nil || got != tt.want {
+				t.Fatalf("= %v err=%v, want %v", got, err, tt.want)
+			}
+		})
 	}
 }

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"regexp"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/cockroachdb/errors"
@@ -160,24 +160,22 @@ func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result,
 }
 
 // Probe returns a media file's duration in seconds over the same fs bridge
-// (R-AF-5). It runs the module with ffprobe-shaped arguments and parses the
-// reported duration.
+// (R-AF-5). It runs `ffmpeg -i <path>`, which prints the input's metadata
+// (including its Duration) to stderr and then exits non-zero because no output
+// was requested — that exit is expected, so the duration is parsed from stderr.
+// This is module-agnostic: it needs only ffmpeg itself, not a separate ffprobe.
 func (r *Runtime) Probe(ctx context.Context, fs afero.Fs, path string) (Probe, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	inv, err := r.invoke(ctx, fs, probeArgs(path)...)
+	inv, err := r.invoke(ctx, fs, "-hide_banner", "-i", path)
 	if err != nil {
 		return Probe{}, err
 	}
 
-	if inv.exitCode != 0 {
-		return Probe{}, errors.Newf("afmpeg: probe failed (exit %d): %s", inv.exitCode, tail(inv.stderr))
-	}
-
-	dur, err := parseDuration(inv.stdout)
+	dur, err := parseDurationFromStderr(inv.stderr)
 	if err != nil {
-		return Probe{}, err
+		return Probe{}, errors.Wrapf(err, "afmpeg: probe %q: %s", path, tail(inv.stderr))
 	}
 
 	return Probe{DurationSec: dur}, nil
@@ -254,27 +252,32 @@ func exitCodeFrom(ctx context.Context, err error) (int, error) {
 	return 0, errors.Wrap(err, "afmpeg: invocation failed")
 }
 
-// probeArgs builds the ffprobe-shaped argument list for a duration probe,
-// mirroring keryx's probe (format=duration, no wrappers, no key).
-func probeArgs(path string) []string {
-	return []string{
-		"-v", "error",
-		"-show_entries", "format=duration",
-		"-of", "default=noprint_wrappers=1:nokey=1",
-		path,
-	}
-}
+// durationLine matches ffmpeg's `Duration: HH:MM:SS.ss` stderr line.
+var durationLine = regexp.MustCompile(`Duration:\s*(\d+):(\d{2}):(\d{2}\.\d+)`)
 
-// parseDuration parses the numeric duration ffprobe prints on stdout.
-func parseDuration(stdout string) (float64, error) {
-	trimmed := strings.TrimSpace(stdout)
+const (
+	secondsPerHour   = 3600
+	secondsPerMinute = 60
+)
 
-	dur, err := strconv.ParseFloat(trimmed, durationBits)
-	if err != nil {
-		return 0, errors.Wrapf(err, "afmpeg: parse duration %q", trimmed)
+// parseDurationFromStderr extracts the input duration (in seconds) from ffmpeg's
+// stderr. ffmpeg reports an unknown duration as "Duration: N/A", which does not
+// match and yields an error.
+func parseDurationFromStderr(stderr string) (float64, error) {
+	m := durationLine.FindStringSubmatch(stderr)
+	if m == nil {
+		return 0, errors.New("no Duration in ffmpeg output")
 	}
 
-	return dur, nil
+	hours, herr := strconv.Atoi(m[1])
+	minutes, merr := strconv.Atoi(m[2])
+
+	seconds, serr := strconv.ParseFloat(m[3], durationBits)
+	if herr != nil || merr != nil || serr != nil {
+		return 0, errors.Newf("malformed duration %q", m[0])
+	}
+
+	return float64(hours*secondsPerHour+minutes*secondsPerMinute) + seconds, nil
 }
 
 // tail returns the last stderrTailBytes of s, for surfacing an error tail.

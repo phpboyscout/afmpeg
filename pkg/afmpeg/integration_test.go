@@ -62,4 +62,15 @@ func TestIntegration_RealFFmpeg(t *testing.T) {
 	if _, err := os.Stat("out.mp4"); !os.IsNotExist(err) {
 		t.Fatalf("output leaked to the host filesystem: %v", err)
 	}
+
+	// Probe the duration of what we just rendered — real `ffmpeg -i` over the
+	// bridge (the input was 1s of testsrc).
+	p, err := rt.Probe(ctx, fs, "out.mp4")
+	if err != nil {
+		t.Fatalf("Probe: %v", err)
+	}
+
+	if p.DurationSec < 0.9 || p.DurationSec > 1.5 {
+		t.Fatalf("Probe duration = %v, want ~1.0", p.DurationSec)
+	}
 }

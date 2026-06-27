@@ -27,25 +27,27 @@ func main() {
 	os.Exit(dispatch(args))
 }
 
-// probeMode handles ffprobe-shaped invocations. The probed path selects the
-// response so tests can drive the duration, a probe failure, and an unparseable
-// duration.
+// probeMode mimics `ffmpeg -i <path>`: it prints a Duration line to stderr and
+// exits non-zero (no output requested), as real ffmpeg does. The probed path
+// selects the response so tests can drive a duration, a probe failure, and an
+// unknown ("N/A") duration. A probe is "-i <path>" with the path as the final
+// argument and no output following.
 func probeMode(args []string) (int, bool) {
-	for _, a := range args {
-		if a != "-show_entries" {
+	for i, a := range args {
+		if a != "-i" || i+1 != len(args)-1 {
 			continue
 		}
 
-		switch args[len(args)-1] {
+		switch args[i+1] {
 		case "fail-probe":
-			fmt.Fprint(os.Stderr, "probe boom")
+			fmt.Fprint(os.Stderr, "No such file or directory\n")
 			return 1, true
 		case "bad-duration":
-			fmt.Fprint(os.Stdout, "notanumber\n")
-			return 0, true
+			fmt.Fprint(os.Stderr, "  Duration: N/A, start: 0.000000\n")
+			return 1, true
 		default:
-			fmt.Fprint(os.Stdout, "12.340\n")
-			return 0, true
+			fmt.Fprint(os.Stderr, "  Duration: 00:00:12.34, start: 0.000000, bitrate: 1 kb/s\n")
+			return 1, true
 		}
 	}
 
