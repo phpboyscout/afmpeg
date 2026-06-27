@@ -42,38 +42,82 @@ individual filters, it just places the graph correctly.
 
 ## 3. API (sketch — confirm in review)
 
+The shape is a **hybrid, deliberately idiomatic Go**: a plain `Command` *struct* is the
+canonical, inspectable data model (fill it directly for full control), and `NewCommand`
+is an ergonomic constructor that applies **sane defaults + functional options** on top —
+for callers who want the variadic `With*` feel or the baked defaults. A command is
+*data*, so the struct is primary; functional options are reserved for *constructing* it.
+
 ```go
 package afmpeg
 
-// Command assembles an ffmpeg invocation. Built fluently; Args() yields the
-// argument slice for Runtime.Run. Zero value is a usable empty command.
-type Command struct { /* … */ }
+// Command is a declarative description of an ffmpeg invocation. Construct it
+// directly as a struct (zero value usable) or via NewCommand for defaults +
+// options. Args() renders it to the argument slice Run executes (pure, no I/O).
+type Command struct {
+	Global        Global
+	Inputs        []Input
+	FilterComplex string
+	Outputs       []Output
+}
 
-func NewCommand(opts ...GlobalOption) *Command
-func (c *Command) Input(path string, opts ...InputOption) *Command
-func (c *Command) FilterComplex(graph string) *Command
-func (c *Command) Output(path string, opts ...OutputOption) *Command
-func (c *Command) Args() []string
+type Global struct {
+	OverwriteOutput bool     // -y
+	Raw             []string // arbitrary global flags
+}
+
+type Input struct {
+	Path     string
+	Loop     bool     // -loop 1
+	Duration float64  // -t (pre-input)
+	Format   string   // -f
+	Raw      []string // arbitrary pre-input flags (e.g. -ss)
+}
+
+type Output struct {
+	Path       string
+	Map        []string // -map …
+	VideoCodec string   // -c:v
+	AudioCodec string   // -c:a
+	PixelFormat string  // -pix_fmt
+	Format     string   // -f (container)
+	Raw        []string // arbitrary per-output flags (e.g. -crf, -b:v, -frames:v, -movflags)
+}
+
+func (c Command) Args() []string
+
+// NewCommand builds a Command from sane defaults and functional options.
+func NewCommand(opts ...CommandOption) Command
 
 // Convenience on Runtime: build → run in one call.
-func (r *Runtime) RunCommand(ctx context.Context, fs afero.Fs, c *Command) (Result, error)
+func (r *Runtime) RunCommand(ctx context.Context, fs afero.Fs, c Command) (Result, error)
 
-// Options are functional and composable; each also has an escape hatch (Raw/Args)
-// for flags the typed surface doesn't model, so the builder never blocks a workflow.
-type GlobalOption func(*command)   // e.g. OverwriteOutput() → -y ; RawGlobal(args…)
-type InputOption  func(*input)     // e.g. Loop(), Duration(d), Format(f), Seek(d), RawInput(args…)
-type OutputOption func(*output)    // e.g. Map(label), VideoCodec(c), AudioCodec(c),
-                                   //      CRF(n), VideoBitrate(b), AudioBitrate(b),
-                                   //      PixelFormat(p), Format(container), FrameRate(r),
-                                   //      Duration(d), MovFlags(f), RawOutput(args…)
+// A curated option roster (the struct carries the long tail to avoid polluting
+// the package namespace and input/output name collisions):
+type CommandOption func(*Command) // OverwriteOutput(); WithInput(path, …InputOption);
+                                  // WithFilterComplex(g); WithOutput(path, …OutputOption); GlobalRaw(args…)
+type InputOption   func(*Input)   // Loop(); Duration(d); InputFormat(f); InputRaw(args…)
+type OutputOption  func(*Output)  // Map(label); VideoCodec(c); AudioCodec(c);
+                                  // PixelFormat(p); OutputFormat(f); OutputRaw(args…)
 ```
 
 Design rules:
-- **Every typed surface has a raw escape hatch** (`RawGlobal/RawInput/RawOutput`), so an
-  unmodelled flag never forces a user back to hand-building the whole arg slice.
-- **Ordering is enforced** (globals → inputs → filtergraph → maps/outputs), which is the
-  thing that's actually fiddly to get right by hand.
-- The builder is **pure** (`Args()` has no I/O); only `RunCommand` touches the runtime.
+- **The struct is complete; the option roster is curated.** Every ffmpeg flag is reachable
+  via a struct field or a `Raw` slice, so an unmodelled flag never blocks a workflow; the
+  `With*`/option funcs cover the common 80% ergonomically.
+- **Two equally-valid entry points.** `Command{…}` (explicit, exactly what you set — zero
+  value = no defaults) and `NewCommand(…)` (sane defaults + options). Same rendered args.
+- **Ordering is enforced** by `Args()` (globals → inputs → filtergraph → maps/outputs).
+- **Pure data.** `Args()` has no I/O and the `Command` is comparable/copyable/serialisable
+  (a pipeline can come from YAML/JSON); only `RunCommand` touches the runtime.
+
+### D-0005-A — the "sane defaults" NewCommand bakes (confirm in review)
+*Proposed:* `Global.OverwriteOutput = true` (programmatic callers overwrite their afero
+output), and nothing else — **no codec/quality/pixel-format opinion** is baked (that would
+re-introduce consumer bias; ffmpeg's own container-based defaults apply, or the caller
+sets them). Candidates to consider: a quiet `-loglevel error` default. A zero-value
+`Command{}` struct bakes **no** defaults (fully explicit). Resolve the exact default set in
+review.
 
 ## 4. The generality bar (validation)
 
@@ -105,11 +149,14 @@ other consumer: afmpeg gives them the toolkit; the workflow is theirs.
 
 ## 6. Requirements summary
 
-- `R-0005-A` A pure `Command` builder that models globals/inputs/filtergraph/outputs and
-  emits a correct, correctly-ordered arg slice (R-AF-7).
-- `R-0005-B` Typed options for the common cases **plus** a raw escape hatch on every
-  scope, so no workflow is blocked.
-- `R-0005-C` Validated across the §4 unrelated workflows (not just a reel).
+- `R-0005-A` A pure `Command` **struct** (globals/inputs/filtergraph/outputs) whose
+  `Args()` emits a correct, correctly-ordered arg slice (R-AF-7). Usable as a zero value.
+- `R-0005-B` A `NewCommand(opts…)` constructor applying sane defaults (D-0005-A) + a
+  curated set of functional options (`With*`/`Input/OutputOption`); both entry points
+  render identical args. Every flag remains reachable via a struct field or a `Raw` slice,
+  so no workflow is blocked.
+- `R-0005-C` Validated across the §4 unrelated workflows (not just a reel), via **both**
+  the struct and `NewCommand` forms.
 - `R-0005-D` `RunCommand` convenience; end-to-end over a MemMapFs with no host-fs access.
 - `R-0005-E` No keryx-specific types, constants, or assumptions in afmpeg.
 
