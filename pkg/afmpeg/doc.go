@@ -27,6 +27,6 @@
 //	out, err := afero.ReadFile(fs, "out/reel.mp4") // the result, in memory
 //
 // Run returns the exit code and captured stderr; Probe returns a media file's
-// duration over the same bridge. The higher-level timeline render helper layers
-// on top (spec 0005).
+// duration over the same bridge. A general, use-case-agnostic command builder
+// layers on top (spec 0005).
 package afmpeg

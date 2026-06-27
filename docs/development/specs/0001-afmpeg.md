@@ -30,9 +30,15 @@ which needs real files on disk. The spike rejected every existing path; afmpeg i
 **Goals**
 - Pure Go: `CGO_ENABLED=0`, cross-compiles, single static binary, no host FFmpeg.
 - I/O over `afero.Fs` — in-memory (`MemMapFs`), OS (`OsFs`), or any backend.
-- The codec/filter set real workflows need (initial bar = keryx's render: `xfade`,
-  H.264 encode, AAC encode, mp4 mux, `amix`/`adelay`/`afade`/`alimiter`, scale/fps).
-- A clean, idiomatic Go API (run an ffmpeg invocation; higher-level helpers later).
+- **Customer-agnostic and general-purpose.** afmpeg is a general ffmpeg toolkit for
+  *any* workflow (transcode, scale/crop/pad, overlay, concat, crossfade, thumbnail,
+  audio extract/mix, mux, …). afmpeg defines the abstraction; consumers adapt to it —
+  **keryx is the first reference customer, not the API author.** No consumer's
+  opinionated structure (e.g. keryx's "reel") is baked into afmpeg's surface.
+- A general baseline codec/filter/muxer set covering common workflows (§5 R-AF-3), of
+  which keryx's reel render is one *validating example*, not the definition.
+- A clean, idiomatic Go API: the universal `Run(fs, args…)` primitive plus a general,
+  use-case-agnostic command builder (R-AF-7).
 - A reproducible **FFmpeg-WASM build pipeline** (the hard, separable sub-project).
 
 **Non-goals (initially)**
@@ -110,9 +116,14 @@ mp4, _ := afero.ReadFile(fs, "out/reel.mp4")   // the result, in memory
   amd64/arm64) without a C toolchain or host FFmpeg.
 - `R-AF-2` I/O is `afero.Fs`-backed: a `MemMapFs` runs end-to-end with **no host
   filesystem access** (verifiable — deny OS fs in tests).
-- `R-AF-3` The embedded WASM build includes the keryx render set: `xfade`, libx264
-  (H.264), AAC encode, the mp4 muxer, `amix`/`adelay`/`volume`/`afade`/`alimiter`,
-  `scale`, `fps`, `format`. (The proof-of-capability bar.)
+- `R-AF-3` The WASM build carries a **general baseline** codec/filter/muxer set covering
+  common workflows — not one customer's graph. Decode of common containers/codecs
+  (mp4/mov, mkv/webm, mp3, image2) and encode of at least H.264 (libx264) + AAC, plus a
+  general filter set (`scale`, `crop`, `pad`, `fps`, `format`, `setsar`, `overlay`,
+  `concat`, `xfade`, and the audio filters `amix`/`adelay`/`volume`/`afade`/`alimiter`/
+  `aresample`). The exact curated baseline (and a lean vs full variant, R-AF-9) is owned
+  by spec 0002. keryx's reel set (`xfade` + libx264 + AAC + mp4 + the audio filters) is a
+  **subset** of this baseline — one validating example, not the definition.
 - `R-AF-4` `Run` returns the exit code + stderr; a non-zero exit surfaces ffmpeg's
   error tail (no silent failures).
 - `R-AF-5` ffprobe-equivalent duration probing over the same fs bridge (keryx needs
@@ -121,8 +132,10 @@ mp4, _ := afero.ReadFile(fs, "out/reel.mp4")   // the result, in memory
   versions; documented `build/`); the artifact's provenance is recorded.
 
 **SHOULD**
-- `R-AF-7` A higher-level render helper mirroring a timeline (segments + xfade + audio
-  tracks → mp4) so callers don't hand-build ffmpeg args (keryx's `provider.Timeline`).
+- `R-AF-7` A general, use-case-agnostic **command builder** (typed inputs/filtergraph/
+  outputs/options, with a raw escape hatch on every scope) so callers compose *any*
+  ffmpeg invocation without hand-assembling arg slices. Not tied to any workflow; a
+  consumer's reel/timeline is built *on* it, in the consumer's code (spec 0005).
 - `R-AF-8` Context cancellation aborts a running invocation promptly.
 - `R-AF-9` Pluggable codec/filter sets via alternate WASM builds (a lean build vs a
   full build) selected at construction.
@@ -152,12 +165,16 @@ from the Go binding. Approach:
 This sub-project can be spiked/built independently; the Go layers (§3.2/§3.3) can be
 developed against a stand-in WASM module meanwhile.
 
-## 7. keryx integration (the consumer)
+## 7. keryx integration (the first consumer)
 
+keryx is the **reference customer** — it validates afmpeg, it does not define it.
 keryx renders behind a `provider.Renderer` seam (`internal/render/ffmpeg`, the default
 shells out to the ffmpeg binary). afmpeg lands as an **alternate `Renderer`
-implementation** selected by config (`providers.render: afmpeg`) — no call-site
-changes (keryx's pluggable-provider pattern). When afmpeg is usable, keryx's in-memory
+implementation** selected by config (`providers.render: afmpeg`) — no call-site changes
+(keryx's pluggable-provider pattern). **keryx adapts to afmpeg, not the reverse:** keryx
+keeps owning its reel decisions (segments, crossfade, encode profile) and builds an
+afmpeg command/arg slice for them **in keryx's repo** (on the R-AF-7 builder or raw
+`Run`); afmpeg carries no reel/timeline types. When afmpeg is usable, keryx's in-memory
 render lock-out (spec 0015 D1) lifts: the in-memory worktree's afero fs is handed
 straight to afmpeg. Until then keryx stays local-only + native ffmpeg.
 
@@ -216,8 +233,14 @@ was drafted. The resolutions below are binding on specs 0002–0006.
   instance-pool design are owned by **spec 0004** (its local decision against the wazero
   module wiring).
 - **D-E — scope of v1. RESOLVED: raw `Run(ctx, fs, args…)` + `Probe` first** (the novel
-  bridge + invocation core — specs 0003/0004). The timeline render helper (R-AF-7) and the
-  keyrx `Renderer` backend follow as **spec 0005**, once `Run` is proven end-to-end.
+  bridge + invocation core — specs 0003/0004). The general command builder (R-AF-7)
+  follows as **spec 0005**, once `Run` is proven end-to-end.
+- **D-F — customer-agnostic surface. RESOLVED 2026-06-27 (Matt):** afmpeg is a
+  general-purpose ffmpeg toolkit; no consumer's opinionated structure is baked into its
+  API. The first reel-shaped render helper (a verbatim port of keryx's `buildArgs`) was
+  **rejected and reverted before merge**; R-AF-7 is reframed as a general command builder
+  and keryx's reel moves into keryx's repo, built on afmpeg. The §5 R-AF-3 codec set is a
+  general baseline, not "keryx's set". keryx adapts to afmpeg (§7).
 
 ### Component spec map (the compartmentalised work)
 
@@ -226,7 +249,7 @@ was drafted. The resolutions below are binding on specs 0002–0006.
 | **0002** wasm-build-pipeline | 1 | FFmpeg+x264 → `wasm32-wasi` (adapt go-ffmpreg); reproducible Docker build; licence variants | R-AF-3, R-AF-6, R-AF-10; D-B, D-C |
 | **0003** vfs-bridge | 2 | afero.Fs → wazero `experimental/sys.FS` adapter (the core); `/tmp`, `/dev/null`; seek-on-write | R-AF-2 |
 | **0004** runtime-and-api | 2 | `New`/`Run`/`Probe`/`Result`/`Close`; module wiring; stderr/exit; ctx-cancel | R-AF-1, R-AF-4, R-AF-5, R-AF-8; D-D, D-E |
-| **0005** render-helper + keyrx-backend | 3 | R-AF-7 timeline helper mirroring `provider.Timeline`; keyrx `Renderer` adapter; native parity | R-AF-7 |
+| **0005** command-builder | 3 | R-AF-7 general, use-case-agnostic ffmpeg command builder (inputs/filtergraph/outputs/options + raw escape hatch); `RunCommand`. keyrx's reel is built on it, in keyrx's repo | R-AF-7 |
 | **0006** hardening-roadmap | 4 | LGPL build-out, wasm-threads/SIMD perf, native backend seam, `cmd/afmpeg` CLI | R-AF-11, R-AF-12, R-AF-13 |
 
 ## 11. Alternatives considered

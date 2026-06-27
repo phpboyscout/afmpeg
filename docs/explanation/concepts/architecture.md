@@ -48,7 +48,8 @@ needs, and must handle seek-on-write (the mp4 muxer rewrites the `moov` atom und
 `New` compiles the module once (the expensive step) into a reusable `Runtime`. `Run`
 mounts a caller-supplied `afero.Fs`, executes one ffmpeg invocation, and returns the exit
 code + captured stderr; `Probe` returns a media file's duration over the same bridge. A
-higher-level render helper (mirroring keryx's `provider.Timeline`) layers on top. See
+general, use-case-agnostic command builder layers on top (a consumer's reel/timeline is
+built on it, in the consumer's code). See
 specs [0004](../../development/specs/0004-runtime-and-api.md) and
 [0005](../../development/specs/0005-render-helper-and-keyrx-backend.md).
 

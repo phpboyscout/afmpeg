@@ -37,36 +37,39 @@ Out of scope:
 - wasm-threads / SIMD builds (0006 / R-AF-12) — pin to a no-pthreads FFmpeg for now.
 - Hardware accel (0001 non-goal).
 
-## 3. The required capability set (R-AF-3)
+## 3. The capability set — a general baseline (R-AF-3)
 
-The build MUST be able to run keyrx's render and probe, derived verbatim from the consumer
-(`keyrx/internal/render/ffmpeg/ffmpeg.go`, `probe.go`). The configure starts from
-`--disable-everything` and re-enables only:
+afmpeg is a **general-purpose** toolkit (spec 0001 D-F), so the build carries a curated
+**general baseline** of codecs/filters/muxers covering common workflows — *not* one
+customer's graph. The baseline is deliberately bounded (size + build time matter; this is
+not "all of ffmpeg") and re-enabled explicitly from `--disable-everything`. A **lean**
+variant (a smaller subset) and the **full** variant are selectable (R-AF-9); the table
+below is the full baseline.
 
-| Category | Items | Licence |
+| Category | Baseline items | Licence |
 |---|---|---|
-| Demux/decode (inputs) | image2 / png / mjpeg (still inputs), mp3 (`vo/*.mp3`, `music.mp3`) | LGPL |
-| Video filters | `scale`, `fps`, `setsar`, `format`, **`xfade`** | LGPL |
-| Audio filters | `amix`, `adelay`, `volume`, `afade`, **`alimiter`** | LGPL |
-| Video encode | **`libx264`** (H.264) — full/GPL variant only | **GPL (x264)** |
-| Audio encode | **`aac`** (FFmpeg *native* encoder) | LGPL |
-| Mux | **mp4** (`-movflags +faststart`) | LGPL |
-| Probe | `format=duration` demux path for the input set (R-AF-5) | LGPL |
+| Demux | mp4/mov, matroska/webm, mp3, wav, image2, gif | LGPL |
+| Video decode | h264, vp8/vp9, mjpeg, png, gif | LGPL |
+| Audio decode | aac, mp3, opus, vorbis, pcm, flac | LGPL |
+| Video filters | `scale`, `crop`, `pad`, `fps`, `format`, `setsar`, `transpose`, `overlay`, `concat`, `xfade` | LGPL |
+| Audio filters | `amix`, `adelay`, `volume`, `afade`, `aresample`, `aformat`, `alimiter` | LGPL |
+| Video encode | **`libx264`** (H.264, full/GPL variant); `mjpeg`, `png` (thumbnails) | x264 **GPL**; rest LGPL |
+| Audio encode | **`aac`** (native), `libopus`/`opus`, `pcm`, `flac` | LGPL |
+| Mux | mp4/mov, matroska/webm, mp3, wav, image2 | LGPL |
+| Probe | `format=duration` (and stream info) across the demux set (R-AF-5) | LGPL |
 
-The exact concrete invocation the artifact must satisfy (the proof-of-capability bar):
-```
-ffmpeg -y \
-  -loop 1 -t <dur> -i <still.png> ...            # N image segments
-  -i <track.mp3> ...                             # M audio tracks
-  -filter_complex "[0:v]scale=W:H,fps=R,setsar=1[v0];...;\
-     [v0][v1]xfade=transition=fade:duration=D:offset=O[x1];...;\
-     [k:a]adelay=ms|ms,volume=g,afade=t=out:st=S:d=F[a0];...;\
-     [a0][a1]amix=inputs=M:normalize=0:duration=longest,alimiter=limit=0.95[aout]" \
-  -map "[xN]" -map "[aout]" -c:a aac -b:a 160k \
-  -t <total> -r <fps> -pix_fmt yuv420p -c:v libx264 -crf 20 -movflags +faststart out.mp4
-```
-**R-AF-3 is met when this command runs to a valid mp4 inside the guest.** The same fixtures
-become the 0004 end-to-end test (over the vfs bridge).
+The list is a starting point to refine during the build (entries may move between the
+lean/full variants, or drop if they bloat the module disproportionately) — the
+**principle** is a general baseline validated by several unrelated workflows, not a single
+consumer's command. Record the final enabled set in the provenance manifest (§4).
+
+**Validation — the proof-of-capability bar.** The artifact must run a spread of unrelated
+invocations to a valid output inside the guest: e.g. a transcode (mkv→mp4 h264/aac), a
+scale, an overlay (`-filter_complex`), a concat, a single-frame thumbnail, an audio
+extract, **and** — as one example among them — keryx's crossfade reel (looped stills →
+`xfade` chain + `amix`/`alimiter` → libx264/AAC mp4 `+faststart`). These become the
+0004/0005 end-to-end tests over the vfs bridge. keryx's reel is a *subset* of the
+baseline, not its definition.
 
 ## 4. Build approach (adapt go-ffmpreg)
 
@@ -115,7 +118,9 @@ module's licence:
 
 ## 6. Requirements
 
-- `R-0002-1` The full/GPL build satisfies the §3 R-AF-3 command end-to-end (valid mp4 out).
+- `R-0002-1` The full/GPL build runs the §3 spread of unrelated workflows end-to-end to
+  valid outputs (transcode, scale, overlay, concat, thumbnail, audio extract, and the
+  keryx reel as one example) — proving the general baseline, not a single command.
 - `R-0002-2` The build is reproducible: same pinned inputs → identical `ffmpeg.wasm` sha256
   (R-AF-6). The Docker image and all source versions are digest/tag-pinned in `versions.lock`.
 - `R-0002-3` A provenance manifest (`ffmpeg.wasm.json`) is emitted with versions, the exact

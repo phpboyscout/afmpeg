@@ -19,7 +19,7 @@ Available:
 
 Planned (land with their features):
 
-- **Use afmpeg as a keryx render backend** — select `providers.render: afmpeg`
+- **Compose any ffmpeg command with the builder** — typed inputs/filtergraph/outputs
   (spec [0005](../development/specs/0005-render-helper-and-keyrx-backend.md)).
 - **Build the FFmpeg WASM module** — the reproducible pipeline
   (spec [0002](../development/specs/0002-wasm-build-pipeline.md)).

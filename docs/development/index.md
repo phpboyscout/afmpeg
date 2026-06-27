@@ -22,7 +22,7 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0002 — wasm-build-pipeline](specs/0002-wasm-build-pipeline.md) | FFmpeg+x264 → `wasm32-wasi`, reproducible build, licence variants |
 | [0003 — vfs-bridge](specs/0003-vfs-bridge.md) | The afero.Fs → wazero `sys.FS` adapter (the core) |
 | [0004 — runtime-and-api](specs/0004-runtime-and-api.md) | `New`/`Run`/`Probe`/`Close`, the public surface |
-| [0005 — render-helper + keyrx-backend](specs/0005-render-helper-and-keyrx-backend.md) | Timeline helper + keyrx `Renderer` adapter |
+| [0005 — command-builder](specs/0005-render-helper-and-keyrx-backend.md) | General ffmpeg command builder (use-case-agnostic; a consumer's reel is built on it) |
 | [0006 — hardening-roadmap](specs/0006-hardening-roadmap.md) | Deferred: LGPL build-out, perf, native backend, CLI |
 
 ## Method

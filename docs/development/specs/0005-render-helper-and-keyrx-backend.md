@@ -1,108 +1,129 @@
-# 0005 — the render helper + keyrx Renderer backend
+# 0005 — the ffmpeg command builder
 
-Status: **DRAFT** (component spec; not started. Implements spec 0001 §7 / R-AF-7. Fast-follow
-to 0004 per D-E. Review before building.)
-Date: 2026-06-26
-Parent: [0001-afmpeg.md](0001-afmpeg.md) §4 (R-AF-7), §7 (keyrx integration), §10 (D-E)
-Owns: **R-AF-7** (timeline render helper)
+Status: **DRAFT** (component spec; reframed 2026-06-27 from a keryx-specific "reel
+render helper" to a general, use-case-agnostic command builder. Implements spec 0001
+R-AF-7. Review before building.)
+Date: 2026-06-27 (reframed from the 2026-06-26 reel-helper draft)
+Parent: [0001-afmpeg.md](0001-afmpeg.md) §4 (R-AF-7), §7 (consumer integration)
+Owns: **R-AF-7** (a higher-level builder so callers don't hand-assemble arg slices)
+
+## 0. Why this was reframed
+
+The first draft of this spec was a *reel render helper* that ported keryx's
+`buildArgs` verbatim — a crossfade-stills-plus-audio-mix timeline with libx264/AAC/
+alimiter/+faststart baked in. That made keryx's highly opinionated reel structure
+afmpeg's public API. **afmpeg is a general-purpose ffmpeg toolkit; keryx is the first
+reference customer, not the API author.** A reel is one composition among countless
+ffmpeg workflows (transcode, scale, crop, overlay, concat, thumbnail, audio extract,
+mux, …). This spec is therefore a *general command builder*; keryx's reel is built **by
+keryx**, on top of this builder (or raw `Run`), and lives in keryx's repo.
 
 ## 1. Purpose
 
-Two layers on top of `Run` (0004):
-1. A **timeline render helper** in `pkg/afmpeg` that mirrors keyrx's `provider.Timeline` so
-   callers don't hand-build the ffmpeg filtergraph (R-AF-7).
-2. A **keyrx `Renderer` adapter** that registers as `providers.render: afmpeg` and hands the
-   in-memory worktree's afero fs straight to afmpeg — lifting keyrx's in-memory render
-   lock-out (0001 §7; keyrx spec 0015 D1; the spike's watch-list trigger).
+A typed, composable way to construct **any** ffmpeg invocation — inputs (each with its
+own options), an optional filter graph, and outputs (each with codec/quality/map
+options) — without hand-concatenating string arguments. It produces the arg slice that
+`Runtime.Run` (spec 0004) executes over the vfs bridge. `Run(ctx, fs, args…)` remains
+the universal primitive; the builder is ergonomic sugar over it, not a replacement.
 
-This is the **fast-follow** to v1 (D-E): it only starts once `Run` is proven end-to-end (0004
-R-0004-8).
+The builder makes **no assumption about the workflow**: it models ffmpeg's own command
+structure, not a use case.
 
-## 2. The exact consumer contract (verified against keyrx)
+## 2. The command structure modelled
 
-The helper must reproduce, byte-for-graph, what keyrx's local renderer builds today, so afmpeg
-output is a drop-in. From `keyrx/pkg/provider/provider.go`:
+```
+ffmpeg [global opts] {[input opts] -i INPUT}…  [-filter_complex GRAPH]  {[output opts] [-map …] OUTPUT}…
+```
+
+That shape — globals, N inputs each with per-input options, an optional filtergraph,
+M outputs each with per-output options — is the whole abstraction. Filtergraph syntax
+is ffmpeg's own string DSL (already fully general); the builder does not try to model
+individual filters, it just places the graph correctly.
+
+## 3. API (sketch — confirm in review)
 
 ```go
-type Segment    struct { MediaPath string; DurationSec float64 }
-type AudioTrack  struct { Path string; Gain, DelaySec, FadeOut float64 }
-type Timeline    struct { Width, Height, FPS int; XFadeSec float64
-                          Segments []Segment; Audio []AudioTrack; OutputPath string }
-type Video       struct { Path string; Width, Height int; DurationSec float64 }
-type Renderer interface { Render(ctx context.Context, t Timeline) (Video, error) }
+package afmpeg
+
+// Command assembles an ffmpeg invocation. Built fluently; Args() yields the
+// argument slice for Runtime.Run. Zero value is a usable empty command.
+type Command struct { /* … */ }
+
+func NewCommand(opts ...GlobalOption) *Command
+func (c *Command) Input(path string, opts ...InputOption) *Command
+func (c *Command) FilterComplex(graph string) *Command
+func (c *Command) Output(path string, opts ...OutputOption) *Command
+func (c *Command) Args() []string
+
+// Convenience on Runtime: build → run in one call.
+func (r *Runtime) RunCommand(ctx context.Context, fs afero.Fs, c *Command) (Result, error)
+
+// Options are functional and composable; each also has an escape hatch (Raw/Args)
+// for flags the typed surface doesn't model, so the builder never blocks a workflow.
+type GlobalOption func(*command)   // e.g. OverwriteOutput() → -y ; RawGlobal(args…)
+type InputOption  func(*input)     // e.g. Loop(), Duration(d), Format(f), Seek(d), RawInput(args…)
+type OutputOption func(*output)    // e.g. Map(label), VideoCodec(c), AudioCodec(c),
+                                   //      CRF(n), VideoBitrate(b), AudioBitrate(b),
+                                   //      PixelFormat(p), Format(container), FrameRate(r),
+                                   //      Duration(d), MovFlags(f), RawOutput(args…)
 ```
 
-And the filtergraph to reproduce (from `keyrx/internal/render/ffmpeg/ffmpeg.go`):
-- **Inputs:** each segment `-loop 1 -t <dur> -i <path>`; each audio `-i <path>`.
-- **Video:** `[i:v]scale=W:H,fps=R,setsar=1[vi]` per segment, then an `xfade=transition=fade:
-  duration=X:offset=O` chain (offset accumulates `dur - xfade`).
-- **Audio:** per track `adelay=ms|ms` (if delay) `,volume=g` (`,afade=t=out:st=S:d=F` if
-  fade), then `amix=inputs=M:normalize=0:duration=longest,alimiter=limit=0.95`.
-- **Encode:** `-map [xN] -map [aout] -c:a aac -b:a 160k -t <total> -r <fps> -pix_fmt yuv420p
-  -c:v libx264 -crf 20 -movflags +faststart out.mp4`.
-- **Total duration:** `Σ dur − (n−1)·xfade`.
+Design rules:
+- **Every typed surface has a raw escape hatch** (`RawGlobal/RawInput/RawOutput`), so an
+  unmodelled flag never forces a user back to hand-building the whole arg slice.
+- **Ordering is enforced** (globals → inputs → filtergraph → maps/outputs), which is the
+  thing that's actually fiddly to get right by hand.
+- The builder is **pure** (`Args()` has no I/O); only `RunCommand` touches the runtime.
 
-afmpeg should **reuse this construction** rather than reinvent it — the cleanest path is to
-port `buildArgs`/`videoGraph`/`audioGraph` into `pkg/afmpeg` (they are already pure and
-unit-tested in keyrx), so the helper builds the args and calls `Run`.
+## 4. The generality bar (validation)
 
-## 3. Design
+The builder MUST express a spread of unrelated workflows — this is how we prove it isn't
+reel-shaped. Golden tests assert the produced args for at least:
 
-```
-afmpeg.Timeline ──(RenderHelper.buildArgs)──► []string ──► Runtime.Run(ctx, fs, args…)
-        ▲                                                          │
-        │  (mirrors provider.Timeline)                             ▼
-keyrx provider.Renderer  ◄──(adapter in keyrx/internal/render/afmpeg)── Result → provider.Video
-```
+- `R-0005-1` **Transcode** — `-i in.mkv -c:v libx264 -crf 23 -c:a aac out.mp4`.
+- `R-0005-2` **Scale / filter** — a simple `-vf scale=…` (or `-filter_complex`) resize.
+- `R-0005-3` **Overlay** — two inputs + a `-filter_complex` overlay + `-map`.
+- `R-0005-4` **Concat** — multiple inputs via the concat filter.
+- `R-0005-5` **Thumbnail** — single frame out (`-frames:v 1`) to an image.
+- `R-0005-6` **Audio extract** — `-vn -c:a` to an audio file.
+- `R-0005-7` **The keryx crossfade reel** — expressible as one example (inputs looped,
+  an `xfade` chain + `amix`/`alimiter` filtergraph, libx264/AAC mp4), proving the builder
+  still covers the original use case **without** that use case being privileged in the API.
+- `R-0005-8` **Raw escape hatch** — an unmodelled flag passes through via `Raw*`.
 
-- **In afmpeg (`pkg/afmpeg`):** `type Timeline struct {…}` (afmpeg's own, field-compatible
-  with keyrx's), `func (r *Runtime) Render(ctx, fs, t Timeline) (RenderResult, error)` that
-  builds the args (ported `buildArgs`) and calls `Run`, mapping a non-zero exit to a wrapped
-  error carrying the stderr tail (matching keyrx's 1500-byte tail).
-- **In keyrx (`internal/render/afmpeg`, a new adapter — lives in the keyrx repo, specced
-  here for the contract):** implements `provider.Renderer`; in `init()` does
-  `provider.RenderFactory.Register("afmpeg", newAfmpeg)`. `Render` translates
-  `provider.Timeline` → `afmpeg.Timeline`, supplies the worktree's `afero.Fs`, calls
-  `Runtime.Render`, returns `provider.Video`. No keyrx call-site changes (registry pattern,
-  keyrx 0001 §3.4).
+Plus: `RunCommand` runs a built command end-to-end over a MemMapFs (composing 0003/0004),
+no host-fs access.
 
-## 4. Requirements
+## 5. Consumer integration (keryx, and anyone)
 
-- `R-0005-1` (R-AF-7) `afmpeg.Timeline` is field-compatible with `provider.Timeline`; the
-  helper builds the §2 filtergraph and renders via `Run`.
-- `R-0005-2` **Graph parity:** for a given timeline, afmpeg's generated args equal keyrx's
-  current `buildArgs` output (a golden test ports keyrx's `ffmpeg_test.go` expectations).
-- `R-0005-3` **Output parity:** the rendered mp4 matches the native-ffmpeg render within
-  tolerance (geometry, duration, codecs, playability) — the 0001 §7 "validate parity"
-  requirement. Exact tolerance defined in the test (duration ±1 frame, same W/H/codec).
-- `R-0005-4` The keyrx adapter registers under `"afmpeg"` and is selected by
-  `providers.render: afmpeg` with **no call-site changes** (keyrx registry).
-- `R-0005-5` A non-zero ffmpeg exit becomes a wrapped error with the stderr tail (parity with
-  keyrx's current error surface).
-- `R-0005-6` The in-memory path: keyrx hands the worktree afero fs to afmpeg; render runs with
-  **no host fs access** (composes 0003/0004) — lifting the 0015-D1 lock-out for in-memory
-  projects.
+keryx adapts to afmpeg, not the reverse. keryx's `Renderer` keeps owning the *reel*
+decisions (which segments, which crossfade, the encode profile) and builds an
+`afmpeg.Command` (or arg slice) for them in **keyrx's** repo, then calls `RunCommand`/
+`Run` with the in-memory worktree fs. This lifts keryx's in-memory render lock-out
+(spec 0001 §7) while keeping reel structure out of afmpeg. The same is true for any
+other consumer: afmpeg gives them the toolkit; the workflow is theirs.
 
-## 5. Test strategy
+## 6. Requirements summary
 
-- **Graph golden tests** (afmpeg): port keyrx's `internal/render/ffmpeg/ffmpeg_test.go` table
-  cases; assert identical args. Pure, fast, `t.Parallel()`.
-- **Render parity** (gated integration): render a fixture timeline both ways (native ffmpeg
-  vs afmpeg) and compare the outputs' probed properties.
-- **keyrx wiring test** (in keyrx): the factory resolves `"afmpeg"`; an in-memory worktree
-  renders end-to-end with a host-fs-denying assertion.
-- Coverage ≥90% on the new `pkg/afmpeg` helper code.
+- `R-0005-A` A pure `Command` builder that models globals/inputs/filtergraph/outputs and
+  emits a correct, correctly-ordered arg slice (R-AF-7).
+- `R-0005-B` Typed options for the common cases **plus** a raw escape hatch on every
+  scope, so no workflow is blocked.
+- `R-0005-C` Validated across the §4 unrelated workflows (not just a reel).
+- `R-0005-D` `RunCommand` convenience; end-to-end over a MemMapFs with no host-fs access.
+- `R-0005-E` No keryx-specific types, constants, or assumptions in afmpeg.
 
-## 6. Definition of done
+## 7. Definition of done
 
-- `afmpeg.Render`/`afmpeg.Timeline` implemented; graph golden tests green.
-- Gated parity test passes (afmpeg output ≈ native).
-- keyrx `internal/render/afmpeg` adapter registers + resolves via config (this part is a
-  keyrx-repo change, cited back to this spec and keyrx 0015).
-- keyrx's in-memory render lock-out documented as lifted when afmpeg is selected.
+- `Command` + options implemented; `Args()` golden-tested across the §4 workflows.
+- `RunCommand` runs a built command end-to-end (gated full-encode validation waits on the
+  real `ffmpeg.wasm`, spec 0002).
+- ≥90% coverage on new `pkg/afmpeg` code; `-race`; `CGO_ENABLED=0`; lint clean.
+- Diátaxis how-to(s) for common workflows; package doc + any sentinel catalogued.
+- A note (here and in keryx) that the keryx reel is built on this, in keryx's repo.
 
-## 7. Sequencing
+## 8. Sequencing
 
-Depends on **0004** (`Run` proven end-to-end) and **0002** (the real module for parity). The
-keyrx adapter half lands in the keyrx repo as a follow-up MR citing this spec — afmpeg ships
-the helper; keyrx ships the wiring.
+Depends on **0004** (`Run`/`RunCommand`). Independent of **0002** for the builder itself
+(pure arg construction); full-encode parity waits on the real module. The keryx reel
+adapter is a separate keyrx-repo change citing this spec.

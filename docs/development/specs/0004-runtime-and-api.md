@@ -11,8 +11,8 @@ Owns: **R-AF-1**, **R-AF-4**, **R-AF-5**, **R-AF-8**; resolves **D-D**, scopes *
 The public `pkg/afmpeg` surface: compile the WASM module once into a reusable `Runtime`, then
 `Run` an ffmpeg invocation with its filesystem bridged (via 0003) to a caller-supplied
 `afero.Fs`, returning the exit code + captured stderr; plus `Probe` (ffprobe-equivalent
-duration). Per **D-E** this is **v1** — raw `Run(ctx, fs, args…)` over a vfs; the timeline
-helper and keyrx backend are 0005.
+duration). Per **D-E** this is **v1** — raw `Run(ctx, fs, args…)` over a vfs; the general
+command builder is 0005.
 
 ## 2. Scope
 
@@ -29,7 +29,7 @@ In scope (package `pkg/afmpeg`):
 
 Out of scope:
 - The vfs adapter internals (0003) — consumed here.
-- The render/timeline helper + keyrx `Renderer` (0005).
+- The general command builder (0005).
 - The wasm build (0002).
 
 ## 3. API (from 0001 §4, made concrete)

@@ -49,8 +49,8 @@ Three layers — the middle one is the novel engineering:
    by an `afero.Fs`**. The guest's reads and writes hit the caller's filesystem (e.g. an
    in-memory `MemMapFs`) with no host disk touched.
 3. **The Go API** — compile the module once into a reusable `Runtime`, then `Run` an
-   ffmpeg invocation with its I/O bridged to a caller-supplied `afero.Fs`. A higher-level
-   render helper (mirroring keryx's timeline) layers on top.
+   ffmpeg invocation with its I/O bridged to a caller-supplied `afero.Fs`. A general,
+   use-case-agnostic command builder layers on top (spec 0005).
 
 ```go
 rt, _ := afmpeg.New(ctx, afmpeg.WithModuleFile("ffmpeg.wasm")) // compile once, reuse
@@ -81,7 +81,7 @@ audio filters are all already LGPL-clean. See spec 0001 §10 (D-C).
 | [0002](docs/development/specs/0002-wasm-build-pipeline.md) | The reproducible FFmpeg → `wasm32-wasi` build pipeline + licence variants |
 | [0003](docs/development/specs/0003-vfs-bridge.md) | The afero.Fs → wazero `sys.FS` adapter (the core) |
 | [0004](docs/development/specs/0004-runtime-and-api.md) | `New` / `Run` / `Probe` / `Close` — the public API |
-| [0005](docs/development/specs/0005-render-helper-and-keyrx-backend.md) | Timeline render helper + keyrx `Renderer` backend |
+| [0005](docs/development/specs/0005-render-helper-and-keyrx-backend.md) | General, use-case-agnostic ffmpeg command builder (a consumer's reel is built on it) |
 | [0006](docs/development/specs/0006-hardening-roadmap.md) | Deferred: LGPL build-out, perf (wasm-threads), native backend, CLI |
 
 ## Quick links

@@ -42,9 +42,9 @@ go-tool-base CLI framework (the `phpboyscout-gtb-cli` method) for consistency wi
 other tools. *Trigger:* demand for a standalone binary, or to dogfood the API. Low-risk;
 could be pulled forward if useful for 0004's integration testing.
 
-### 2E — `RuntimePool` for parallel renders (from 0004 D-0004-B)
+### 2E — `RuntimePool` for parallel invocations (from 0004 D-0004-B)
 The pooled, N-instance concurrency mode deferred from 0004 (one-`Run`-at-a-time is v1).
-*Trigger:* a consumer rendering multiple timelines concurrently.
+*Trigger:* a consumer running multiple ffmpeg invocations concurrently.
 
 ### 2F — Download-and-cache module acquisition (from 0004 D-0004-C)
 A helper that fetches the (separate, D-C) `ffmpeg.wasm` artifact by version+sha and caches

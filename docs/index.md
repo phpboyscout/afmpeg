@@ -43,7 +43,7 @@ Three layers — the middle one is the novel engineering:
    filesystem syscalls to a `sys.FS` backed by the caller's `afero.Fs`, so reads and
    writes hit an in-memory filesystem with no host disk touched.
 3. **The Go API** — compile the module once into a reusable `Runtime`, then `Run` an
-   ffmpeg invocation over a supplied `afero.Fs`; a timeline render helper layers on top.
+   ffmpeg invocation over a supplied `afero.Fs`; a general command builder layers on top.
 
 See the [architecture explainer](explanation/concepts/architecture.md) for the full flow,
 and the [roadmap](development/index.md) for how the specs decompose the build.

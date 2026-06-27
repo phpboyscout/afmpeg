@@ -20,8 +20,9 @@ Planned:
 
 - **Your first in-memory transcode** — write inputs into an `afero.MemMapFs`, run a
   command, read the output back, all without touching disk.
-- **Render a crossfade reel** — build a timeline (segments + xfade + an audio mix) with
-  the render helper (spec [0005](../development/specs/0005-render-helper-and-keyrx-backend.md)).
+- **Compose a command with the builder** — assemble inputs, a filtergraph, and outputs
+  for any ffmpeg workflow with the command builder (spec
+  [0005](../development/specs/0005-render-helper-and-keyrx-backend.md)).
 
 If you just need to accomplish a specific task and already know the basics, see the
 [how-to guides](../how-to/index.md) instead.

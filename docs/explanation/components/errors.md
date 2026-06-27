@@ -27,7 +27,8 @@ Returned by `afmpeg.New` when no wasm module source is configured. The GPL
 
 - A **non-zero ffmpeg exit is not a Go error by itself** — `Run` returns a `Result`
   carrying the exit code + stderr tail, and a nil error. Host-side failures (module
-  instantiation, the vfs bridge, context cancellation) return a non-nil error. The render
-  helper / keryx adapter maps a non-zero exit to a wrapped error with the stderr tail.
+  instantiation, the vfs bridge, context cancellation) return a non-nil error. A consumer
+  that prefers an error on failure inspects `Result.ExitCode` and wraps it with the
+  stderr tail itself.
 - Wrap, don't reformat: `errors.Wrap`/`Wrapf` to add context; reserve sentinels for
   conditions callers branch on.
