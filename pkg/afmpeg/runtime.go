@@ -59,6 +59,7 @@ type Probe struct {
 // config accumulates New's options.
 type config struct {
 	module []byte
+	fetch  func(context.Context) ([]byte, error)
 }
 
 // Option configures a Runtime at construction.
@@ -110,6 +111,17 @@ func New(ctx context.Context, opts ...Option) (*Runtime, error) {
 		if err := opt(cfg); err != nil {
 			return nil, err
 		}
+	}
+
+	// A deferred source (e.g. WithModuleURL) is resolved here, with New's context,
+	// unless module bytes were supplied directly.
+	if len(cfg.module) == 0 && cfg.fetch != nil {
+		module, err := cfg.fetch(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		cfg.module = module
 	}
 
 	if len(cfg.module) == 0 {
