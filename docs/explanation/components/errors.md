@@ -16,17 +16,12 @@ fails if a sentinel in `pkg/` is missing from this page.
 
 ## Sentinels
 
-_None yet_ — afmpeg is at the scaffold stage and exports no packages. As `pkg/afmpeg`
-lands (specs [0004](../../development/specs/0004-runtime-and-api.md) /
-[0005](../../development/specs/0005-render-helper-and-keyrx-backend.md)), each exported
-sentinel is added here as a row:
+### `ErrNoModule`
 
-<!-- Template — copy per sentinel as they are introduced:
-### `ErrName`
-
-Returned when … . Wrap with context at the call site; callers match with
-`errors.Is(err, afmpeg.ErrName)`.
--->
+Returned by `afmpeg.New` when no wasm module source is configured. The GPL
+`ffmpeg.wasm` is never embedded (spec 0004 D-C), so one of `WithModuleFile`,
+`WithModuleBytes`, or `WithModuleFS` is mandatory. Callers match with
+`errors.Is(err, afmpeg.ErrNoModule)`.
 
 ## Convention
 
