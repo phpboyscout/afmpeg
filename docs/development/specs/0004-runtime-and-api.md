@@ -76,11 +76,14 @@ Notes:
 
 ## 4. Decisions (local)
 
-- **D-0004-A — Probe mechanism.** ffprobe-as-a-second-entrypoint vs parsing ffmpeg `-i`
-  stderr vs a tiny container demux. keyrx needs only `format=duration` (`probe.go`).
-  *Proposed:* whichever the 0002 module exposes most cheaply; default to parsing
-  `format=duration` from the ffprobe entrypoint if built, else ffmpeg `-i` stderr. Resolve
-  during implementation against the real module.
+- **D-0004-A — Probe mechanism. RESOLVED 2026-06-27: parse `ffmpeg -i <path>` stderr.**
+  The first implementation used ffprobe-shaped args (`-show_entries format=duration`) with
+  `argv[0]="ffmpeg"`, which a real ffmpeg rejects (`Unrecognized option 'show_entries'` — those
+  are *ffprobe* options) — caught against the interim real module. `ffmpeg -i <path>` prints
+  the input's `Duration: HH:MM:SS.ss` to stderr (then exits non-zero, no output requested,
+  which Probe ignores), so afmpeg parses that. This is **module-agnostic** — it needs only
+  ffmpeg, not a separate ffprobe entrypoint — and is validated against the real module
+  (`integration_test.go` probes a rendered file).
 - **D-0004-B — concurrency (resolves 0001 D-D).** *Proposed: one invocation at a time per
   `Runtime`* (a guarding mutex; compilation shared, instantiation per-`Run`). A
   `RuntimePool` (N module instances for parallel renders) is a documented follow-up
