@@ -63,6 +63,7 @@ type Command struct {
 
 type Global struct {
 	OverwriteOutput bool     // -y
+	LogLevel        string   // -loglevel (e.g. "error"); "" = ffmpeg default
 	Raw             []string // arbitrary global flags
 }
 
@@ -111,13 +112,13 @@ Design rules:
 - **Pure data.** `Args()` has no I/O and the `Command` is comparable/copyable/serialisable
   (a pipeline can come from YAML/JSON); only `RunCommand` touches the runtime.
 
-### D-0005-A — the "sane defaults" NewCommand bakes (confirm in review)
-*Proposed:* `Global.OverwriteOutput = true` (programmatic callers overwrite their afero
-output), and nothing else — **no codec/quality/pixel-format opinion** is baked (that would
-re-introduce consumer bias; ffmpeg's own container-based defaults apply, or the caller
-sets them). Candidates to consider: a quiet `-loglevel error` default. A zero-value
-`Command{}` struct bakes **no** defaults (fully explicit). Resolve the exact default set in
-review.
+### D-0005-A — the "sane defaults" NewCommand bakes. RESOLVED 2026-06-27 (Matt)
+`NewCommand` bakes **`OverwriteOutput = true` (-y) and `LogLevel = "error"`** (quiet
+logging for programmatic callers) — and **no codec/quality/pixel-format opinion** (that
+would re-introduce consumer bias; ffmpeg's container-based defaults apply, or the caller
+sets them). A caller wanting ffmpeg's full logs overrides `LogLevel`. A zero-value
+`Command{}` struct bakes **no** defaults (fully explicit, `LogLevel == ""` → ffmpeg's
+default verbosity).
 
 ## 4. The generality bar (validation)
 
