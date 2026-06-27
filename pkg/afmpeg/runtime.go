@@ -116,7 +116,16 @@ func New(ctx context.Context, opts ...Option) (*Runtime, error) {
 		return nil, ErrNoModule
 	}
 
-	rt := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig().WithCloseOnContextDone(true))
+	rt := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig().
+		WithCoreFeatures(runtimeCoreFeatures).
+		WithCloseOnContextDone(true))
+
+	if err := instantiateEnv(ctx, rt); err != nil {
+		_ = rt.Close(ctx)
+
+		return nil, err
+	}
+
 	wasi_snapshot_preview1.MustInstantiate(ctx, rt)
 
 	compiled, err := rt.CompileModule(ctx, cfg.module)
@@ -199,7 +208,9 @@ func (r *Runtime) invoke(ctx context.Context, fs afero.Fs, args ...string) (invo
 		WithStderr(&stderr).
 		WithFSConfig(mount)
 
-	mod, instErr := r.rt.InstantiateModule(ctx, r.compiled, cfg)
+	// withSetjmp enables the setjmp/longjmp snapshotter for this invocation; the
+	// guest ffmpeg's setjmp/longjmp lower to the env host module (setjmp.go).
+	mod, instErr := r.rt.InstantiateModule(withSetjmp(ctx), r.compiled, cfg)
 	if mod != nil {
 		_ = mod.Close(ctx)
 	}
