@@ -54,14 +54,14 @@ just docs-serve # preview this site
 
 ### Integration test (real ffmpeg)
 
-The runtime has a gated integration test that loads a **real** `ffmpeg.wasm` and transcodes
-in memory. It skips unless pointed at a module:
+The runtime has a gated integration test that loads a **real** ffmpeg-wasi module and
+transcodes in memory. It skips unless pointed at a module:
 
 ```sh
-AFMPEG_TEST_FFMPEG_WASM=/path/to/ffmpeg.wasm go test ./pkg/afmpeg/ -run Integration -v
+AFMPEG_TEST_FFMPEG_WASI=/path/to/ffmpeg-wasi.wasm go test ./pkg/afmpeg/ -run Integration -v
 ```
 
 The runtime provides the `env` setjmp/longjmp host module and the WebAssembly feature set a
-real FFmpeg build needs (spec [0004](specs/0004-runtime-and-api.md) R-0004-9), so any
-real-FFmpeg wasm — a released [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine
-(spec [0007](specs/0007-libav-direct-engine.md)) or an interim build — loads and runs.
+real FFmpeg build needs (spec [0004](specs/0004-runtime-and-api.md) R-0004-9), so a released
+[ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine (spec
+[0007](specs/0007-libav-direct-engine.md)) loads and runs.

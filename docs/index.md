@@ -60,7 +60,7 @@ and the [roadmap](development/index.md) for how the specs decompose the build.
 - :material-school: **[Tutorials](tutorials/index.md)** — learn afmpeg by doing.
 - :material-wrench: **[How-to guides](how-to/index.md)** — solve a specific task.
 - :material-lightbulb: **[Explanation](explanation/index.md)** — the architecture and the *why*.
-- :material-book-open-variant: **[Reference](reference/index.md)** — config, CLI, and the Go API.
+- :material-book-open-variant: **[Reference](reference/index.md)** — the Go API and engine artifacts.
 - :material-file-document-multiple: **[Development](development/index.md)** — specs and contributor docs.
 
 </div>
