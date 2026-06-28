@@ -1,11 +1,17 @@
 # 0002 — the FFmpeg→WASI build pipeline
 
-Status: **DRAFT** (component spec; not started. Implements spec 0001 Phase 1 / §6 and the
-D-B / D-C resolutions. Review before building the pipeline.)
-Date: 2026-06-26
+Status: **SUPERSEDED 2026-06-28 by [0007](0007-libav-direct-engine.md)** (kept as the record,
+per spec-driven-development). This spec assumed compiling **the ffmpeg CLI** to wasm
+(adapting go-ffmpreg). Research found that path forces either an **EOL FFmpeg** (n5.1) or,
+on current FFmpeg, the **multithreaded CLI** which wazero cannot run without CGO. Spec 0007
+pivots to a **libav-direct engine** (`ffmpeg-wasi`) that links the libraries and drives them
+with our own thin C program — current FFmpeg, CGO-free, on wazero. The build moves to the
+separate `ffmpeg-wasi` repo; afmpeg consumes its artifact. Read 0007 for the live design;
+the build/licensing detail below remains useful background for that repo's own build spec.
+Date: 2026-06-26 (superseded 2026-06-28)
 Parent: [0001-afmpeg.md](0001-afmpeg.md) §6, §9, §10 (D-B, D-C)
 Owns: **R-AF-3** (the codec/filter set), **R-AF-6** (reproducible build), **R-AF-10** (LGPL
-variant)
+variant) — all carried forward to **[0007](0007-libav-direct-engine.md)**
 
 ## 1. Purpose
 
