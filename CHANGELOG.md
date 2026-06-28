@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.4.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.4.0)
+
+### Features
+
+- **afmpeg**: job-spec only — fix Probe transport, remove the CLI path
+
 ## [v0.3.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.3.0)
 
 ### Features
