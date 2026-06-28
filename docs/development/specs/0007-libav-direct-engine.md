@@ -146,6 +146,33 @@ vs **full** build is selectable. Finalised in the ffmpeg-wasi repo's own build s
 - **Pinning:** afmpeg documents/pins a known-good `ffmpeg-wasi` artifact + sha; the job-spec
   vocabulary version is the compatibility check between the repos.
 
+### Status (2026-06-28) — validated end-to-end
+
+The whole stack — **keyrx → afmpeg → ffmpeg-wasi** — was validated before the first
+ffmpeg-wasi release: keyrx's `afmpeg` renderer drives the engine to produce a real reel
+(PNG stills → xfade-concat + audio mix → h264/aac mp4) **entirely in memory, no system
+ffmpeg**. Done on the afmpeg side:
+
+- ✅ **`Result.Stdout`** — exposes the engine's structured (probe/process) JSON.
+- ✅ **`Command.JobSpec()` + `Runtime.RunJob()`** — the generic emitter from the `Command`
+  struct to the job spec; `Args()` stays for CLI ffmpeg. No consumer concepts leaked in.
+- ✅ **`WithModuleURL` + `WithSHA256`** — pin a published `ffmpeg-wasi` artifact.
+- ✅ Integration tests (`TestIntegration_FFmpegWasiDriver`, `TestIntegration_RunJob`,
+  gated on `AFMPEG_TEST_FFMPEG_WASI`) prove the seam against the real driver.
+
+### Remaining afmpeg work (next steps)
+
+1. **`Probe` over the driver.** `Probe` still scrapes CLI `ffmpeg -i` stderr; add a job-spec
+   path (`{"op":"probe"}` → parse `Result.Stdout` JSON) so the driver is the only module
+   needed. Unblocks keyrx swapping its `ffprobe` `ProbeDuration` to afmpeg.
+2. **Cut afmpeg's release** (the pending releaser-pleaser `v0.3.0` MR carries `Stdout` +
+   `JobSpec`/`RunJob`) so consumers pin a tag instead of a pseudo-version (keyrx currently
+   uses a pseudo-version).
+3. **A "consume ffmpeg-wasi" how-to** — `WithModuleURL(<n8.1.2-1 release asset>, WithSHA256)`
+   + `RunJob`, and the lgpl-vs-gpl choice. Extends `docs/how-to/obtain-a-module`.
+4. **Runtime reuse guidance** — `New` compiles the module (expensive); document compile-once,
+   reuse-many (it already serialises invocations).
+
 ## 9. Requirements
 
 - `R-FW-1` Current FFmpeg libav\* builds to `wasm32-wasi`, single-threaded, CGO-free; loads
