@@ -162,16 +162,14 @@ ffmpeg**. Done on the afmpeg side:
 
 ### Remaining afmpeg work (next steps)
 
-1. **`Probe` over the driver.** `Probe` still scrapes CLI `ffmpeg -i` stderr; add a job-spec
-   path (`{"op":"probe"}` → parse `Result.Stdout` JSON) so the driver is the only module
-   needed. Unblocks keyrx swapping its `ffprobe` `ProbeDuration` to afmpeg.
-2. **Cut afmpeg's release** (the pending releaser-pleaser `v0.3.0` MR carries `Stdout` +
-   `JobSpec`/`RunJob`) so consumers pin a tag instead of a pseudo-version (keyrx currently
-   uses a pseudo-version).
-3. **A "consume ffmpeg-wasi" how-to** — `WithModuleURL(<n8.1.2-1 release asset>, WithSHA256)`
-   + `RunJob`, and the lgpl-vs-gpl choice. Extends `docs/how-to/obtain-a-module`.
-4. **Runtime reuse guidance** — `New` compiles the module (expensive); document compile-once,
+1. ✅ **`Probe` over the driver** *(done, v0.4.0)* — `Probe` drives the engine's `probe` op
+   (`{"op":"probe"}`) and parses `Result.Stdout` into `Probe{Format, DurationSec, Streams}`.
+   The CLI path was removed entirely (job-spec only). Unblocks keyrx swapping its `ffprobe`
+   `ProbeDuration` to `afmpeg.Probe`.
+2. **Runtime reuse guidance** — `New` compiles the module (expensive); document compile-once,
    reuse-many (it already serialises invocations).
+3. **A "consume ffmpeg-wasi" how-to** — extend `docs/how-to/obtain-a-module` further as the
+   API settles.
 
 ## 9. Requirements
 
