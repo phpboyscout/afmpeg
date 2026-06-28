@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.3.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.3.0)
+
+### Features
+
+- **afmpeg**: Command.JobSpec() — generic ffmpeg-wasi job-spec emitter
+- **afmpeg**: expose Result.Stdout + validate the ffmpeg-wasi seam
+- **afmpeg**: WithModuleURL — download + cache the wasm module
+
+### Bug Fixes
+
+- **afmpeg**: probe via `ffmpeg -i` stderr, not ffprobe args
+
 ## [v0.2.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.2.0)
 
 ### Features
