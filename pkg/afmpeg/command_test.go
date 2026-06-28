@@ -10,43 +10,29 @@ import (
 	"gitlab.com/phpboyscout/afmpeg/pkg/afmpeg"
 )
 
-// TestRunCommand runs a built command end-to-end over a MemMapFs (composing
-// 0003/0004), proving the builder → runtime path.
-func TestRunCommand(t *testing.T) {
+// TestRunJob runs a built command end-to-end over a MemMapFs (composing
+// 0003/0004), proving the builder → JobSpec → runtime path.
+func TestRunJob(t *testing.T) {
 	t.Parallel()
 
-	cmd := afmpeg.NewCommand(afmpeg.WithInput("in"), afmpeg.WithOutput("out"))
+	cmd := afmpeg.NewCommand(
+		afmpeg.WithInput("in.mp4"),
+		afmpeg.WithFilterComplex("[0:v]null[v]"),
+		afmpeg.WithOutput("out.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264"), afmpeg.WithOption("crf", "23")),
+	)
 
-	res, err := newTestRuntime(t).RunCommand(context.Background(), afero.NewMemMapFs(), cmd)
+	res, err := newTestRuntime(t).RunJob(context.Background(), afero.NewMemMapFs(), cmd)
 	if err != nil {
-		t.Fatalf("RunCommand: %v", err)
+		t.Fatalf("RunJob: %v", err)
 	}
 
 	if res.ExitCode != 0 {
-		t.Fatalf("ExitCode = %d, want 0", res.ExitCode)
-	}
-}
-
-// TestRunCommand_PassesArgs proves RunCommand forwards the rendered Args() to the
-// guest: a global-raw "exit:4" lands as argv[0] and the guest exits 4.
-func TestRunCommand_PassesArgs(t *testing.T) {
-	t.Parallel()
-
-	cmd := afmpeg.Command{Global: afmpeg.Global{Raw: []string{"exit:4"}}}
-
-	res, err := newTestRuntime(t).RunCommand(context.Background(), afero.NewMemMapFs(), cmd)
-	if err != nil {
-		t.Fatalf("RunCommand: %v", err)
-	}
-
-	if res.ExitCode != 4 {
-		t.Fatalf("ExitCode = %d, want 4 (args not forwarded?)", res.ExitCode)
+		t.Fatalf("ExitCode = %d, want 0:\n%s", res.ExitCode, res.Stderr)
 	}
 }
 
 // TestCommand_JobSpec renders a Command to the ffmpeg-wasi job spec and checks
-// the structured mapping (inputs / filtergraph / outputs / codecs, and each
-// Output.Raw "-flag value" pair as an encoder option).
+// the structured mapping (inputs / filtergraph / outputs / codecs / options).
 func TestCommand_JobSpec(t *testing.T) {
 	t.Parallel()
 
@@ -58,7 +44,7 @@ func TestCommand_JobSpec(t *testing.T) {
 			Map:        []string{"[vout]", "[aout]"},
 			VideoCodec: "libx264",
 			AudioCodec: "aac",
-			Raw:        []string{"-crf", "20", "-movflags", "+faststart"},
+			Options:    map[string]string{"crf": "20", "movflags": "+faststart"},
 		}},
 	}
 
@@ -112,5 +98,37 @@ func TestCommand_JobSpec(t *testing.T) {
 
 	if o.Options["crf"] != "20" || o.Options["movflags"] != "+faststart" {
 		t.Errorf("options = %v", o.Options)
+	}
+}
+
+// TestNewCommand_Options exercises the functional-options builder.
+func TestNewCommand_Options(t *testing.T) {
+	t.Parallel()
+
+	cmd := afmpeg.NewCommand(
+		afmpeg.WithInput("a.png"),
+		afmpeg.WithInput("b.mp3"),
+		afmpeg.WithFilterComplex("[0:v]null[v]"),
+		afmpeg.WithOutput("out.mp4",
+			afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264"),
+			afmpeg.AudioCodec("aac"), afmpeg.WithOption("crf", "23")),
+	)
+
+	if len(cmd.Inputs) != 2 || cmd.Inputs[1].Path != "b.mp3" {
+		t.Errorf("inputs = %+v", cmd.Inputs)
+	}
+
+	if cmd.FilterComplex != "[0:v]null[v]" {
+		t.Errorf("filter = %q", cmd.FilterComplex)
+	}
+
+	if len(cmd.Outputs) != 1 {
+		t.Fatalf("outputs = %+v", cmd.Outputs)
+	}
+
+	o := cmd.Outputs[0]
+	if o.Path != "out.mp4" || o.VideoCodec != "libx264" || o.AudioCodec != "aac" ||
+		len(o.Map) != 1 || o.Map[0] != "[v]" || o.Options["crf"] != "23" {
+		t.Errorf("output = %+v", o)
 	}
 }

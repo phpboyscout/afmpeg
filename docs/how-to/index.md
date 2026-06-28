@@ -18,9 +18,9 @@ Available:
 - **[Run ffmpeg over an in-memory filesystem](run-in-memory.md)** — build a `Runtime`,
   supply the `ffmpeg.wasm` module (`WithModuleFile` / `WithModuleBytes` / `WithModuleFS`),
   transcode against an `afero.MemMapFs`, probe a duration, and cancel a render.
-- **[Compose an ffmpeg command with the builder](compose-a-command.md)** — assemble any
-  invocation (inputs / filtergraph / outputs) as typed data, then run it as CLI args
-  (`RunCommand`/`Args()`) or as the ffmpeg-wasi job spec (`RunJob`/`JobSpec()`).
+- **[Compose a command with the builder](compose-a-command.md)** — assemble any
+  invocation (inputs / filtergraph / outputs) as typed data and run it with `RunJob`
+  (`JobSpec()`).
 
 The WASM engine itself — current FFmpeg compiled to `wasm32-wasi`, with its `process`/`probe`
 job spec — is the companion [**ffmpeg-wasi**](https://ffmpeg-wasi.phpboyscout.uk) project;

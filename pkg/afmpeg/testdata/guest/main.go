@@ -6,6 +6,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -16,8 +17,8 @@ import (
 func main() {
 	args := os.Args[1:] // drop the program name ("ffmpeg")
 
-	if code, ok := probeMode(args); ok {
-		os.Exit(code)
+	if len(args) > 0 && strings.HasPrefix(args[0], "{") {
+		os.Exit(jobMode(args[0]))
 	}
 
 	if len(args) == 0 {
@@ -27,31 +28,43 @@ func main() {
 	os.Exit(dispatch(args))
 }
 
-// probeMode mimics `ffmpeg -i <path>`: it prints a Duration line to stderr and
-// exits non-zero (no output requested), as real ffmpeg does. The probed path
-// selects the response so tests can drive a duration, a probe failure, and an
-// unknown ("N/A") duration. A probe is "-i <path>" with the path as the final
-// argument and no output following.
-func probeMode(args []string) (int, bool) {
-	for i, a := range args {
-		if a != "-i" || i+1 != len(args)-1 {
-			continue
-		}
-
-		switch args[i+1] {
-		case "fail-probe":
-			fmt.Fprint(os.Stderr, "No such file or directory\n")
-			return 1, true
-		case "bad-duration":
-			fmt.Fprint(os.Stderr, "  Duration: N/A, start: 0.000000\n")
-			return 1, true
-		default:
-			fmt.Fprint(os.Stderr, "  Duration: 00:00:12.34, start: 0.000000, bitrate: 1 kb/s\n")
-			return 1, true
-		}
+// jobMode handles a JSON job spec (the ffmpeg-wasi vocabulary). For "op":"probe"
+// it emits a probe response on stdout — the input path selects the response so
+// tests can drive success, an input error, and malformed output. Any other op
+// just succeeds.
+func jobMode(spec string) int {
+	var job struct {
+		Op     string `json:"op"`
+		Inputs []struct {
+			Path string `json:"path"`
+		} `json:"inputs"`
 	}
 
-	return 0, false
+	if err := json.Unmarshal([]byte(spec), &job); err != nil {
+		fmt.Fprintln(os.Stderr, "bad job spec")
+		return 2
+	}
+
+	if job.Op != "probe" {
+		return 0
+	}
+
+	path := ""
+	if len(job.Inputs) > 0 {
+		path = job.Inputs[0].Path
+	}
+
+	switch path {
+	case "fail-probe":
+		fmt.Printf("{\"inputs\":[{\"path\":%q,\"error\":\"could not open input\"}]}\n", path)
+	case "bad-json":
+		fmt.Print("not json\n")
+	default:
+		fmt.Printf("{\"inputs\":[{\"path\":%q,\"format\":\"mov\",\"duration_sec\":12.34,"+
+			"\"streams\":[{\"index\":0,\"type\":\"video\",\"codec\":\"h264\",\"width\":640,\"height\":480}]}]}\n", path)
+	}
+
+	return 0
 }
 
 func dispatch(args []string) int {

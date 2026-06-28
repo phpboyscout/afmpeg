@@ -200,26 +200,30 @@ func TestProbe(t *testing.T) {
 		t.Fatalf("Probe: %v", err)
 	}
 
-	if p.DurationSec != 12.34 {
-		t.Fatalf("DurationSec = %v, want 12.34", p.DurationSec)
+	if p.DurationSec != 12.34 || p.Format != "mov" {
+		t.Fatalf("Probe = %+v, want duration 12.34 / format mov", p)
+	}
+
+	if len(p.Streams) != 1 || p.Streams[0].Codec != "h264" || p.Streams[0].Width != 640 {
+		t.Fatalf("Probe streams = %+v", p.Streams)
 	}
 }
 
-func TestProbe_Failure(t *testing.T) {
+func TestProbe_InputError(t *testing.T) {
 	t.Parallel()
 
 	_, err := newTestRuntime(t).Probe(context.Background(), afero.NewMemMapFs(), "fail-probe")
 	if err == nil {
-		t.Fatal("Probe of failing input: want an error")
+		t.Fatal("Probe of a failing input: want an error")
 	}
 }
 
-func TestProbe_UnparseableDuration(t *testing.T) {
+func TestProbe_BadOutput(t *testing.T) {
 	t.Parallel()
 
-	_, err := newTestRuntime(t).Probe(context.Background(), afero.NewMemMapFs(), "bad-duration")
+	_, err := newTestRuntime(t).Probe(context.Background(), afero.NewMemMapFs(), "bad-json")
 	if err == nil {
-		t.Fatal("Probe of unparseable duration: want an error")
+		t.Fatal("Probe of malformed engine output: want an error")
 	}
 }
 

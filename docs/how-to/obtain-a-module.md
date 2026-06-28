@@ -47,27 +47,16 @@ never executed.
 
 ## Where do I get a module?
 
-- **[ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk)** *(recommended)* — the companion
+- **[ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk)** *(the route)* — the companion
   libav-direct engine: **current FFmpeg**, published as **lgpl** (default) and **gpl**
   (libx264) WASI modules, each with a checksum and provenance. Pin a release asset + its
   SHA-256 (the example above is the `lgpl` module from
   [`n8.1.2-1`](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases/n8.1.2-1)). It speaks the
-  structured job spec — drive it with [`Command.JobSpec()` / `RunJob`](compose-a-command.md).
-- **An interim community build** — e.g. go-ffmpreg's gzipped wasm (a CLI-style module run via
-  `Args()`/`Run`). It is **GPL-3.0** and includes libx264, so it suits internal/GPL-compatible
-  use:
+  structured job spec — drive it with [`Command.JobSpec()` / `RunJob`](compose-a-command.md)
+  and [`Probe`](run-in-memory.md).
 
-  ```go
-  rt, err := afmpeg.New(ctx, afmpeg.WithModuleURL(
-      "https://codeberg.org/gruf/go-ffmpreg/raw/tag/v0.6.20/embed/ffmpreg.wasm.gz",
-      afmpeg.WithGunzip(),
-      afmpeg.WithSHA256("…"),
-  ))
-  ```
-
-  Mind the licence: a GPL module makes the *combined running program* GPL. afmpeg
-  keeps it at arm's length (a separate artifact you fetch), but your obligations
-  follow the module you choose.
-- **Build your own** — any FFmpeg compiled to `wasm32-wasi` with the feature set
+  A GPL module makes the *combined running program* GPL; afmpeg keeps it at arm's length (a
+  separate artifact you fetch), but your obligations follow the variant you choose.
+- **Build your own** — any current FFmpeg compiled to `wasm32-wasi` with the feature set
   afmpeg's runtime enables (spec [0004](../development/specs/0004-runtime-and-api.md)
   R-0004-9). afmpeg runs it.

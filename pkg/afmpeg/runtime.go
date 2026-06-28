@@ -3,9 +3,8 @@ package afmpeg
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
-	"regexp"
-	"strconv"
 	"sync"
 
 	"github.com/cockroachdb/errors"
@@ -19,19 +18,15 @@ import (
 )
 
 const (
-	// guestName is argv[0] presented to the guest (ffmpeg reads its own name).
+	// guestName is argv[0] presented to the guest module.
 	guestName = "ffmpeg"
 
-	// stderrTailBytes bounds how much ffmpeg stderr is surfaced on a failure.
+	// stderrTailBytes bounds how much module stderr is surfaced on a failure.
 	stderrTailBytes = 1500
-
-	// durationBits is the float precision for parsing a probed duration.
-	durationBits = 64
 )
 
 // ErrNoModule is returned by New when no wasm module source is configured. The
-// GPL ffmpeg.wasm is never embedded, so a WithModule* option is mandatory
-// (spec 0004 D-C / D-0004-C).
+// module is never embedded, so a WithModule* option is mandatory (spec 0004 D-C).
 var ErrNoModule = errors.New("afmpeg: no wasm module configured (use WithModuleFile, WithModuleBytes, or WithModuleFS)")
 
 // Runtime holds the compiled wazero module and runtime. Build it once with New —
@@ -46,18 +41,30 @@ type Runtime struct {
 // Result is the outcome of a Run: the exit code and the module's captured stdout
 // and stderr. A non-zero ExitCode is reported here with a nil error; only
 // host-side failures (module instantiation, the vfs bridge, context
-// cancellation) return an error. Stdout matters for modules that return
-// structured results there (e.g. the ffmpeg-wasi driver's probe/process JSON);
-// a CLI ffmpeg leaves it empty and writes diagnostics to Stderr.
+// cancellation) return an error. The ffmpeg-wasi engine returns its structured
+// results (process status, probe info) as JSON on Stdout.
 type Result struct {
 	ExitCode int
 	Stdout   string
 	Stderr   string
 }
 
-// Probe is the outcome of a Probe: the input's duration in seconds.
+// Probe describes a media input: its container format, duration, and streams.
 type Probe struct {
+	Format      string
 	DurationSec float64
+	Streams     []ProbeStream
+}
+
+// ProbeStream is one stream within a probed input.
+type ProbeStream struct {
+	Index      int    `json:"index"`
+	Type       string `json:"type"` // "video" or "audio"
+	Codec      string `json:"codec"`
+	Width      int    `json:"width"`       // video
+	Height     int    `json:"height"`      // video
+	SampleRate int    `json:"sample_rate"` // audio
+	Channels   int    `json:"channels"`    // audio
 }
 
 // config accumulates New's options.
@@ -175,26 +182,47 @@ func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result,
 	return Result{ExitCode: inv.exitCode, Stdout: inv.stdout, Stderr: inv.stderr}, nil
 }
 
-// Probe returns a media file's duration in seconds over the same fs bridge
-// (R-AF-5). It runs `ffmpeg -i <path>`, which prints the input's metadata
-// (including its Duration) to stderr and then exits non-zero because no output
-// was requested — that exit is expected, so the duration is parsed from stderr.
-// This is module-agnostic: it needs only ffmpeg itself, not a separate ffprobe.
+// Probe reports a media file's container/stream info over the fs bridge, via the
+// ffmpeg-wasi engine's probe op (`{"op":"probe"}`), reading the structured JSON it
+// returns on stdout. It needs the ffmpeg-wasi engine (the structured module).
 func (r *Runtime) Probe(ctx context.Context, fs afero.Fs, path string) (Probe, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	spec, err := json.Marshal(jobSpec{Op: "probe", Inputs: []jobInput{{Path: path}}})
+	if err != nil {
+		return Probe{}, errors.Wrap(err, "afmpeg: marshal probe spec")
+	}
 
-	inv, err := r.invoke(ctx, fs, "-hide_banner", "-i", path)
+	res, err := r.Run(ctx, fs, string(spec))
 	if err != nil {
 		return Probe{}, err
 	}
 
-	dur, err := parseDurationFromStderr(inv.stderr)
-	if err != nil {
-		return Probe{}, errors.Wrapf(err, "afmpeg: probe %q: %s", path, tail(inv.stderr))
+	if res.ExitCode != 0 {
+		return Probe{}, errors.Newf("afmpeg: probe %q: %s", path, tail(res.Stderr))
 	}
 
-	return Probe{DurationSec: dur}, nil
+	var out struct {
+		Inputs []struct {
+			Error       string        `json:"error"`
+			Format      string        `json:"format"`
+			DurationSec float64       `json:"duration_sec"`
+			Streams     []ProbeStream `json:"streams"`
+		} `json:"inputs"`
+	}
+
+	if err := json.Unmarshal([]byte(res.Stdout), &out); err != nil {
+		return Probe{}, errors.Wrapf(err, "afmpeg: probe %q: parse engine output", path)
+	}
+
+	if len(out.Inputs) == 0 {
+		return Probe{}, errors.Newf("afmpeg: probe %q: no input in engine output", path)
+	}
+
+	in := out.Inputs[0]
+	if in.Error != "" {
+		return Probe{}, errors.Newf("afmpeg: probe %q: %s", path, in.Error)
+	}
+
+	return Probe{Format: in.Format, DurationSec: in.DurationSec, Streams: in.Streams}, nil
 }
 
 // invocation is the internal outcome of running the module once.
@@ -266,34 +294,6 @@ func exitCodeFrom(ctx context.Context, err error) (int, error) {
 	}
 
 	return 0, errors.Wrap(err, "afmpeg: invocation failed")
-}
-
-// durationLine matches ffmpeg's `Duration: HH:MM:SS.ss` stderr line.
-var durationLine = regexp.MustCompile(`Duration:\s*(\d+):(\d{2}):(\d{2}\.\d+)`)
-
-const (
-	secondsPerHour   = 3600
-	secondsPerMinute = 60
-)
-
-// parseDurationFromStderr extracts the input duration (in seconds) from ffmpeg's
-// stderr. ffmpeg reports an unknown duration as "Duration: N/A", which does not
-// match and yields an error.
-func parseDurationFromStderr(stderr string) (float64, error) {
-	m := durationLine.FindStringSubmatch(stderr)
-	if m == nil {
-		return 0, errors.New("no Duration in ffmpeg output")
-	}
-
-	hours, herr := strconv.Atoi(m[1])
-	minutes, merr := strconv.Atoi(m[2])
-
-	seconds, serr := strconv.ParseFloat(m[3], durationBits)
-	if herr != nil || merr != nil || serr != nil {
-		return 0, errors.Newf("malformed duration %q", m[0])
-	}
-
-	return float64(hours*secondsPerHour+minutes*secondsPerMinute) + seconds, nil
 }
 
 // tail returns the last stderrTailBytes of s, for surfacing an error tail.

@@ -18,9 +18,9 @@ cross-compiles to a single static binary.
 !!! success "Status: released (v0.3.0)"
     afmpeg runs real FFmpeg over a virtual filesystem today: the
     [vfs bridge](explanation/components/vfs-bridge.md), the runtime
-    (`New`/`Run`/`Probe`/`Close`), the `Command` builder (`Args()` for CLI ffmpeg,
-    `JobSpec()`/`RunJob` for the [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine),
-    and `WithModuleURL` module fetching. Pair it with a released
+    (`New`/`Run`/`Probe`/`Close`), the `Command` builder (`JobSpec()`/`RunJob` for the
+    [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine), and `WithModuleURL` module
+    fetching. Pair it with a released
     [ffmpeg-wasi](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases) module to transcode
     entirely in memory. Design rationale: the specs under
     [Development](development/index.md) (start with [0001](development/specs/0001-afmpeg.md)).

@@ -19,7 +19,7 @@ afmpeg is released (v0.3.0). Until a dedicated start-to-finish tutorial lands, t
 - **[Run over an in-memory filesystem](../how-to/run-in-memory.md)** — inputs into an
   `afero.MemMapFs`, transcode, read the output back, all without touching disk.
 - **[Compose a command](../how-to/compose-a-command.md)** — assemble inputs / filtergraph /
-  outputs, then run as CLI args or as the ffmpeg-wasi job spec.
+  outputs and run it as a job over the ffmpeg-wasi engine.
 
 If you just need to accomplish a specific task and already know the basics, see the
 [how-to guides](../how-to/index.md) instead.

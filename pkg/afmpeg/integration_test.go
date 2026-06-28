@@ -14,71 +14,6 @@ import (
 	"gitlab.com/phpboyscout/afmpeg/pkg/afmpeg"
 )
 
-// TestIntegration_RealFFmpeg runs a real ffmpeg.wasm over the bridge end-to-end.
-// It is gated on AFMPEG_TEST_FFMPEG_WASM (a path to a real ffmpeg.wasm), so the
-// default unit run stays fast and needs no module. It proves the whole stack —
-// the env setjmp/longjmp module, the core features, the vfs bridge — runs real
-// ffmpeg, decoding/filtering/encoding/muxing entirely in memory.
-func TestIntegration_RealFFmpeg(t *testing.T) {
-	t.Parallel()
-
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASM")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASM to a real ffmpeg.wasm to run this test")
-	}
-
-	ctx := context.Background()
-
-	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-
-	t.Cleanup(func() { _ = rt.Close(ctx) })
-
-	fs := afero.NewMemMapFs()
-
-	// Generate a tiny H.264 mp4 entirely in memory (no input file) — real decode/
-	// filter/encode/mux plus the vfs write path (the moov-atom seek-on-write that
-	// libx264's mp4 muxer performs).
-	res, err := rt.Run(ctx, fs,
-		"-f", "lavfi", "-i", "testsrc=size=64x64:rate=5:duration=1",
-		"-c:v", "libx264", "-pix_fmt", "yuv420p", "out.mp4")
-	if err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-
-	if res.ExitCode != 0 {
-		t.Fatalf("ffmpeg exit %d:\n%s", res.ExitCode, res.Stderr)
-	}
-
-	out, err := afero.ReadFile(fs, "out.mp4")
-	if err != nil || len(out) == 0 {
-		t.Fatalf("no output mp4 in the in-memory fs: err=%v len=%d", err, len(out))
-	}
-
-	// An mp4 begins with a size-prefixed "ftyp" box.
-	if len(out) < 12 || string(out[4:8]) != "ftyp" {
-		t.Fatalf("output is not an mp4 (first bytes: %q)", out[:min(12, len(out))])
-	}
-
-	// The output exists only in the in-memory fs, never on the host disk.
-	if _, err := os.Stat("out.mp4"); !os.IsNotExist(err) {
-		t.Fatalf("output leaked to the host filesystem: %v", err)
-	}
-
-	// Probe the duration of what we just rendered — real `ffmpeg -i` over the
-	// bridge (the input was 1s of testsrc).
-	p, err := rt.Probe(ctx, fs, "out.mp4")
-	if err != nil {
-		t.Fatalf("Probe: %v", err)
-	}
-
-	if p.DurationSec < 0.9 || p.DurationSec > 1.5 {
-		t.Fatalf("Probe duration = %v, want ~1.0", p.DurationSec)
-	}
-}
-
 // TestIntegration_FFmpegWasiDriver drives the ffmpeg-wasi libav-direct engine —
 // the structured job-spec vocabulary, not ffmpeg CLI args — over the in-memory
 // bridge. It proves the afmpeg ↔ ffmpeg-wasi seam end-to-end: a probe whose JSON
@@ -224,5 +159,47 @@ func TestIntegration_RunJob(t *testing.T) {
 	out, err := afero.ReadFile(fs, "out.mp4")
 	if err != nil || len(out) < 12 || string(out[4:8]) != "ftyp" {
 		t.Fatalf("no valid mp4 from RunJob: err=%v len=%d", err, len(out))
+	}
+}
+
+// TestIntegration_Probe_FFmpegWasiDriver is the regression test for
+// BUG-REPORT-probe: Runtime.Probe drives the ffmpeg-wasi engine's probe op (a JSON
+// job spec) and parses the structured result, instead of the old CLI `ffmpeg -i`
+// + stderr transport the libav-direct engine rejects. Gated on AFMPEG_TEST_FFMPEG_WASI.
+func TestIntegration_Probe_FFmpegWasiDriver(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	if err := afero.WriteFile(fs, "tone.wav", makeWAVMono(8000, 2.0), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	// Regression for BUG-REPORT-probe: Probe drives the engine's probe op (not the
+	// old CLI `ffmpeg -i` transport the libav-direct engine rejects).
+	p, err := rt.Probe(ctx, fs, "tone.wav")
+	if err != nil {
+		t.Fatalf("Runtime.Probe: %v", err)
+	}
+
+	if p.Format != "wav" || p.DurationSec < 1.9 || p.DurationSec > 2.1 {
+		t.Fatalf("Probe = %+v, want wav / ~2.0s", p)
+	}
+
+	if len(p.Streams) != 1 || p.Streams[0].Type != "audio" || p.Streams[0].Codec != "pcm_s16le" {
+		t.Fatalf("Probe streams = %+v, want one pcm_s16le audio stream", p.Streams)
 	}
 }
