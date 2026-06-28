@@ -63,4 +63,5 @@ AFMPEG_TEST_FFMPEG_WASM=/path/to/ffmpeg.wasm go test ./pkg/afmpeg/ -run Integrat
 
 The runtime provides the `env` setjmp/longjmp host module and the WebAssembly feature set a
 real FFmpeg build needs (spec [0004](specs/0004-runtime-and-api.md) R-0004-9), so any
-real-FFmpeg wasm — the future spec-0002 build, or an interim one — loads and runs.
+real-FFmpeg wasm — a released [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine
+(spec [0007](specs/0007-libav-direct-engine.md)) or an interim build — loads and runs.

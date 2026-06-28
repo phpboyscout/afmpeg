@@ -19,9 +19,9 @@ Available:
   supply the `ffmpeg.wasm` module (`WithModuleFile` / `WithModuleBytes` / `WithModuleFS`),
   transcode against an `afero.MemMapFs`, probe a duration, and cancel a render.
 - **[Compose an ffmpeg command with the builder](compose-a-command.md)** — assemble any
-  invocation (inputs / filtergraph / outputs) as typed data, struct or `NewCommand`.
+  invocation (inputs / filtergraph / outputs) as typed data, then run it as CLI args
+  (`RunCommand`/`Args()`) or as the ffmpeg-wasi job spec (`RunJob`/`JobSpec()`).
 
-Planned (land with their features):
-
-- **Build the FFmpeg WASM module** — the reproducible pipeline
-  (spec [0002](../development/specs/0002-wasm-build-pipeline.md)).
+The WASM engine itself — current FFmpeg compiled to `wasm32-wasi`, with its `process`/`probe`
+job spec — is the companion [**ffmpeg-wasi**](https://ffmpeg-wasi.phpboyscout.uk) project;
+grab a released module via [obtain a module](obtain-a-module.md).

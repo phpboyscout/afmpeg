@@ -10,10 +10,11 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 This guide runs an ffmpeg invocation whose inputs and outputs live entirely in an
 in-memory [`afero.Fs`](https://github.com/spf13/afero) — no host disk, no temp
-files. It assumes you already have an `ffmpeg.wasm` module (built by the
-[WASM pipeline](../development/specs/0002-wasm-build-pipeline.md) or downloaded as
-a release artifact — it is deliberately **not** embedded in the package; see the
-[licensing posture](../development/specs/0001-afmpeg.md)).
+files. It assumes you already have a wasm FFmpeg module — a released
+[ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine (see
+[obtain a module](obtain-a-module.md)) or another build. It is deliberately **not**
+embedded in the package; see the
+[licensing posture](../development/specs/0001-afmpeg.md).
 
 ## 1. Build a Runtime once
 

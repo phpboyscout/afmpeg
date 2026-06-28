@@ -34,8 +34,8 @@ Because the module is executable code, pair it with `WithSHA256`:
 
 ```go
 rt, err := afmpeg.New(ctx, afmpeg.WithModuleURL(
-    "https://example.com/ffmpeg.wasm",
-    afmpeg.WithSHA256("e3b0c44298fc1c14…"),  // verify the download
+    "https://gitlab.com/api/v4/projects/83847809/packages/generic/ffmpeg-wasi/n8.1.2-1/ffmpeg-wasi-lgpl.wasm",
+    afmpeg.WithSHA256("0f338dac4ed1be3819aaf26f1cdeef119e817b43103f1460ca19354ea56bacc9"),
 ))
 ```
 
@@ -47,11 +47,15 @@ never executed.
 
 ## Where do I get a module?
 
-- **The afmpeg build** — a general-baseline `ffmpeg.wasm` from the reproducible
-  pipeline (spec [0002](../development/specs/0002-wasm-build-pipeline.md)),
-  published as full/GPL and LGPL variants. *(Not yet released.)*
-- **An interim community build** — e.g. go-ffmpreg's gzipped wasm. It is **GPL-3.0**
-  and includes libx264, so it suits internal/GPL-compatible use:
+- **[ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk)** *(recommended)* — the companion
+  libav-direct engine: **current FFmpeg**, published as **lgpl** (default) and **gpl**
+  (libx264) WASI modules, each with a checksum and provenance. Pin a release asset + its
+  SHA-256 (the example above is the `lgpl` module from
+  [`n8.1.2-1`](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases/n8.1.2-1)). It speaks the
+  structured job spec — drive it with [`Command.JobSpec()` / `RunJob`](compose-a-command.md).
+- **An interim community build** — e.g. go-ffmpreg's gzipped wasm (a CLI-style module run via
+  `Args()`/`Run`). It is **GPL-3.0** and includes libx264, so it suits internal/GPL-compatible
+  use:
 
   ```go
   rt, err := afmpeg.New(ctx, afmpeg.WithModuleURL(

@@ -49,20 +49,32 @@ cmd := afmpeg.NewCommand(
 )
 ```
 
-Both forms render the same args (`cmd.Args()`); the struct can express anything the
-constructor produces, defaults included.
+Both forms produce the same `Command`; the struct can express anything the constructor
+produces, defaults included.
 
-## Run it
+## Run it — two backends, one Command
+
+The same `Command` serialises two ways, depending on the module you loaded:
 
 ```go
+// CLI ffmpeg (e.g. a go-ffmpreg build): the command renders to ffmpeg args.
 res, err := rt.RunCommand(ctx, fs, cmd) // sugar for rt.Run(ctx, fs, cmd.Args()...)
+
+// The ffmpeg-wasi engine: the command renders to its JSON job spec.
+res, err := rt.RunJob(ctx, fs, cmd)     // sugar for rt.Run(ctx, fs, string(cmd.JobSpec()))
+
 if err != nil {
     return err
 }
 if res.ExitCode != 0 {
-    return fmt.Errorf("ffmpeg failed: %s", res.Stderr)
+    return fmt.Errorf("engine failed: %s", res.Stderr)
 }
+// For the ffmpeg-wasi engine, structured results (a probe's JSON) come back on res.Stdout.
 ```
+
+`Args()` emits CLI flags; `JobSpec()` emits `{op, inputs, filter, outputs}` (each output's
+`Raw` `-flag value` pairs become encoder options). `FilterComplex` is the filtergraph for
+both. See [obtain a module](obtain-a-module.md) for the ffmpeg-wasi release.
 
 ## The escape hatch
 
