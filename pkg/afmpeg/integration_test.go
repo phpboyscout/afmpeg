@@ -154,21 +154,25 @@ func makeWAVMono(sampleRate int, seconds float64) []byte {
 		_ = binary.Write(pcm, binary.LittleEndian, v)
 	}
 
+	pcmBytes := pcm.Bytes()
+	dataLen := uint32(len(pcmBytes)) //nolint:gosec // G115: tiny fixed-size test fixture
+	sr := uint32(sampleRate)         //nolint:gosec // G115: tiny fixed-size test fixture
+
 	buf := new(bytes.Buffer)
 	buf.WriteString("RIFF")
-	_ = binary.Write(buf, binary.LittleEndian, uint32(36+pcm.Len()))
+	_ = binary.Write(buf, binary.LittleEndian, 36+dataLen)
 	buf.WriteString("WAVE")
 	buf.WriteString("fmt ")
 	_ = binary.Write(buf, binary.LittleEndian, uint32(16)) // PCM fmt chunk size
 	_ = binary.Write(buf, binary.LittleEndian, uint16(1))  // PCM
 	_ = binary.Write(buf, binary.LittleEndian, uint16(1))  // mono
-	_ = binary.Write(buf, binary.LittleEndian, uint32(sampleRate))
-	_ = binary.Write(buf, binary.LittleEndian, uint32(sampleRate*2)) // byte rate
-	_ = binary.Write(buf, binary.LittleEndian, uint16(2))            // block align
-	_ = binary.Write(buf, binary.LittleEndian, uint16(16))           // bits/sample
+	_ = binary.Write(buf, binary.LittleEndian, sr)
+	_ = binary.Write(buf, binary.LittleEndian, sr*2)       // byte rate (mono s16)
+	_ = binary.Write(buf, binary.LittleEndian, uint16(2))  // block align
+	_ = binary.Write(buf, binary.LittleEndian, uint16(16)) // bits/sample
 	buf.WriteString("data")
-	_ = binary.Write(buf, binary.LittleEndian, uint32(pcm.Len()))
-	buf.Write(pcm.Bytes())
+	_ = binary.Write(buf, binary.LittleEndian, dataLen)
+	buf.Write(pcmBytes)
 
 	return buf.Bytes()
 }
