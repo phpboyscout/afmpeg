@@ -2,8 +2,11 @@ package afmpeg
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
+	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/spf13/afero"
 )
 
@@ -136,4 +139,96 @@ func (out Output) args() []string {
 // Run(ctx, fs, c.Args()...).
 func (r *Runtime) RunCommand(ctx context.Context, fs afero.Fs, c Command) (Result, error) {
 	return r.Run(ctx, fs, c.Args()...)
+}
+
+// jobSpec is the JSON the ffmpeg-wasi libav-direct engine consumes (its
+// "process" operation); see ffmpeg-wasi's job-spec reference.
+type jobSpec struct {
+	Op      string      `json:"op"`
+	Inputs  []jobInput  `json:"inputs"`
+	Filter  string      `json:"filter,omitempty"`
+	Outputs []jobOutput `json:"outputs"`
+}
+
+type jobInput struct {
+	Path string `json:"path"`
+}
+
+type jobOutput struct {
+	Path       string            `json:"path"`
+	Map        []string          `json:"map,omitempty"`
+	VideoCodec string            `json:"video_codec,omitempty"`
+	AudioCodec string            `json:"audio_codec,omitempty"`
+	Options    map[string]string `json:"options,omitempty"`
+}
+
+// JobSpec renders the command as the ffmpeg-wasi engine's JSON job spec — the
+// alternative to Args() for the libav-direct driver. It is use-case-agnostic: it
+// serialises the inputs, the filtergraph, and each output's codecs/maps plus its
+// Raw "-flag value" pairs as encoder options. The engine derives the container
+// from the output path and the pixel/sample format from the filtergraph and
+// encoder, so any pixel format / output framerate / duration belongs in the
+// FilterComplex for this backend.
+func (c Command) JobSpec() ([]byte, error) {
+	spec := jobSpec{Op: "process", Filter: c.FilterComplex}
+
+	for _, in := range c.Inputs {
+		spec.Inputs = append(spec.Inputs, jobInput{Path: in.Path})
+	}
+
+	for _, out := range c.Outputs {
+		spec.Outputs = append(spec.Outputs, jobOutput{
+			Path:       out.Path,
+			Map:        out.Map,
+			VideoCodec: out.VideoCodec,
+			AudioCodec: out.AudioCodec,
+			Options:    rawToOptions(out.Raw),
+		})
+	}
+
+	data, err := json.Marshal(spec)
+
+	return data, errors.Wrap(err, "afmpeg: marshal job spec")
+}
+
+// rawToOptions interprets a slice of "-flag value" pairs (the CLI escape hatch)
+// as the engine's key/value encoder options: ["-crf","23"] → {"crf":"23"}, and a
+// lone "-flag" → {"flag":""}. Returns nil when there are none.
+func rawToOptions(raw []string) map[string]string {
+	if len(raw) == 0 {
+		return nil
+	}
+
+	opts := make(map[string]string)
+
+	for i := 0; i < len(raw); i++ {
+		key := strings.TrimPrefix(raw[i], "-")
+		if key == "" {
+			continue
+		}
+
+		if i+1 < len(raw) && !strings.HasPrefix(raw[i+1], "-") {
+			opts[key] = raw[i+1]
+			i++
+		} else {
+			opts[key] = ""
+		}
+	}
+
+	if len(opts) == 0 {
+		return nil
+	}
+
+	return opts
+}
+
+// RunJob renders c as a job spec and runs it over the fs bridge — sugar for
+// Run with the ffmpeg-wasi driver. Structured results come back on Result.Stdout.
+func (r *Runtime) RunJob(ctx context.Context, fs afero.Fs, c Command) (Result, error) {
+	spec, err := c.JobSpec()
+	if err != nil {
+		return Result{}, err
+	}
+
+	return r.Run(ctx, fs, string(spec))
 }

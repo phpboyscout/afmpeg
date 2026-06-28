@@ -184,3 +184,43 @@ func reelCommand() Command {
 			OutputRaw("-crf", "20", "-movflags", "+faststart")),
 	)
 }
+
+// TestRawToOptions covers the CLI-pair → encoder-options translation.
+func TestRawToOptions(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		raw  []string
+		want map[string]string
+	}{
+		{"nil", nil, nil},
+		{"empty", []string{}, nil},
+		{"pair", []string{"-crf", "23"}, map[string]string{"crf": "23"}},
+		{"plus value", []string{"-movflags", "+faststart"}, map[string]string{"movflags": "+faststart"}},
+		{"lone flag", []string{"-an"}, map[string]string{"an": ""}},
+		{
+			"mixed",
+			[]string{"-crf", "20", "-movflags", "+faststart", "-an"},
+			map[string]string{"crf": "20", "movflags": "+faststart", "an": ""},
+		},
+		{"bare token ignored", []string{"-"}, nil},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := rawToOptions(tc.raw)
+			if len(got) != len(tc.want) {
+				t.Fatalf("rawToOptions(%v) = %v, want %v", tc.raw, got, tc.want)
+			}
+
+			for k, v := range tc.want {
+				if got[k] != v {
+					t.Fatalf("rawToOptions(%v)[%q] = %q, want %q", tc.raw, k, got[k], v)
+				}
+			}
+		})
+	}
+}

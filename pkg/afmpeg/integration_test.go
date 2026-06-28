@@ -176,3 +176,53 @@ func makeWAVMono(sampleRate int, seconds float64) []byte {
 
 	return buf.Bytes()
 }
+
+// TestIntegration_RunJob exercises the full generic emitter → engine path: a
+// Command with a filtergraph is rendered via JobSpec and run by the real
+// ffmpeg-wasi driver over an in-memory FS. Gated on AFMPEG_TEST_FFMPEG_WASI.
+func TestIntegration_RunJob(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	if err := afero.WriteFile(fs, "in.wav", makeWAVMono(8000, 1.0), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cmd := afmpeg.Command{
+		Inputs:        []afmpeg.Input{{Path: "in.wav"}},
+		FilterComplex: "[0:a]volume=0.8[aout]",
+		Outputs: []afmpeg.Output{{
+			Path:       "out.mp4",
+			Map:        []string{"[aout]"},
+			AudioCodec: "aac",
+		}},
+	}
+
+	res, err := rt.RunJob(ctx, fs, cmd)
+	if err != nil {
+		t.Fatalf("RunJob: %v", err)
+	}
+
+	if res.ExitCode != 0 {
+		t.Fatalf("RunJob exit %d:\n%s", res.ExitCode, res.Stderr)
+	}
+
+	out, err := afero.ReadFile(fs, "out.mp4")
+	if err != nil || len(out) < 12 || string(out[4:8]) != "ftyp" {
+		t.Fatalf("no valid mp4 from RunJob: err=%v len=%d", err, len(out))
+	}
+}
