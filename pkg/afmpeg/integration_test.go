@@ -1,8 +1,12 @@
 package afmpeg_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
+	"math"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -73,4 +77,98 @@ func TestIntegration_RealFFmpeg(t *testing.T) {
 	if p.DurationSec < 0.9 || p.DurationSec > 1.5 {
 		t.Fatalf("Probe duration = %v, want ~1.0", p.DurationSec)
 	}
+}
+
+// TestIntegration_FFmpegWasiDriver drives the ffmpeg-wasi libav-direct engine —
+// the structured job-spec vocabulary, not ffmpeg CLI args — over the in-memory
+// bridge. It proves the afmpeg ↔ ffmpeg-wasi seam end-to-end: a probe whose JSON
+// comes back on stdout, and a real transcode (WAV → AAC/mp4) written entirely in
+// memory. Gated on AFMPEG_TEST_FFMPEG_WASI (a path to a built ffmpeg-wasi-*.wasm).
+func TestIntegration_FFmpegWasiDriver(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	if err := afero.WriteFile(fs, "in.wav", makeWAVMono(8000, 1.0), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	// probe — the engine returns structured JSON on stdout.
+	probe, err := rt.Run(ctx, fs, `{"op":"probe","inputs":[{"path":"in.wav"}]}`)
+	if err != nil {
+		t.Fatalf("probe Run: %v", err)
+	}
+
+	if probe.ExitCode != 0 {
+		t.Fatalf("probe exit %d:\n%s", probe.ExitCode, probe.Stderr)
+	}
+
+	if !strings.Contains(probe.Stdout, `"codec":"pcm_s16le"`) ||
+		!strings.Contains(probe.Stdout, `"duration_sec"`) {
+		t.Fatalf("probe stdout missing expected fields:\n%s", probe.Stdout)
+	}
+
+	// process — transcode WAV (pcm_s16le) -> AAC in mp4, entirely in memory.
+	proc, err := rt.Run(ctx, fs,
+		`{"op":"process","inputs":[{"path":"in.wav"}],"outputs":[{"path":"out.mp4","audio_codec":"aac"}]}`)
+	if err != nil {
+		t.Fatalf("process Run: %v", err)
+	}
+
+	if proc.ExitCode != 0 {
+		t.Fatalf("process exit %d:\n%s", proc.ExitCode, proc.Stderr)
+	}
+
+	out, err := afero.ReadFile(fs, "out.mp4")
+	if err != nil || len(out) < 12 || string(out[4:8]) != "ftyp" {
+		t.Fatalf("no valid mp4 produced: err=%v len=%d", err, len(out))
+	}
+
+	// The output exists only in the in-memory fs, never on the host disk.
+	if _, err := os.Stat("out.mp4"); !os.IsNotExist(err) {
+		t.Fatalf("output leaked to the host filesystem: %v", err)
+	}
+}
+
+// makeWAVMono builds a minimal mono pcm_s16le WAV (a 440 Hz sine) in memory — a
+// dependency-free fixture for the in-memory transcode test.
+func makeWAVMono(sampleRate int, seconds float64) []byte {
+	n := int(float64(sampleRate) * seconds)
+
+	pcm := new(bytes.Buffer)
+	for i := 0; i < n; i++ {
+		v := int16(0.3 * 32767 * math.Sin(2*math.Pi*440*float64(i)/float64(sampleRate)))
+		_ = binary.Write(pcm, binary.LittleEndian, v)
+	}
+
+	buf := new(bytes.Buffer)
+	buf.WriteString("RIFF")
+	_ = binary.Write(buf, binary.LittleEndian, uint32(36+pcm.Len()))
+	buf.WriteString("WAVE")
+	buf.WriteString("fmt ")
+	_ = binary.Write(buf, binary.LittleEndian, uint32(16)) // PCM fmt chunk size
+	_ = binary.Write(buf, binary.LittleEndian, uint16(1))  // PCM
+	_ = binary.Write(buf, binary.LittleEndian, uint16(1))  // mono
+	_ = binary.Write(buf, binary.LittleEndian, uint32(sampleRate))
+	_ = binary.Write(buf, binary.LittleEndian, uint32(sampleRate*2)) // byte rate
+	_ = binary.Write(buf, binary.LittleEndian, uint16(2))            // block align
+	_ = binary.Write(buf, binary.LittleEndian, uint16(16))           // bits/sample
+	buf.WriteString("data")
+	_ = binary.Write(buf, binary.LittleEndian, uint32(pcm.Len()))
+	buf.Write(pcm.Bytes())
+
+	return buf.Bytes()
 }

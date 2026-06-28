@@ -43,11 +43,15 @@ type Runtime struct {
 	mu       sync.Mutex
 }
 
-// Result is the outcome of a Run: the ffmpeg exit code and its captured stderr.
-// A non-zero ExitCode is reported here with a nil error; only host-side failures
-// (module instantiation, the vfs bridge, context cancellation) return an error.
+// Result is the outcome of a Run: the exit code and the module's captured stdout
+// and stderr. A non-zero ExitCode is reported here with a nil error; only
+// host-side failures (module instantiation, the vfs bridge, context
+// cancellation) return an error. Stdout matters for modules that return
+// structured results there (e.g. the ffmpeg-wasi driver's probe/process JSON);
+// a CLI ffmpeg leaves it empty and writes diagnostics to Stderr.
 type Result struct {
 	ExitCode int
+	Stdout   string
 	Stderr   string
 }
 
@@ -168,7 +172,7 @@ func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result,
 		return Result{}, err
 	}
 
-	return Result{ExitCode: inv.exitCode, Stderr: inv.stderr}, nil
+	return Result{ExitCode: inv.exitCode, Stdout: inv.stdout, Stderr: inv.stderr}, nil
 }
 
 // Probe returns a media file's duration in seconds over the same fs bridge
