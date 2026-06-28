@@ -11,7 +11,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 Learning-oriented, step-by-step walkthroughs that teach afmpeg by doing — each
 guaranteed to work from a clean start.
 
-afmpeg is released (v0.3.0). Until a dedicated start-to-finish tutorial lands, the
+afmpeg is released. Until a dedicated start-to-finish tutorial lands, the
 **[how-to guides](../how-to/index.md)** are the practical, working walkthroughs:
 
 - **[Obtain a module](../how-to/obtain-a-module.md)** — get a released

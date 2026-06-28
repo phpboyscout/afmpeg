@@ -15,15 +15,16 @@ with its I/O bridged to an [`afero.Fs`](https://github.com/spf13/afero) — so i
 outputs can live entirely in memory (or any afero backend), and the whole thing
 cross-compiles to a single static binary.
 
-!!! success "Status: released (v0.3.0)"
+!!! success "Status: released"
     afmpeg runs real FFmpeg over a virtual filesystem today: the
     [vfs bridge](explanation/components/vfs-bridge.md), the runtime
     (`New`/`Run`/`Probe`/`Close`), the `Command` builder (`JobSpec()`/`RunJob` for the
     [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine), and `WithModuleURL` module
     fetching. Pair it with a released
     [ffmpeg-wasi](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases) module to transcode
-    entirely in memory. Design rationale: the specs under
-    [Development](development/index.md) (start with [0001](development/specs/0001-afmpeg.md)).
+    entirely in memory. See the [latest afmpeg release](https://gitlab.com/phpboyscout/afmpeg/-/releases);
+    design rationale is in the specs under [Development](development/index.md) (start with
+    [0001](development/specs/0001-afmpeg.md)).
 
 ## Why it exists
 
