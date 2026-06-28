@@ -89,25 +89,33 @@ reinvention is folly (the filter graph) delegated to libav's own parser:
 - This *is* afmpeg's `Command` (Inputs / FilterComplex string / Outputs) — so afmpeg's
   builder serialises to the job spec rather than to CLI args; no model redesign.
 
-## 5. Licensing — LGPL by default, GPL opt-in, clean tooling (D-FW-C, RESOLVED pending review)
+## 5. Licensing — MIT tooling, both LGPL+GPL artifacts shipped (D-FW-C, RESOLVED pending review)
 
-The three licenses, kept distinct:
+Three licences, kept deliberately distinct:
 
-- **Build tooling + `driver.c`:** **our clean-room work, permissive (MIT).** The
-  libav-direct pivot makes this easy — go-ffmpreg's substantial GPL contribution is its
-  40 KB `fftools` CLI patch, which we **don't use**. What remains (toolchain flags, a few
-  `config.h` feature-disables, a `tempnam` declaration) is small functional build config
-  we author ourselves.
-- **The artifact's licence is set by what we enable** — libav\* is **LGPL-2.1+** by
-  default, *not* GPL:
+- **The ffmpeg-wasi *repo source* — build tooling + `driver.c` — is MIT (ours).** Clean-room
+  (the libav-direct pivot means we don't use go-ffmpreg's 40 KB GPL CLI patch); it vendors
+  **no** FFmpeg/x264 source (cloned at build time); and — the fact that keeps it MIT — the
+  **tooling never *links* libav/x264, it only orchestrates the build** (clone → configure →
+  compile → package), so it is not a derivative of GPL code. This MIT pipeline is genuinely
+  valuable, reusable IP: the reference "FFmpeg → WASI, libav-direct" build nobody else has.
+- **The released artifacts carry the licence their contents demand** — libav\* is LGPL-2.1+:
   - **LGPL variant (default):** no `--enable-gpl`, no x264. H.264 encode via **openh264**
-    (BSD; document the self-compiled AVC-patent caveat) or omitted. Proprietary-compatible
-    (LGPL relink provision).
-  - **GPL/full variant (opt-in):** `--enable-gpl` + **libx264** for best-in-class H.264.
-- **LGPL is the floor** — libav\* is the FFmpeg project's code; we cannot relicense it
-  below LGPL. (A real licence review precedes any release.)
-- **afmpeg stays permissive throughout** — it downloads whichever artifact; the GPL/LGPL
-  obligation attaches to the consumer who fetches+runs it, never to afmpeg's source.
+    (BSD; document the self-compiled AVC-patent caveat) or omitted. Proprietary-compatible.
+  - **GPL/full variant (opt-in):** `--enable-gpl` + **libx264**, best-in-class H.264.
+- **We ship BOTH variants in every release**, so a consumer who just wants a working module
+  picks the licence that fits and skips building. This does **not** compromise us:
+  distributing two separate, independent artifacts together is **mere aggregation**
+  (GPLv3 §5) — the GPL artifact does not infect the LGPL artifact, the MIT tooling/driver
+  source, or afmpeg.
+- **Obligations we meet:** each asset is clearly licence-labelled; the provenance manifest
+  records variant + licence; and we satisfy GPL/LGPL **corresponding-source** (and LGPL
+  **relink**) via the public MIT repo (our scripts + `driver.c`) + the pinned upstream
+  FFmpeg/x264 — anyone can rebuild/relink from public sources.
+- **LGPL is the floor** (we cannot relicense libav\* below it); **MIT is what we own**
+  (tooling + driver); **afmpeg stays permissive** (it downloads an artifact; the GPL/LGPL
+  obligation attaches to the consumer who runs it, never to afmpeg's source). *(A real
+  licence review precedes any release.)*
 
 ## 6. The codec/filter baseline (R-AF-3, reframed)
 
@@ -173,9 +181,11 @@ vs **full** build is selectable. Finalised in the ffmpeg-wasi repo's own build s
   from the crowded browser `ffmpeg.wasm`. Keeps the searchable, honest `ffmpeg` keyword.
 - **D-FW-B — vocabulary. RESOLVED 2026-06-28: clean custom** structured job spec (not an
   ffmpeg-CLI subset), with the filter graph delegated to libav's parser.
-- **D-FW-C — licensing. RESOLVED 2026-06-28 (pending legal review):** clean-room permissive
-  tooling + MIT driver; **LGPL default** artifact, **GPL/x264 opt-in** full variant; LGPL is
-  the floor.
+- **D-FW-C — licensing. RESOLVED 2026-06-28 (pending legal review):** the repo source (build
+  tooling + `driver.c`) is **MIT — owned, reusable IP** (it orchestrates, never links GPL).
+  **Both LGPL (default) and GPL/x264 (opt-in) artifacts ship in every release** for consumer
+  convenience — mere aggregation (GPLv3 §5), no compromise. LGPL is the floor; afmpeg stays
+  permissive; corresponding-source/relink met via the public repo + pinned upstream.
 - **D-FW-D — separate repo. RESOLVED:** the GPL/LGPL engine lives in `ffmpeg-wasi`; afmpeg
   consumes the artifact and stays permissive.
 - **D-FW-E — driver language. RESOLVED 2026-06-28: C** (not Rust). The driver is a thin shim
