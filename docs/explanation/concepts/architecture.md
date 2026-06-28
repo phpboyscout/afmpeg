@@ -46,11 +46,12 @@ needs, and must handle seek-on-write (the mp4 muxer rewrites the `moov` atom und
 ## 3. The Go API
 
 `New` compiles the module once (the expensive step) into a reusable `Runtime`. `Run`
-mounts a caller-supplied `afero.Fs`, executes one ffmpeg invocation, and returns the exit
-code + captured stderr; `Probe` returns a media file's duration over the same bridge. A
-general, use-case-agnostic command builder layers on top (a consumer's reel/timeline is
-built on it, in the consumer's code). See
-specs [0004](../../development/specs/0004-runtime-and-api.md) and
+mounts a caller-supplied `afero.Fs`, runs the module with the given args, and returns the
+exit code + captured stdout/stderr; `RunJob`/`Command.JobSpec` render a job for the
+[ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine, and `Probe` reports a file's
+container, duration, and streams over the same bridge. The use-case-agnostic command
+builder layers on top (a consumer's reel/timeline is built on it, in the consumer's code).
+See specs [0004](../../development/specs/0004-runtime-and-api.md) and
 [0005](../../development/specs/0005-render-helper-and-keyrx-backend.md).
 
 ## Why this shape

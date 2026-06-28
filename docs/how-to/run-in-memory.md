@@ -39,33 +39,40 @@ _ = afero.WriteFile(fs, "in/clip.mp4", inputBytes, 0o644)
 Any afero backend works (`OsFs`, `BasePathFs`, …); `MemMapFs` keeps the whole
 pipeline in RAM.
 
-## 3. Run, and read the result back
+## 3. Build a command and run it
 
-Paths in the arguments resolve against `fs`:
+Paths resolve against `fs`. Build a `Command` and run it on the engine:
 
 ```go
-res, err := rt.Run(ctx, fs, "-i", "in/clip.mp4", "-c:v", "libx264", "out/reel.mp4")
+cmd := afmpeg.NewCommand(
+    afmpeg.WithInput("in/clip.mp4"),
+    afmpeg.WithFilterComplex("[0:v]scale=1280:-2[v]"),
+    afmpeg.WithOutput("out/reel.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264")),
+)
+
+res, err := rt.RunJob(ctx, fs, cmd)
 if err != nil {
     return err // host-side failure (bad module, cancelled context, …)
 }
 if res.ExitCode != 0 {
-    return fmt.Errorf("ffmpeg failed: %s", res.Stderr)
+    return fmt.Errorf("engine failed: %s", res.Stderr)
 }
 
 out, _ := afero.ReadFile(fs, "out/reel.mp4") // the encoded mp4, in memory
 ```
 
-A **non-zero ffmpeg exit is not a Go error** — it is reported in `res.ExitCode`
-with the error tail in `res.Stderr`. Only host-side failures return a non-nil
-`error`.
+A **non-zero exit is not a Go error** — it is reported in `res.ExitCode` with the
+error tail in `res.Stderr`. Only host-side failures return a non-nil `error`.
+(`RunJob` is sugar for `Run(ctx, fs, string(spec))` where `spec` is `cmd.JobSpec()`.)
 
-## Probe a duration
+## Probe a file
 
-`Probe` runs an ffprobe-shaped query over the same bridge:
+`Probe` reports a file's container, duration, and streams via the engine's probe op:
 
 ```go
 p, err := rt.Probe(ctx, fs, "in/clip.mp4")
-// p.DurationSec
+// p.Format, p.DurationSec, and p.Streams
+//   (each stream: Type, Codec, Width/Height or SampleRate/Channels)
 ```
 
 ## Cancel a long render

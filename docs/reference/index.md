@@ -1,6 +1,6 @@
 ---
 title: Reference
-description: Accurate, structured facts — config, CLI, and the Go API surface.
+description: Accurate, structured facts — the Go API surface and the engine artifacts.
 date: 2026-06-26
 tags: [reference]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -23,12 +23,10 @@ decisions) is sketched in [`pkg/afmpeg/doc.go`](https://gitlab.com/phpboyscout/a
 
 ## Non-code surfaces
 
-These land as the features ship:
-
-- **WASM module artifacts** — the published `ffmpeg.wasm` variants (full/GPL, LGPL),
-  their provenance manifest fields, sizes, and checksums (spec
-  [0002](../development/specs/0002-wasm-build-pipeline.md)).
-- **CLI** — `cmd/afmpeg` flags and subcommands, once it exists (spec
-  [0006](../development/specs/0006-hardening-roadmap.md), item 2D).
+- **WASM engine artifacts** — the [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) `lgpl`/`gpl`
+  modules afmpeg runs, with their checksums and provenance (see
+  [obtain a module](../how-to/obtain-a-module.md)).
 - **Errors** — the sentinel-error catalogue lives under
   [Explanation › Components › Errors](../explanation/components/errors.md).
+- **CLI** — `cmd/afmpeg` flags and subcommands, *if/when* it ships (spec
+  [0006](../development/specs/0006-hardening-roadmap.md), item 2D). Deferred.
