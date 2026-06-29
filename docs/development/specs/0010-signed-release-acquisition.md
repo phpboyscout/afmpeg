@@ -43,6 +43,26 @@ Two paths, two postures — this is the core decision:
 - **D-0010-C — the trust root ships in the consumer.** afmpeg **pins the ffmpeg-wasi
   release-signing public key** (embedded), so verification is offline and non-circular — you
   never fetch the key you're verifying against. Key rotation ships as an afmpeg release.
+- **D-0010-D — a dedicated ffmpeg-wasi key, NOT the go-tool-base key.** We instantiate a
+  *separate* `terraform-aws-signing-kms` key (e.g. `ffmpeg-wasi-release-signing-v1`) rather than
+  reuse GTB's. We share the *infrastructure* — the same module, the account's OIDC IDP
+  (`terraform-aws-bootstrap`), the operator role (`terraform-aws-security-baseline`) — but **not
+  the key**. Reasons:
+    - **Cross-project signature confusion (decisive).** One shared key means *any* pipeline
+      authorised to sign with it can mint signatures the *other* project's verifier accepts —
+      same key, same trust root. A compromised ffmpeg-wasi pipeline could forge a go-tool-base
+      self-update (and vice versa). Separate keys give cryptographic domain separation for free;
+      a shared key would force fragile in-payload domain separation that verifiers must remember
+      to enforce.
+    - **Blast radius.** A key (or trust-policy) compromise is contained to one product's releases.
+    - **Independent rotation.** ffmpeg-wasi can roll its key without forcing a re-pin in GTB
+      consumers, and vice versa.
+    - **Clean provenance.** afmpeg pins *only* the ffmpeg-wasi key, so the GTB key is never a
+      valid signer for an afmpeg module — "signed by the ffmpeg-wasi release key" is a
+      self-contained claim.
+  The module is explicitly built for this — its `ci_subject_filters` guidance is "one
+  tag-pipeline pattern per consuming project," and `name`/`key_spec` are immutable per instance.
+  A second KMS key costs ~a dollar a month; the isolation does not.
 
 ## 3. Consumer side (afmpeg)
 
@@ -76,10 +96,11 @@ options are mutually exclusive (exactly one `WithModule*` per `New`, as today).
 
 ## 4. Publisher side (ffmpeg-wasi)
 
-1. **Infra** — provision a signing key + signer role via `terraform-aws-signing-kms`, trust
-   policy scoped to `project_path:phpboyscout/ffmpeg-wasi:ref_type:tag:ref:n*` (mirroring the
-   `gtb-release-signing` setup). Composes after `terraform-aws-bootstrap` (OIDC IDP) and
-   `terraform-aws-security-baseline`.
+1. **Infra** — provision a **dedicated** signing key + signer role via `terraform-aws-signing-kms`
+   (D-0010-D; e.g. `name = "ffmpeg-wasi-release-signing-v1"`), `ci_subject_filters` scoped to
+   `project_path:phpboyscout/ffmpeg-wasi:ref_type:tag:ref:n*`. Reuses the *shared* account infra —
+   `terraform-aws-bootstrap` (OIDC IDP), `terraform-aws-security-baseline` (operator role) — but
+   its own key, mirroring the `gtb-release-signing` instantiation pattern, not its key.
 2. **Release CI** (the existing tag-gated `release` job) — add a GitLab `id_tokens` OIDC claim,
    assume the signer role, and **sign `checksums.txt`** → `checksums.txt.sig`. Publish the
    `.sig` alongside the other assets (package registry + release links). `checksums.txt` already
