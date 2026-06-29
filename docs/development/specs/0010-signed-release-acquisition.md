@@ -63,6 +63,34 @@ Two paths, two postures — this is the core decision:
   The module is explicitly built for this — its `ci_subject_filters` guidance is "one
   tag-pipeline pattern per consuming project," and `name`/`key_spec` are immutable per instance.
   A second KMS key costs ~a dollar a month; the isolation does not.
+- **D-0010-E — raw KMS signature, stdlib verification (resolves Q1).** ffmpeg-wasi signs
+  `checksums.txt` with `aws kms sign --signing-algorithm RSASSA_PSS_SHA_256`, publishing the
+  signature base64-encoded as `checksums.txt.sig`. afmpeg verifies with the **Go standard library
+  only** (`crypto/rsa`, `crypto/sha256`, `crypto/x509`) — no OpenPGP or other third-party crypto
+  dependency. Same KMS key and OIDC gating as GTB; only the envelope differs. Stdlib-only verify
+  is the more auditable surface, and afmpeg's verifier is programmatic (no human `gpg` step to
+  serve).
+- **D-0010-F — embedded key-*set* with overlap rotation (resolves Q2).** afmpeg embeds a **set**
+  of accepted public keys, each with a stable key-id; `checksums.txt.sig` names the signing
+  key-id, and verification passes iff that id is in the set *and* its key validates the signature.
+  Rotation is graceful: mint v2 → ship an afmpeg release adding v2 to the set → switch signing to
+  v2 → drop v1 in a later release once consumers have upgraded. No flag-day; a compromised key is
+  retired by dropping it. The independent **WKD second layer is a committed fast-follow** —
+  spec [0011](0011-wkd-attestation.md) (see §6).
+- **D-0010-G — verification is mandatory (resolves Q3).** `WithModuleRelease` *always* verifies
+  signature + checksum + provenance; there is **no skip flag** (an opt-out is a silent-downgrade
+  footgun). Verification is offline (the key-set is embedded), so air-gap is served by an
+  **offline-bundle mode**: point `WithModuleRelease` at a local directory of pre-fetched assets
+  (`.wasm`, `checksums.txt`, `checksums.txt.sig`, `provenance.json`) and it verifies them fully,
+  no network — certification without exemption.
+- **D-0010-H — `Variant` is a typed enum (resolves Q4).** `type Variant string` with
+  `VariantLGPL`/`VariantGPL`, validated against the known set (unknown → error) and cross-checked
+  against `provenance.json`. A future variant is one new constant.
+- **D-0010-I — hardcoded layout + base override (resolves Q5).** The resolver knows the canonical
+  GitLab generic-package layout and exposes a `WithReleaseBaseURL`-style override so a consumer
+  can fetch *our* release from a mirror / internal store and still verify *our* signature (the
+  signature is over content, so the URL is untrusted input). A GitLab layout change is a small
+  afmpeg release.
 
 ## 3. Consumer side (afmpeg)
 
@@ -107,9 +135,9 @@ options are mutually exclusive (exactly one `WithModule*` per `New`, as today).
    enumerates every asset incl. `provenance.json`, so signing it certifies the whole release.
 3. **Publish the public key** once, and pin it into afmpeg (D-0010-C).
 
-Note: ffmpeg-wasi's release job is a **custom shell job**, not goreleaser, so it can't reuse
-goreleaser's `signs:` block directly — it invokes the KMS sign step itself (the `gtb`
-signer as a standalone tool, or `aws kms sign`). The exact invocation is §6.
+Note: ffmpeg-wasi's release job is a **custom shell job**, not goreleaser, so it signs with a
+direct `aws kms sign --signing-algorithm RSASSA_PSS_SHA_256` over `checksums.txt` (D-0010-E) —
+no goreleaser `signs:` block, no `gtb` signer to run out of context.
 
 ## 5. Trust model
 
@@ -121,27 +149,31 @@ than today's "trust the SHA the user pasted."
 
 ## 6. Open questions
 
-- **Signature scheme / tooling reuse.** GTB emits a detached, ASCII-armored signature over
-  `checksums.txt` via `gtb sign --backend aws-kms`. Do we reuse the `gtb` signer + a matching
-  verifier in afmpeg (consistency, less crypto to own), or implement a minimal
-  `crypto/rsa`+`crypto/x509` verify against a raw KMS `RSASSA_*_SHA_256` signature (no dependency,
-  but we own the format)? Lock afmpeg's verifier to whatever ffmpeg-wasi emits.
-- **Public-key distribution & rotation.** Embed-and-pin in afmpeg (recommended: offline,
-  tamper-proof) vs a Web Key Directory (explicitly out of scope for `terraform-aws-signing-kms`).
-  Rotation cadence and how afmpeg carries old+new keys across a rotation window.
-- **Mandatory vs strict-mode.** Is signature verification always-on for `WithModuleRelease`
-  (recommended — it's the whole point), or is there an escape hatch for air-gapped mirrors of our
-  releases? If the latter, it must be loud and explicit, never a silent downgrade.
-- **`Variant` surface.** Enum vs string; how a future third variant (or per-release variant set
-  from `provenance.json`) is represented.
-- **Tag/URL coupling.** `WithModuleRelease` encodes the GitLab package URL layout; if that
-  layout ever changes, the resolver must version with it.
+**Resolved (2026-06-29):** Q1 signature scheme → D-0010-E (raw KMS RSASSA-PSS, stdlib verify);
+Q2 key distribution/rotation → D-0010-F (embedded key-set, overlap rotation); Q3 mandatory verify
+→ D-0010-G (always-on + offline-bundle); Q4 variant surface → D-0010-H (typed enum); Q5 tag/URL →
+D-0010-I (hardcoded layout + base override).
+
+**Still open:**
+
+- **The WKD second layer (→ spec [0011](0011-wkd-attestation.md)).** The KMS signature does *not*
+  defend against a **compromised GitLab account that can push a tag** — that triggers the legit
+  release pipeline, which signs a malicious build with the real key. Closing this "poisoned well"
+  needs an **independent attestation of release content, rooted in a control plane GitLab cannot
+  touch** (the `phpboyscout.uk` domain). Merely *publishing* the key via WKD is necessary but not
+  sufficient — the bad release would carry a valid signature — so 0011 must design the layer to
+  attest *content* (likely an out-of-band/offline signature discovered via WKD), not just the key.
+  A committed fast-follow; sequenced after this spec ships.
+- **Key-id derivation.** How a key-id is computed and carried in `checksums.txt.sig` (proposed:
+  a SHA-256 fingerprint of the SubjectPublicKeyInfo DER) — pin in implementation.
+- **Rotation cadence.** Operational, decided at first rotation; the *mechanism* (D-0010-F) is set.
 
 ## 7. Non-goals
 
 - **Signing or "provenance" on the URL path** (D-0010-A) — we certify only what we publish.
-- **A general PKI / WKD / transparency-log (sigstore) model** — the KMS-pinned-key approach is
-  the chosen, already-proven (GTB) model; we are not introducing a second trust system.
+- **A transparency-log / sigstore model** — the KMS-pinned-key approach (+ the domain-rooted WKD
+  layer in 0011) is the chosen trust model; we are not adding sigstore on top. (Note: WKD itself is
+  *no longer* a non-goal — it is the committed second layer, spec 0011.)
 - **Embedding the module** (still — 0001 D-C). `WithModuleRelease` fetches+caches; it never
   `//go:embed`s a GPL build.
 
@@ -154,15 +186,38 @@ than today's "trust the SHA the user pasted."
 
 ## 9. Phasing
 
-- **Phase 1 — ffmpeg-wasi (publisher).** Signing infra (`terraform-aws-signing-kms` instance) +
-  release-CI signing of `checksums.txt` → `checksums.txt.sig` + publish the public key. Until
-  this lands there is nothing for afmpeg to verify.
-- **Phase 2 — afmpeg (consumer).** `WithModuleRelease` + the pinned public key + signature /
-  checksum / provenance verification + the `Variant`/`Provenance` surface + how-to docs.
+- **Phase 2a — afmpeg verifier (consumer), buildable now.** The verification logic is
+  **key-agnostic**, so it is built and fully tested *before* any real KMS key exists: tests
+  generate an RSA keypair, sign fixture `checksums.txt` with it, and drive the verifier and every
+  tamper case. Delivers the `Variant`/`Provenance` types, the resolver, the key-set, signature /
+  checksum / provenance verification, the offline-bundle mode, and `WithModuleRelease` — gated
+  behind a not-yet-populated embedded key-set.
+- **Phase 1 — ffmpeg-wasi (publisher).** Signing infra (a dedicated `terraform-aws-signing-kms`
+  instance, D-0010-D) + release-CI `aws kms sign` of `checksums.txt` → `checksums.txt.sig` +
+  publish the public key. Needs an AWS apply (operator action), so it runs in parallel with 2a.
+- **Phase 2b — pin the real key.** Once Phase 1 publishes the production public key, add it to
+  afmpeg's embedded key-set and cut the first end-to-end verified release.
 
-## 10. Definition of done
+## 10. Test & docs strategy (a key deliverable, per the dev method)
+
+- **TDD, test-first.** Every verification rule lands as a failing test first: a *valid* bundle
+  passes; each tampered input (swapped module, edited `checksums.txt`, forged `provenance.json`,
+  bad/wrong-key signature, unknown key-id, variant mismatch) fails with its **own typed error**
+  (`ErrSignatureInvalid`, `ErrChecksumMismatch`, `ErrProvenanceMismatch`). Table-driven,
+  `t.Parallel()`, **≥90%** coverage on new `pkg/` code, `go test -race` clean.
+- **BDD acceptance (godog).** The trust behaviours are also expressed as Gherkin scenarios —
+  *"Given a release signed by a retired key, When I load it, Then it is rejected"* — so the
+  security contract reads as executable specification, not just unit assertions.
+- **Docs land in the same MR (Diátaxis):** the [obtain-a-module](../how-to/obtain-a-module.md)
+  how-to gains the certified-release path; a **reference** page documents `WithModuleRelease` /
+  `Variant` / `Provenance` / the typed errors; an **explanation** page covers the trust model
+  (KMS+OIDC, embedded key-set, what each layer does and does *not* defend — incl. the GitLab-
+  compromise gap that 0011 closes). Package `doc.go` updated.
+
+## 11. Definition of done
 
 A consumer calls `WithModuleRelease("n8.1.2-N", VariantLGPL)` and afmpeg loads a module only
 after verifying the KMS signature, the checksum, and the provenance — offline against the pinned
-key — with a clear, typed failure for each tampered case. `WithModuleURL` is unchanged. Both
-paths are documented in [obtain-a-module](../how-to/obtain-a-module.md).
+key-set — with a clear, typed failure for each tampered case, proven by both unit (TDD) and
+Gherkin (BDD) tests at ≥90% coverage. `WithModuleURL` is unchanged. All three doc types (§10)
+ship in the same MRs. The WKD second layer is specced (0011) and sequenced as the fast-follow.

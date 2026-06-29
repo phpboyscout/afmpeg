@@ -28,6 +28,7 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0008 — performance-strategy](specs/0008-performance-strategy.md) | Spike: measure Wasm-encode perf vs native; decide if/which non-threaded lever (RuntimePool, build tuning) is worth it |
 | [0009 — afmpeg-cli](specs/0009-afmpeg-cli.md) | Deferred (value-unproven): a job-spec-native `cmd/afmpeg` CLI — never `ffmpeg`-arg-compatible |
 | [0010 — signed-release-acquisition](specs/0010-signed-release-acquisition.md) | A certified `WithModuleRelease` path — KMS-signed checksum + provenance verification (BYO `WithModuleURL` stays uncertified) |
+| [0011 — wkd-attestation](specs/0011-wkd-attestation.md) | Fast-follow: a domain-rooted second attestation layer (defends the GitLab-compromise / poisoned-well gap 0010's signature can't) |
 
 ## Method
 
