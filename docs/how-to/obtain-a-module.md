@@ -34,8 +34,8 @@ Because the module is executable code, pair it with `WithSHA256`:
 
 ```go
 rt, err := afmpeg.New(ctx, afmpeg.WithModuleURL(
-    "https://gitlab.com/api/v4/projects/83847809/packages/generic/ffmpeg-wasi/n8.1.2-1/ffmpeg-wasi-lgpl.wasm",
-    afmpeg.WithSHA256("0f338dac4ed1be3819aaf26f1cdeef119e817b43103f1460ca19354ea56bacc9"),
+    "https://gitlab.com/api/v4/projects/83847809/packages/generic/ffmpeg-wasi/n8.1.2-2/ffmpeg-wasi-lgpl.wasm",
+    afmpeg.WithSHA256("b2925737383f3c68c70e8f2df9e40c2339dd8ff03f0f20691b059e82b636d428"),
 ))
 ```
 
@@ -48,15 +48,17 @@ never executed.
 ## Where do I get a module?
 
 - **[ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk)** *(the route)* — the companion
-  libav-direct engine: **current FFmpeg**, published as **lgpl** (default) and **gpl**
-  (libx264) WASI modules, each with a checksum and provenance. Pin a release asset + its
-  SHA-256 (the example above is the `lgpl` module from
-  [`n8.1.2-1`](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases/n8.1.2-1)). It speaks the
+  libav-direct engine: **current FFmpeg**, published as **lgpl** (default) and **gpl** WASI
+  modules, each with a checksum and provenance. **Both encode H.264** — the `lgpl` module via
+  openh264, the `gpl` module via libx264. Pin a release asset + its SHA-256 (the example above
+  is the `lgpl` module from
+  [`n8.1.2-2`](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases/n8.1.2-2)). It speaks the
   structured job spec — drive it with [`Command.JobSpec()` / `RunJob`](compose-a-command.md)
   and [`Probe`](run-in-memory.md).
 
   A GPL module makes the *combined running program* GPL; afmpeg keeps it at arm's length (a
-  separate artifact you fetch), but your obligations follow the variant you choose.
+  separate artifact you fetch), but your obligations follow the variant you choose. The `lgpl`
+  module's self-compiled openh264 carries an [AVC patent caveat](https://ffmpeg-wasi.phpboyscout.uk/explanation/licensing/#h264-encode-and-the-avc-patent-pool).
 - **Build your own** — any current FFmpeg compiled to `wasm32-wasi` with the feature set
   afmpeg's runtime enables (spec [0004](../development/specs/0004-runtime-and-api.md)
   R-0004-9). afmpeg runs it.

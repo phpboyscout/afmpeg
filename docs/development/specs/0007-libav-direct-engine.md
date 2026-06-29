@@ -166,10 +166,12 @@ ffmpeg**. Done on the afmpeg side:
    (`{"op":"probe"}`) and parses `Result.Stdout` into `Probe{Format, DurationSec, Streams}`.
    The CLI path was removed entirely (job-spec only). Unblocks keyrx swapping its `ffprobe`
    `ProbeDuration` to `afmpeg.Probe`.
-2. **Runtime reuse guidance** — `New` compiles the module (expensive); document compile-once,
-   reuse-many (it already serialises invocations).
-3. **A "consume ffmpeg-wasi" how-to** — extend `docs/how-to/obtain-a-module` further as the
-   API settles.
+2. ✅ **Runtime reuse guidance** *(done)* — `docs/how-to/reuse-a-runtime.md` covers
+   compile-once / reuse-many (the long-lived shared `Runtime`) and the one-at-a-time
+   serialisation (parallelise with a fleet; `RuntimePool` is 0006 §2E).
+3. ✅ **A "consume ffmpeg-wasi" how-to** *(done)* — `docs/how-to/obtain-a-module.md` covers
+   file/bytes/fs/URL acquisition with checksum-verified caching; refreshed to the `n8.1.2-2`
+   release (lgpl now encodes H.264 via openh264).
 
 ## 9. Requirements
 
