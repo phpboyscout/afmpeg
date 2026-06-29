@@ -142,11 +142,15 @@ mp4, _ := afero.ReadFile(fs, "out/reel.mp4")   // the result, in memory
 - `R-AF-10` Licensing-clean option: an **LGPL** build variant (no GPL components like
   x264) alongside the default full/GPL build (§9).
 
-**MAY (later)**
-- `R-AF-11` A native backend (purego or CGO libav) selected when host libs are present,
-  for speed — the WASM build as the zero-dependency fallback (a `Backend` seam).
-- `R-AF-12` wasm-threads / SIMD once wazero supports them, to close the perf gap.
-- `R-AF-13` A thin `cmd/afmpeg` CLI (a drop-in `ffmpeg` over a virtual fs) for demos/tests.
+**MAY (later)** — *dispatched 2026-06-29 (see [0006](0006-hardening-roadmap.md) §2):*
+- `R-AF-11` A native (purego/CGO libav) backend for speed — **dropped**. The libav-direct
+  engine removes the need, and CGO re-introduces the posture §2 avoids; revisit only if a
+  concrete capability ffmpeg-wasi can't deliver forces a separate opt-in backend.
+- `R-AF-12` Performance — **→ [0008](0008-performance-strategy.md)** (a measurement-first spike;
+  wasm-threads/SIMD turned out to be unavailable, so the lever is instance-level parallelism /
+  build tuning, not threads).
+- `R-AF-13` A thin `cmd/afmpeg` CLI — **→ [0009](0009-afmpeg-cli.md)** (deferred, value-unproven;
+  job-spec-native only — *not* the drop-in `ffmpeg` arg path, which v0.4.0 removed).
 
 ## 6. The FFmpeg→WASI build pipeline (the hard sub-project)
 
@@ -250,7 +254,10 @@ was drafted. The resolutions below are binding on specs 0002–0006.
 | **0003** vfs-bridge | 2 | afero.Fs → wazero `experimental/sys.FS` adapter (the core); `/tmp`, `/dev/null`; seek-on-write | R-AF-2 |
 | **0004** runtime-and-api | 2 | `New`/`Run`/`Probe`/`Result`/`Close`; module wiring; stderr/exit; ctx-cancel | R-AF-1, R-AF-4, R-AF-5, R-AF-8; D-D, D-E |
 | **0005** command-builder | 3 | R-AF-7 general, use-case-agnostic ffmpeg command builder (inputs/filtergraph/outputs/options + raw escape hatch); `RunCommand`. keyrx's reel is built on it, in keyrx's repo | R-AF-7 |
-| **0006** hardening-roadmap | 4 | LGPL build-out, wasm-threads/SIMD perf, native backend seam, `cmd/afmpeg` CLI | R-AF-11, R-AF-12, R-AF-13 |
+| **0006** hardening-roadmap | 4 | **dispatched** — LGPL build-out + download-cache done; perf → 0008; CLI → 0009; native backend dropped | R-AF-10 (done) |
+| **0007** libav-direct-engine | — | the pivot: `ffmpeg-wasi` libav-direct engine + job-spec vocabulary (supersedes 0002) | R-AF-3, R-AF-6, R-AF-10 |
+| **0008** performance-strategy | 4 | spike: measure Wasm-encode perf vs native; non-threaded levers (RuntimePool, build tuning) | R-AF-12 |
+| **0009** afmpeg-cli | 4 | deferred (value-unproven): job-spec-native `cmd/afmpeg`, never `ffmpeg`-arg-compatible | R-AF-13 |
 
 ## 11. Alternatives considered
 

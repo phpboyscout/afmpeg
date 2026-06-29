@@ -23,8 +23,10 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0003 — vfs-bridge](specs/0003-vfs-bridge.md) | The afero.Fs → wazero `sys.FS` adapter (the core) |
 | [0004 — runtime-and-api](specs/0004-runtime-and-api.md) | `New`/`Run`/`Probe`/`Close`, the public surface |
 | [0005 — command-builder](specs/0005-render-helper-and-keyrx-backend.md) | General ffmpeg command builder (use-case-agnostic; a consumer's reel is built on it) |
-| [0006 — hardening-roadmap](specs/0006-hardening-roadmap.md) | Deferred: LGPL build-out, perf, native backend, CLI |
+| [0006 — hardening-roadmap](specs/0006-hardening-roadmap.md) | **Dispatched**: LGPL build-out + download-cache done; perf → 0008; CLI → 0009; native backend dropped |
 | [0007 — libav-direct-engine](specs/0007-libav-direct-engine.md) | The pivot: the `ffmpeg-wasi` libav-direct engine (current FFmpeg, CGO-free) + the job-spec vocabulary |
+| [0008 — performance-strategy](specs/0008-performance-strategy.md) | Spike: measure Wasm-encode perf vs native; decide if/which non-threaded lever (RuntimePool, build tuning) is worth it |
+| [0009 — afmpeg-cli](specs/0009-afmpeg-cli.md) | Deferred (value-unproven): a job-spec-native `cmd/afmpeg` CLI — never `ffmpeg`-arg-compatible |
 
 ## Method
 
