@@ -80,6 +80,12 @@ WKD is the discovery layer for (a)/(b)'s public key; (c) is the lightest variant
   signature, it carries a valid **independent attestation rooted in the `phpboyscout.uk` domain**
   over the release content, discovered via WKD. A compromise of GitLab alone must not produce a
   release afmpeg will load.
+- **R-AF-16** — The release-signing **public key is published at the domain (WKD) location, not in
+  a GitLab repository** — a key fetched from the same platform that hosts the releases is not an
+  independent anchor. afmpeg keeps pinning the key (its trust root); WKD serves third-party / by-
+  hand verification. A **by-hand verification how-to** (extract the signature envelope, verify the
+  RSASSA-PSS signature against the WKD key, then `sha256sum -c checksums.txt`) ships with this
+  spec — it was deliberately deferred from the 0010 signing docs for exactly this reason.
 
 ## 7. Sequencing & DoD
 
