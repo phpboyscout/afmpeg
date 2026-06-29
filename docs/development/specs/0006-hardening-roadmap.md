@@ -26,7 +26,7 @@ spec (0007+).
 | 2C — native backend (R-AF-11) | deferred-on-trigger | ❌ **dropped** (see below) |
 | 2D — `cmd/afmpeg` CLI (R-AF-13) | deferred-on-trigger | **promoted → [0009](0009-afmpeg-cli.md)** (deferred, value-unproven) |
 | 2E — `RuntimePool` | deferred | **folded into [0008](0008-performance-strategy.md)** (the real parallelism lever absent threads) |
-| 2F — download-and-cache | deferred-on-trigger | ✅ **done** (`WithModuleURL`; see [obtain-a-module](../how-to/obtain-a-module.md)) |
+| 2F — download-and-cache | deferred-on-trigger | ✅ **done** (`WithModuleURL`); certified variant → **[0010](0010-signed-release-acquisition.md)** |
 
 ### 2A — LGPL/openh264 build-out (R-AF-10) — **done** (ffmpeg-wasi `n8.1.2-2`)
 openh264 (BSD) now ships in **both** variants' build, giving the default LGPL artifact H.264
@@ -67,9 +67,9 @@ than as a standalone deferral. Evaluated there before any build.
 Shipped as `WithModuleURL` (+ `WithSHA256`, `WithGunzip`, `WithCacheDir`, `WithHTTPClient`): it
 fetches the artifact by URL, verifies the checksum, and caches under the OS cache dir, never
 `//go:embed`-ing the GPL build. See the [obtain-a-module](../how-to/obtain-a-module.md) how-to.
-*Residual (non-blocking, revisit only on demand):* it pins by **URL+SHA**, not by
-**(release-tag, variant)** — a version-aware convenience and provenance/`checksums.txt`
-cross-check could be layered on later if hand-managing the URL becomes friction.
+*Residual → promoted to [0010](0010-signed-release-acquisition.md):* the URL+SHA primitive is
+right for bring-your-own builds, but a second **certified** path — `WithModuleRelease(tag,
+variant)` with KMS-signed checksum + provenance verification — is now specced in 0010.
 
 ## 3. Non-goals (still, per 0001 §2)
 

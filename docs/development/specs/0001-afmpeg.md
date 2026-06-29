@@ -258,6 +258,7 @@ was drafted. The resolutions below are binding on specs 0002–0006.
 | **0007** libav-direct-engine | — | the pivot: `ffmpeg-wasi` libav-direct engine + job-spec vocabulary (supersedes 0002) | R-AF-3, R-AF-6, R-AF-10 |
 | **0008** performance-strategy | 4 | spike: measure Wasm-encode perf vs native; non-threaded levers (RuntimePool, build tuning) | R-AF-12 |
 | **0009** afmpeg-cli | 4 | deferred (value-unproven): job-spec-native `cmd/afmpeg`, never `ffmpeg`-arg-compatible | R-AF-13 |
+| **0010** signed-release-acquisition | 4 | certified `WithModuleRelease` (KMS-signed checksum + provenance); BYO `WithModuleURL` stays uncertified | R-AF-14 |
 
 ## 11. Alternatives considered
 
