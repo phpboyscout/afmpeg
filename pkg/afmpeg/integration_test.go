@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"image"
+	"image/color"
+	"image/png"
 	"math"
 	"os"
 	"strings"
@@ -76,6 +79,76 @@ func TestIntegration_FFmpegWasiDriver(t *testing.T) {
 	if _, err := os.Stat("out.mp4"); !os.IsNotExist(err) {
 		t.Fatalf("output leaked to the host filesystem: %v", err)
 	}
+}
+
+// TestIntegration_H264Encode_OpenH264 proves the LGPL engine's H.264 encoder
+// (openh264) works end-to-end: a still PNG is decoded, converted to yuv420p, and
+// encoded to H.264 in mp4 — entirely in memory, via the generic Command emitter.
+// This exercises the self-compiled openh264 + its single-threaded pthread shim on a
+// real encode. Gated on AFMPEG_TEST_FFMPEG_WASI (point it at a libopenh264-capable
+// module — the LGPL or GPL variant from n8.1.2-2 onward).
+func TestIntegration_H264Encode_OpenH264(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	if err := afero.WriteFile(fs, "in.png", makePNG(32, 32), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cmd := afmpeg.Command{
+		Inputs:        []afmpeg.Input{{Path: "in.png"}},
+		FilterComplex: "[0:v]format=yuv420p[v]",
+		Outputs: []afmpeg.Output{{
+			Path:       "out.mp4",
+			Map:        []string{"[v]"},
+			VideoCodec: "libopenh264",
+		}},
+	}
+
+	res, err := rt.RunJob(ctx, fs, cmd)
+	if err != nil {
+		t.Fatalf("RunJob: %v", err)
+	}
+
+	if res.ExitCode != 0 {
+		t.Fatalf("H.264 encode exit %d:\n%s", res.ExitCode, res.Stderr)
+	}
+
+	out, err := afero.ReadFile(fs, "out.mp4")
+	if err != nil || len(out) < 12 || string(out[4:8]) != "ftyp" {
+		t.Fatalf("no valid mp4 from libopenh264 encode: err=%v len=%d", err, len(out))
+	}
+}
+
+// makePNG builds a tiny w×h RGBA PNG (a diagonal gradient) in memory — a
+// dependency-free still fixture for the H.264 encode test. Dimensions should be
+// even for yuv420p.
+func makePNG(w, h int) []byte {
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			img.Set(x, y, color.RGBA{R: uint8(x * 8), G: uint8(y * 8), B: uint8((x + y) * 4), A: 255})
+		}
+	}
+
+	buf := new(bytes.Buffer)
+	_ = png.Encode(buf, img)
+
+	return buf.Bytes()
 }
 
 // makeWAVMono builds a minimal mono pcm_s16le WAV (a 440 Hz sine) in memory — a

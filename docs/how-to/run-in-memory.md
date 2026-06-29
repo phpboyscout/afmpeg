@@ -49,6 +49,7 @@ cmd := afmpeg.NewCommand(
     afmpeg.WithFilterComplex("[0:v]scale=1280:-2[v]"),
     afmpeg.WithOutput("out/reel.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264")),
 )
+// Using the default LGPL module? Use VideoCodec("libopenh264") — libx264 needs the GPL module.
 
 res, err := rt.RunJob(ctx, fs, cmd)
 if err != nil {

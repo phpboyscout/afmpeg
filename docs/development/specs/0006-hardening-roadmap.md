@@ -17,12 +17,13 @@ spec (0007+).
 
 ## 2. Backlog items
 
-### 2A — LGPL/openh264 build-out (R-AF-10)
-The LGPL variant is *produced* by 0002's pipeline but not hardened/validated to the R-AF-3
-bar. Graduating it means: validate openh264 H.264 quality against keyrx's needs, document the
-self-compiled-openh264 patent posture (0001 §9, D-C), and publish it as the recommended
-artifact for permissive public consumers. *Trigger:* first external consumer who can't take
-the GPL artifact.
+### 2A — LGPL/openh264 build-out (R-AF-10) — **done** (ffmpeg-wasi `n8.1.2-2`)
+openh264 (BSD) now ships in **both** variants' build, giving the default LGPL artifact H.264
+encode without `--enable-gpl`. The cross-compile, the single-threaded pthread shim, and the
+`ForceIntraFrame` wasm-arity fix live in ffmpeg-wasi `build/`; the self-compiled-openh264 patent
+posture (0001 §9, D-C) is documented in ffmpeg-wasi `docs/explanation/licensing.md`. Validated
+end-to-end by `TestIntegration_H264Encode_OpenH264` (PNG → yuv420p → H.264/mp4, in memory).
+*Remaining:* spot-check openh264 quality/bitrate against keyrx's reels when keyrx adopts it.
 
 ### 2B — Performance: wasm-threads / SIMD (R-AF-12)
 The pinned no-pthreads FFmpeg encodes single-threaded → materially slower than native (0001

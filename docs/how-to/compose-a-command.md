@@ -35,6 +35,11 @@ cmd := afmpeg.Command{
 }
 ```
 
+!!! note "Which H.264 encoder?"
+    `libx264` needs the **GPL** module. The default **LGPL** module encodes H.264 via
+    `"libopenh264"` instead — swap `VideoCodec` accordingly. Both emit H.264/mp4; libx264 is
+    higher quality, openh264 is permissively licensed. See ffmpeg-wasi's variant docs.
+
 ## With NewCommand — functional options
 
 ```go

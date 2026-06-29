@@ -33,8 +33,8 @@ In scope:
   `ffmpeg.wasm` deterministically from source.
 - The `./configure` line enabling **only** the R-AF-3 set.
 - Cross-compiling x264 (GPL build) to wasm as an FFmpeg dependency.
-- Two build variants: **full/GPL** (default, with x264) and a tracked **LGPL** variant
-  (openh264 or no H.264 encoder) — D-C / R-AF-10.
+- Two build variants: **full/GPL** (default, with x264) and an **LGPL** variant
+  (openh264 for H.264 encode) — D-C / R-AF-10. *(Shipped: ffmpeg-wasi `n8.1.2-2`.)*
 - A provenance manifest (versions, configure line, sha256, size) emitted alongside the wasm.
 - A gated CI job (slow; not on every push).
 
@@ -136,7 +136,8 @@ module's licence:
   beyond WASI.
 - `R-0002-5` The GPL `ffmpeg.wasm` is **not** embedded in or committed to the Go module
   source (D-C); it is a published artifact.
-- `R-0002-6` An LGPL variant builds from the same pipeline (R-AF-10); H.264 caveats documented.
+- `R-0002-6` ✅ An LGPL variant builds from the same pipeline (R-AF-10) with openh264 H.264
+  encode; the AVC patent caveat is documented (ffmpeg-wasi `docs/explanation/licensing.md`).
 - `R-0002-7` Module size is recorded; a target ceiling is noted (go-ffmpreg ≈ 7.5 MB gzip as
   the reference — 0001 §9).
 
