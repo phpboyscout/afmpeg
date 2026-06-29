@@ -13,8 +13,9 @@ solves one specific problem.
 
 Available:
 
-- **[Obtain a wasm module](obtain-a-module.md)** — supply the ffmpeg-wasi module from a file,
-  bytes, an afero fs, or a URL with checksum-verified caching (`WithModuleURL`).
+- **[Obtain a wasm module](obtain-a-module.md)** — supply the ffmpeg-wasi module: a
+  signature-verified certified release (`WithModuleRelease`, recommended), or a file, bytes, an
+  afero fs, or a URL with checksum-verified caching (`WithModuleURL`).
 - **[Run ffmpeg over an in-memory filesystem](run-in-memory.md)** — build a `Runtime`,
   supply the module (`WithModuleFile` / `WithModuleBytes` / `WithModuleFS`),
   transcode against an `afero.MemMapFs`, probe a file, and cancel a render.

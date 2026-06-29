@@ -14,7 +14,41 @@ licence (a full/GPL build links x264) never attaches to afmpeg's permissively
 licensed Go package (spec [0001](../development/specs/0001-afmpeg.md) D-C). `New`
 returns [`ErrNoModule`](../explanation/components/errors.md) if none is given.
 
-There are four ways to provide it.
+There are several ways to provide it. For the project's **own** releases, prefer
+the certified path; for your own builds, supply them directly.
+
+## Certified release (recommended)
+
+`WithModuleRelease` fetches a published [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk)
+release by `(tag, variant)` and **verifies it before it runs** — the release's
+`checksums.txt` carries a detached signature made by a key held in AWS KMS (signable
+only by ffmpeg-wasi's tag pipeline), and afmpeg checks that signature against a
+**public key pinned inside afmpeg**, then the module's and provenance's checksums,
+then that the provenance names the variant you asked for:
+
+```go
+var prov afmpeg.Provenance
+rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
+    "n8.1.2-3", afmpeg.VariantLGPL,
+    afmpeg.WithReleaseProvenance(&prov), // optional: what was loaded
+))
+// prov.FFmpegVersion, prov.Variants[...] — verified, not just downloaded.
+```
+
+Verification is **mandatory and offline** (the key is embedded — there is no skip
+flag). Any tamper fails with a typed error: `ErrSignatureInvalid`,
+`ErrChecksumMismatch`, or `ErrProvenanceMismatch`. The verified module is cached, so
+later runs skip the download.
+
+Options: `WithReleaseProvenance` (capture the verified provenance), `WithReleaseBaseURL`
+(fetch from a mirror / internal store — still verified against the pinned key),
+`WithReleaseBundleDir` (air-gapped: verify a local directory of pre-downloaded assets),
+`WithReleaseCacheDir`, `WithReleaseHTTPClient`. See the trust model in
+[verifying a release](../explanation/concepts/release-verification.md).
+
+`VariantLGPL` is the default, proprietary-compatible build (H.264 via openh264);
+`VariantGPL` adds libx264. This path is for **our** releases — we can only certify
+what we publish; for your own builds use `WithModuleURL` or a file below.
 
 ## From a file or bytes
 

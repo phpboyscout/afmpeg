@@ -10,12 +10,13 @@
 //
 // Build a Runtime once (compiling the module is the expensive step) and reuse it;
 // Run serialises invocations, one at a time per Runtime. The module is never
-// embedded — supply it with WithModuleURL (pin a released ffmpeg-wasi artifact +
-// its SHA-256) or one of WithModuleFile / WithModuleBytes / WithModuleFS
-// (spec 0004 D-C):
+// embedded (spec 0004 D-C) — supply it. For the project's own releases prefer
+// WithModuleRelease, which fetches and signature-verifies a published ffmpeg-wasi
+// artifact against a pinned key before it runs; otherwise use WithModuleURL (pin a
+// URL + SHA-256) or one of WithModuleFile / WithModuleBytes / WithModuleFS:
 //
-//	rt, err := afmpeg.New(ctx, afmpeg.WithModuleURL(
-//		"https://.../ffmpeg-wasi-lgpl.wasm", afmpeg.WithSHA256("…")))
+//	rt, err := afmpeg.New(ctx,
+//		afmpeg.WithModuleRelease("n8.1.2-3", afmpeg.VariantLGPL))
 //	if err != nil {
 //		return err
 //	}

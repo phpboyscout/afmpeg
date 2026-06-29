@@ -18,6 +18,9 @@ alternatives that were weighed.
   the no-host-filesystem guarantee.
 - **[Components › Errors](components/errors.md)** — the sentinel-error catalogue and the
   error-handling convention.
+- **[Verifying a release](concepts/release-verification.md)** — how `WithModuleRelease`
+  certifies a published module: the KMS-signed checksums, the pinned key, what each layer
+  defends, and the gap the WKD second layer will close.
 
 For the full design thesis, requirements, and the decision record, see the
 [specs](../development/specs/0001-afmpeg.md) — the source of truth.
