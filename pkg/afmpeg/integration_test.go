@@ -151,6 +151,41 @@ func makePNG(w, h int) []byte {
 	return buf.Bytes()
 }
 
+// TestIntegration_VerifiedRelease loads a real, published, signed ffmpeg-wasi
+// release end-to-end via WithModuleRelease: it fetches the module + manifest over
+// the network, verifies the live AWS-KMS signature against afmpeg's pinned key,
+// checks the checksums and provenance, and compiles the module. The capstone of
+// spec 0010 — production crypto, no fixtures. Gated on AFMPEG_TEST_LIVE_RELEASE
+// (it hits the GitLab package registry).
+func TestIntegration_VerifiedRelease(t *testing.T) {
+	t.Parallel()
+
+	if os.Getenv("AFMPEG_TEST_LIVE_RELEASE") == "" {
+		t.Skip("set AFMPEG_TEST_LIVE_RELEASE=1 to verify a live signed release over the network")
+	}
+
+	ctx := context.Background()
+
+	var prov afmpeg.Provenance
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
+		"n8.1.2-3", afmpeg.VariantLGPL,
+		afmpeg.WithReleaseProvenance(&prov),
+	))
+	if err != nil {
+		t.Fatalf("WithModuleRelease (verify failed?): %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	if prov.FFmpegVersion != "n8.1.2" || prov.BuildTag != "n8.1.2-3" {
+		t.Fatalf("verified provenance unexpected: %+v", prov)
+	}
+
+	t.Logf("verified + compiled n8.1.2-3 lgpl: ffmpeg=%s license=%s",
+		prov.FFmpegVersion, prov.Variants["lgpl"].License)
+}
+
 // makeWAVMono builds a minimal mono pcm_s16le WAV (a 440 Hz sine) in memory — a
 // dependency-free fixture for the in-memory transcode test.
 func makeWAVMono(sampleRate int, seconds float64) []byte {
