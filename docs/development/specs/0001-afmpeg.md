@@ -260,6 +260,7 @@ was drafted. The resolutions below are binding on specs 0002–0006.
 | **0009** afmpeg-cli | 4 | deferred (value-unproven): job-spec-native `cmd/afmpeg`, never `ffmpeg`-arg-compatible | R-AF-13 |
 | **0010** signed-release-acquisition | 4 | certified `WithModuleRelease` (KMS-signed checksum + provenance); BYO `WithModuleURL` stays uncertified | R-AF-14 |
 | **0011** wkd-attestation | 4 | WKD key distribution + embedded↔WKD cross-check + shared offline rotation key (via the `signing` module) | R-AF-15, R-AF-16 |
+| **0012** feature-parity-roadmap | 5 | survey of missing FFmpeg features (codecs/formats/filters/operations) bucketed by the WASI envelope + licence; dispatches child specs 0013+ toward parity | — (roadmap) |
 
 ## 11. Alternatives considered
 

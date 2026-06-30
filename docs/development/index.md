@@ -29,6 +29,7 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0009 — afmpeg-cli](specs/0009-afmpeg-cli.md) | Deferred (value-unproven): a job-spec-native `cmd/afmpeg` CLI — never `ffmpeg`-arg-compatible |
 | [0010 — signed-release-acquisition](specs/0010-signed-release-acquisition.md) | A certified `WithModuleRelease` path — KMS-signed checksum + provenance verification (BYO `WithModuleURL` stays uncertified) |
 | [0011 — wkd-attestation](specs/0011-wkd-attestation.md) | WKD key distribution + the embedded↔WKD cross-check + shared offline rotation key, via `gitlab.com/phpboyscout/signing` |
+| [0012 — feature-parity-roadmap](specs/0012-feature-parity-roadmap.md) | Survey of the FFmpeg features ffmpeg-wasi is missing, bucketed by the WASI envelope + licence and dispatched to child specs (toward parity for standalone consumers) |
 
 ## Method
 
