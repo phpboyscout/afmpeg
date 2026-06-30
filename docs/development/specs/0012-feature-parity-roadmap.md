@@ -247,6 +247,30 @@ The drafts reveal the real graph — not a flat list:
   two libs) and **[0023](0023-hevc-and-av1.md)** (gated on [0008](0008-performance-strategy.md)
   perf + a real need).
 
+### Recommended implementation order
+
+```
+0022  decide the build matrix          ← KEYSTONE: a decision, not code; unblocks all bucketing
+  │
+  ├─ 0013 stream copy ───┐             ← Tier-1 foundational — reshape the component
+  ├─ 0014 seeking ───────┤               (re-encode-only → fast remux / clip / convert)
+  │                      │
+  ├─ 0015 containers ────┤             native batches — parallelisable, no new libs
+  ├─ 0016 native codecs ─┤
+  ├─ 0017 native filters ┘
+  │
+  ├─ 0020 metadata        (needs 0013)
+  ├─ 0021 frames op       (needs 0014 + 0017)
+  ├─ 0018 LGPL encoders   (default-variant codec reach: Opus/MP3/VP8-9/WebP)
+  │
+  └─ 0019 subtitles · 0023 HEVC/AV1    ← heaviest / cross-cutting, last (0023 also gated on 0008)
+```
+
+**Start here next session:** resolve **0022**'s open questions (the lean/full × licence axis — a
+discussion, not implementation), then build **0013 + 0014** as the first feature work. Everything
+below 0013/0014 is parallelisable once the matrix is settled. No implementation is committed yet —
+this is the deliberate commit point.
+
 **Vocabulary versioning** (§6): 0013/0014/0015/0019/0020/0021 each add to the job-spec, and each
 bumps the version additively — **one increment per *landed* spec**, in merge order, not per draft.
 
