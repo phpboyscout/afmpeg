@@ -146,6 +146,16 @@ vs **full** build is selectable. Finalised in the ffmpeg-wasi repo's own build s
 - **Pinning:** afmpeg documents/pins a known-good `ffmpeg-wasi` artifact + sha; the job-spec
   vocabulary version is the compatibility check between the repos.
 
+### Engine capability (2026-06-30) — multi-input + multi-output complete
+
+The driver (`ffmpeg-wasi` `src/process.c`) now implements the **full job-spec shape**: N inputs →
+one `filter_complex` graph → each labelled output pad routed by `map` to **its own output file**
+(per-output muxer + codecs). With a single output, `map` is optional (all pads muxed in); with
+multiple outputs, each claims its pads. `split`/`asplit` were added to the engine's filter set so
+one source can fan out to several files. Shipped in **`n8.1.2-5`**; validated by afmpeg
+`TestIntegration_RunJob_MultiOutput` (asplit → two mp4s) over the real driver. This closes 0007's
+last capability gap.
+
 ### Status (2026-06-28) — validated end-to-end
 
 The whole stack — **keyrx → afmpeg → ffmpeg-wasi** — was validated before the first

@@ -270,6 +270,60 @@ func TestIntegration_RunJob(t *testing.T) {
 	}
 }
 
+// TestIntegration_RunJob_MultiOutput exercises multi-output muxing (0007): one
+// filter graph fans (via asplit) into two labelled pads, each mapped to its own
+// output file with its own muxer. Proves the driver honours every `outputs[]`
+// entry and routes pads by `map`. Gated on AFMPEG_TEST_FFMPEG_WASI.
+func TestIntegration_RunJob_MultiOutput(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	if err := afero.WriteFile(fs, "in.wav", makeWAVMono(8000, 1.0), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	// One source fans out (asplit) into two labelled pads, each mapped to its own
+	// output file — exercising the driver's per-output muxing + map routing.
+	cmd := afmpeg.Command{
+		Inputs:        []afmpeg.Input{{Path: "in.wav"}},
+		FilterComplex: "[0:a]asplit=2[a1][a2];[a1]volume=0.9[loud];[a2]volume=0.1[quiet]",
+		Outputs: []afmpeg.Output{
+			{Path: "loud.mp4", Map: []string{"[loud]"}, AudioCodec: "aac"},
+			{Path: "quiet.mp4", Map: []string{"[quiet]"}, AudioCodec: "aac"},
+		},
+	}
+
+	res, err := rt.RunJob(ctx, fs, cmd)
+	if err != nil {
+		t.Fatalf("RunJob: %v", err)
+	}
+
+	if res.ExitCode != 0 {
+		t.Fatalf("RunJob exit %d:\n%s", res.ExitCode, res.Stderr)
+	}
+
+	for _, name := range []string{"loud.mp4", "quiet.mp4"} {
+		out, err := afero.ReadFile(fs, name)
+		if err != nil || len(out) < 12 || string(out[4:8]) != "ftyp" {
+			t.Fatalf("output %s not a valid mp4/m4a: err=%v len=%d", name, err, len(out))
+		}
+	}
+}
+
 // TestIntegration_Probe_FFmpegWasiDriver is the regression test for
 // BUG-REPORT-probe: Runtime.Probe drives the ffmpeg-wasi engine's probe op (a JSON
 // job spec) and parses the structured result, instead of the old CLI `ffmpeg -i`
