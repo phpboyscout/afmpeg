@@ -210,26 +210,50 @@ proprietary-compatible build becomes broadly useful before the GPL-only heavy hi
 
 ## 7. Disposition — the spec dispatch list
 
-Proposed children of this roadmap (numbers indicative; promote as picked up):
+Child specs — **all DRAFT/SCOPING as of 2026-06-30** (the whole shape drafted together to expose
+dependencies before any implementation commits):
 
-| Area | Scope | Tier | → Spec |
-|---|---|---|---|
-| **Remux & stream copy** | `-c copy`, bitstream filters, concat demuxer | 1 | 0013 |
-| **Seeking & time ranges** | `-ss/-t/-to` fast input seek; clip extraction | 1 | 0014 |
-| **Container coverage** | mpegts, hls/dash, flv, avi, gif, ogg, fragmented-mp4 (native batch) | 1 | 0015 |
-| **Native codec batch** | ac3, pcm family, image decoders, gif/ac3 encode (native flags) | 1 | 0016 |
-| **Native filter batch** | fade, eq/color, select/thumbnail, hstack, deinterlace, loudnorm, palette | 1 | 0017 |
-| **LGPL encoder expansion** | Opus, MP3, VP8/9, WebP (libopus/lame/libvpx/libwebp) | 2 | 0018 |
-| **Text & subtitles** | drawtext (freetype) + subtitles burn-in/decode/mux (libass) | 2 | 0019 |
-| **Metadata & chapters** | read/set tags, chapters, disposition, cover art | 1-2 | 0020 |
-| **Frame extraction op** | first-class thumbnail/frames-at-timestamps operation | 2 | 0021 |
-| **Lean/full size matrix** | the build-variant axis decision (R-AF-3) | — | 0022 |
-| **HEVC / AV1** | x265 (GPL, full) + dav1d/aom | 3 | later |
-| Performance | instance pool + build tuning | — | [0008](0008-performance-strategy.md) (exists) |
+| Area | Scope | Tier | Spec | Owns |
+|---|---|---|---|---|
+| **Remux & stream copy** | `-c copy`, bitstream filters, concat demuxer | 1 | [0013](0013-remux-and-stream-copy.md) | R-PARITY-REMUX |
+| **Seeking & time ranges** | `-ss/-t/-to` fast input seek; clip extraction | 1 | [0014](0014-seeking-and-time-ranges.md) | R-PARITY-SEEK |
+| **Container coverage** | mpegts, hls/dash, flv, avi, gif, ogg, fragmented-mp4 (native) | 1 | [0015](0015-container-coverage.md) | R-PARITY-CONTAINERS |
+| **Native codec batch** | ac3, pcm family, image decoders, gif/ac3 encode (native) | 1 | [0016](0016-native-codec-batch.md) | R-PARITY-NATIVE-CODECS |
+| **Native filter batch** | fade, eq/color, select/thumbnail, hstack, deinterlace, loudnorm, palette | 1 | [0017](0017-native-filter-batch.md) | R-PARITY-NATIVE-FILTERS |
+| **LGPL encoder expansion** | Opus, MP3, VP8/9, WebP, Vorbis (libopus/lame/libvpx/libwebp/libvorbis) | 2 | [0018](0018-lgpl-encoder-expansion.md) | R-PARITY-LGPL-ENCODERS |
+| **Text & subtitles** | drawtext (freetype) + subtitles burn-in/decode/mux (libass) + a subtitle stream type | 2 | [0019](0019-text-and-subtitles.md) | R-PARITY-SUBTITLES |
+| **Metadata & chapters** | read/set tags, chapters, disposition, cover art | 1-2 | [0020](0020-metadata-and-chapters.md) | R-PARITY-METADATA |
+| **Frame extraction op** | a first-class `frames` op (thumbnails/frames-at-timestamps) | 2 | [0021](0021-frame-extraction-op.md) | R-PARITY-FRAMES |
+| **Build & size matrix** | the lean/full × LGPL/GPL build-profile axis (R-AF-3) | — | [0022](0022-build-size-matrix.md) | R-AF-3 (size) |
+| **HEVC / AV1** | x265 (GPL, full) + dav1d (default); AV1 encode deferred | 3 | [0023](0023-hevc-and-av1.md) | R-PARITY-HEAVY-CODECS |
+| Performance | instance pool + build tuning | — | [0008](0008-performance-strategy.md) | R-AF-12 |
+
+### Sequencing (from the children's stated dependencies)
+
+The drafts reveal the real graph — not a flat list:
+
+- **Keystone decision first: [0022](0022-build-size-matrix.md)** (the lean/full × licence matrix).
+  0016/0017/0018/0023 each *defer their bucket placement* to it, so settling it unblocks the rest.
+- **Foundational ops (Tier 1, highest leverage): [0013](0013-remux-and-stream-copy.md) (stream
+  copy) + [0014](0014-seeking-and-time-ranges.md) (seeking).** 0013 underpins 0020 (cover-art
+  passthrough) and 0019 (subtitle copy); 0014 underpins 0021 (frame timestamps) and the
+  keyframe-accurate copy-trim in 0013. These two reshape what the component *is*.
+- **Cheap native breadth (parallelisable, no libs): [0015](0015-container-coverage.md),
+  [0016](0016-native-codec-batch.md), [0017](0017-native-filter-batch.md)** — flag-and-size batches.
+- **Build on the above: [0020](0020-metadata-and-chapters.md) (needs 0013),
+  [0021](0021-frame-extraction-op.md) (needs 0014 + 0017's select/thumbnail).**
+- **Default-variant codec reach: [0018](0018-lgpl-encoder-expansion.md)** (the LGPL encoder libs).
+- **Cross-cutting, heaviest: [0019](0019-text-and-subtitles.md)** (a new subtitle stream type +
+  two libs) and **[0023](0023-hevc-and-av1.md)** (gated on [0008](0008-performance-strategy.md)
+  perf + a real need).
+
+**Vocabulary versioning** (§6): 0013/0014/0015/0019/0020/0021 each add to the job-spec, and each
+bumps the version additively — **one increment per *landed* spec**, in merge order, not per draft.
 
 ## 8. Definition of done (this survey)
 
 The gap surface is catalogued, bucketed by the WASI envelope (§2) and licence (§3), prioritised
-(§5), and dispatched to a child-spec list (§7). This is a **living document** — refine the tiers as
-consumer signal arrives (a real consumer asking for X is the strongest prioritisation input), and
-tick the disposition table as each area is promoted to a spec and built.
+(§5), and dispatched to a **fully-drafted** child-spec set (§7) whose dependency graph is now
+explicit. This is a **living document** — refine the tiers as consumer signal arrives (a real
+consumer asking for X is the strongest input), and flip each child's Status from DRAFT to
+IMPLEMENTED as it ships.

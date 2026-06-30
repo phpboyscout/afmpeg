@@ -261,6 +261,17 @@ was drafted. The resolutions below are binding on specs 0002–0006.
 | **0010** signed-release-acquisition | 4 | certified `WithModuleRelease` (KMS-signed checksum + provenance); BYO `WithModuleURL` stays uncertified | R-AF-14 |
 | **0011** wkd-attestation | 4 | WKD key distribution + embedded↔WKD cross-check + shared offline rotation key (via the `signing` module) | R-AF-15, R-AF-16 |
 | **0012** feature-parity-roadmap | 5 | survey of missing FFmpeg features (codecs/formats/filters/operations) bucketed by the WASI envelope + licence; dispatches child specs 0013+ toward parity | — (roadmap) |
+| **0013** remux-and-stream-copy | 5 | `-c copy` packet passthrough + bitstream filters + concat demuxer (fast remux/trim) | R-PARITY-REMUX |
+| **0014** seeking-and-time-ranges | 5 | `-ss/-t/-to` fast + accurate input seek; output cutoffs; clip extraction | R-PARITY-SEEK |
+| **0015** container-coverage | 5 | native mpegts/hls/dash/flv/avi/gif/ogg/CMAF demuxers + muxers (segmenting output) | R-PARITY-CONTAINERS |
+| **0016** native-codec-batch | 5 | in-tree decoder/encoder allowlist expansion (ac3, pcm family, image, prores, …) | R-PARITY-NATIVE-CODECS |
+| **0017** native-filter-batch | 5 | in-tree filter expansion (loudnorm, select/thumbnail, eq/color, hstack, deinterlace) | R-PARITY-NATIVE-FILTERS |
+| **0018** lgpl-encoder-expansion | 5 | external LGPL/BSD encoder libs → default variant (Opus, MP3, VP8/9, WebP, Vorbis) | R-PARITY-LGPL-ENCODERS |
+| **0019** text-and-subtitles | 5 | drawtext (freetype) + subtitle burn-in/streams (libass) + a subtitle stream type | R-PARITY-SUBTITLES |
+| **0020** metadata-and-chapters | 5 | probe-read + output-set tags, chapters, disposition, language, cover art | R-PARITY-METADATA |
+| **0021** frame-extraction-op | 5 | a first-class `frames` op (thumbnails / frames at timestamps / scene-select) | R-PARITY-FRAMES |
+| **0022** build-size-matrix | 5 | the lean/full × LGPL/GPL build-profile axis + release-artifact matrix | R-AF-3 (size) |
+| **0023** hevc-and-av1 | 5 | Tier-3 heavy codecs: x265 (GPL/full), dav1d AV1 decode (default); AV1 encode deferred | R-PARITY-HEAVY-CODECS |
 
 ## 11. Alternatives considered
 

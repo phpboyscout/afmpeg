@@ -30,6 +30,17 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0010 — signed-release-acquisition](specs/0010-signed-release-acquisition.md) | A certified `WithModuleRelease` path — KMS-signed checksum + provenance verification (BYO `WithModuleURL` stays uncertified) |
 | [0011 — wkd-attestation](specs/0011-wkd-attestation.md) | WKD key distribution + the embedded↔WKD cross-check + shared offline rotation key, via `gitlab.com/phpboyscout/signing` |
 | [0012 — feature-parity-roadmap](specs/0012-feature-parity-roadmap.md) | Survey of the FFmpeg features ffmpeg-wasi is missing, bucketed by the WASI envelope + licence and dispatched to child specs (toward parity for standalone consumers) |
+| [0013 — remux & stream copy](specs/0013-remux-and-stream-copy.md) | `-c copy` packet passthrough + bitstream filters + concat demuxer (fast remux/trim, no re-encode) — child of 0012 |
+| [0014 — seeking & time ranges](specs/0014-seeking-and-time-ranges.md) | `-ss/-t/-to` fast + accurate input seek and output cutoffs (clip extraction) — child of 0012 |
+| [0015 — container coverage](specs/0015-container-coverage.md) | Native mpegts/hls/dash/flv/avi/gif/ogg/CMAF demuxers + muxers (incl. segmenting output) — child of 0012 |
+| [0016 — native codec batch](specs/0016-native-codec-batch.md) | In-tree decoder/encoder allowlist expansion (ac3, pcm family, image, prores, …) — child of 0012 |
+| [0017 — native filter batch](specs/0017-native-filter-batch.md) | In-tree filter expansion (loudnorm, select/thumbnail, eq/color, hstack, deinterlace, …) — child of 0012 |
+| [0018 — LGPL encoder expansion](specs/0018-lgpl-encoder-expansion.md) | External LGPL/BSD encoder libs into the default variant (Opus, MP3, VP8/9, WebP, Vorbis) — child of 0012 |
+| [0019 — text & subtitles](specs/0019-text-and-subtitles.md) | drawtext (freetype) + subtitle burn-in/streams (libass) + a subtitle stream type — child of 0012 |
+| [0020 — metadata & chapters](specs/0020-metadata-and-chapters.md) | Probe-read + output-set tags, chapters, disposition, language, cover art — child of 0012 |
+| [0021 — frame extraction op](specs/0021-frame-extraction-op.md) | A first-class `frames` op (thumbnails / frames at timestamps / scene-select) — child of 0012 |
+| [0022 — build & size matrix](specs/0022-build-size-matrix.md) | The lean/full × LGPL/GPL build-profile axis + release-artifact matrix (R-AF-3) — child of 0012 |
+| [0023 — HEVC & AV1](specs/0023-hevc-and-av1.md) | Tier-3 heavy codecs: x265 (GPL/full), dav1d AV1 decode (default); AV1 encode deferred — child of 0012 |
 
 ## Method
 
