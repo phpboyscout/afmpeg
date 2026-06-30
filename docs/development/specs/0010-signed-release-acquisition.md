@@ -1,8 +1,10 @@
 # 0010 — signed, release-aware module acquisition
 
-Status: **DRAFT** (design for a second, *certified* module-acquisition path alongside the
-existing bring-your-own URL path. Spans two repos — the publisher side is ffmpeg-wasi, the
-consumer side is afmpeg. Review before building.)
+Status: **IMPLEMENTED + SHIPPED** (2026-06-30 — the certified `WithModuleRelease` path alongside
+the bring-your-own URL path. First OpenPGP-signed release `n8.1.2-4` is live; afmpeg verifies via
+the `signing` module. Spans two repos — publisher ffmpeg-wasi, consumer afmpeg. **Note:** the
+signing model was revised from the initial raw-KMS scheme to OpenPGP/WKD — see the Revision block
+below; the cross-check second layer is [0011](0011-wkd-attestation.md).)
 Date: 2026-06-29
 Parent: [0001-afmpeg.md](0001-afmpeg.md) §3 (module acquisition); [0004](0004-runtime-and-api.md) D-0004-C
 Refines: [0006-hardening-roadmap.md](0006-hardening-roadmap.md) §2F (the "done, with residual" note)

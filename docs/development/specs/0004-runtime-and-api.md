@@ -1,7 +1,8 @@
 # 0004 — the runtime & public API (`Run` / `Probe`)
 
-Status: **DRAFT** (component spec; not started. Implements spec 0001 §3.3, §4 and the D-D /
-D-E resolutions. Review before building.)
+Status: **IMPLEMENTED** (shipped in afmpeg v0.4.0 — `New`/`Probe`/`RunJob`/`Runtime` in
+`pkg/afmpeg/runtime.go`. Implements spec 0001 §3.3, §4 and the D-D / D-E resolutions. Note: the
+v0.4.0 job-spec API replaced the original `Run`/`RunCommand` CLI transport.)
 Date: 2026-06-26
 Parent: [0001-afmpeg.md](0001-afmpeg.md) §3.3, §4, §10 (D-D, D-E)
 Owns: **R-AF-1**, **R-AF-4**, **R-AF-5**, **R-AF-8**; resolves **D-D**, scopes **D-E**

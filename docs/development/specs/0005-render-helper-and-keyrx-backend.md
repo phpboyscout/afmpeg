@@ -1,8 +1,10 @@
 # 0005 — the ffmpeg command builder
 
-Status: **DRAFT** (component spec; reframed 2026-06-27 from a keryx-specific "reel
-render helper" to a general, use-case-agnostic command builder. Implements spec 0001
-R-AF-7. Review before building.)
+Status: **IMPLEMENTED** (shipped in afmpeg v0.4.0 as the **job-spec builder** — `JobSpec`/`RunJob`
+in `pkg/afmpeg/command.go`, not the `ffmpeg`-arg `RunCommand` this spec first sketched: v0.4.0
+removed the CLI transport in favour of typed inputs/filtergraph/outputs. Implements spec 0001
+R-AF-7. Reframed 2026-06-27 from a keyrx-specific reel helper to a general, use-case-agnostic
+builder.)
 Date: 2026-06-27 (reframed from the 2026-06-26 reel-helper draft)
 Parent: [0001-afmpeg.md](0001-afmpeg.md) §4 (R-AF-7), §7 (consumer integration)
 Owns: **R-AF-7** (a higher-level builder so callers don't hand-assemble arg slices)

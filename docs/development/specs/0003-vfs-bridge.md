@@ -1,7 +1,7 @@
 # 0003 — the afero ↔ wazero vfs bridge
 
-Status: **DRAFT** (component spec; not started. Implements spec 0001 §3.2 — the heart of
-afmpeg. Review before building.)
+Status: **IMPLEMENTED** (shipped in afmpeg v0.4.0 — the afero.Fs → wazero `experimental/sys.FS`
+adapter lives in `pkg/afmpeg`. Implements spec 0001 §3.2 — the heart of afmpeg.)
 Date: 2026-06-26
 Parent: [0001-afmpeg.md](0001-afmpeg.md) §3.2, §9 (writable-fs risk)
 Owns: **R-AF-2** (afero-backed I/O, no host-fs access)
