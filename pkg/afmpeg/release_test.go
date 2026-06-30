@@ -3,9 +3,7 @@ package afmpeg
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"crypto/rsa"
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -15,18 +13,19 @@ import (
 	"testing"
 
 	"github.com/cockroachdb/errors"
+	"gitlab.com/phpboyscout/signing/verify"
 )
 
 // releaseAssets builds the three manifest assets for a (variant, module), signed
-// by key — mirroring exactly what build/sign-release.sh produces in ffmpeg-wasi.
-func releaseAssets(t *testing.T, key *rsa.PrivateKey, variant Variant, module []byte) (checksums, signature, provenance []byte) {
+// by priv — mirroring what `gtb sign` produces in ffmpeg-wasi.
+func releaseAssets(t *testing.T, priv *rsa.PrivateKey, pub []byte, variant Variant, module []byte) (checksums, signature, provenance []byte) {
 	t.Helper()
 
 	moduleFile := "ffmpeg-wasi-" + string(variant) + ".wasm"
 
 	prov := Provenance{
 		FFmpegVersion:  "n8.1.2",
-		BuildTag:       "n8.1.2-3",
+		BuildTag:       "n8.1.2-4",
 		Commit:         "abc123",
 		ToolingLicense: "MIT",
 		Variants: map[string]ProvenanceVariant{
@@ -41,17 +40,7 @@ func releaseAssets(t *testing.T, key *rsa.PrivateKey, variant Variant, module []
 	}
 
 	checksums = buildChecksums(map[string][]byte{moduleFile: module, "provenance.json": provenance})
-
-	env := sigEnvelope{
-		KeyID:     keyID(&key.PublicKey),
-		Algorithm: algRSASSAPSSSHA256,
-		Signature: base64.StdEncoding.EncodeToString(signChecksums(t, key, checksums)),
-	}
-
-	signature, err = json.Marshal(env)
-	if err != nil {
-		t.Fatalf("marshal signature: %v", err)
-	}
+	signature = detachSign(t, priv, pub, checksums)
 
 	return checksums, signature, provenance
 }
@@ -79,14 +68,9 @@ func serveAssets(t *testing.T, assets map[string][]byte) *httptest.Server {
 func TestFetchRelease(t *testing.T) {
 	t.Parallel()
 
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("generate key: %v", err)
-	}
-
-	trusted := keySet{keyID(&key.PublicKey): &key.PublicKey}
+	priv, pub := testSigningKey(t)
 	module := []byte("\x00asm pretend-module-lgpl")
-	checksums, signature, provenance := releaseAssets(t, key, VariantLGPL, module)
+	checksums, signature, provenance := releaseAssets(t, priv, pub, VariantLGPL, module)
 	moduleFile := "ffmpeg-wasi-lgpl.wasm"
 
 	assets := map[string][]byte{
@@ -102,9 +86,9 @@ func TestFetchRelease(t *testing.T) {
 		srv := serveAssets(t, assets)
 
 		var gotProv Provenance
-		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: trusted, cacheDir: t.TempDir(), provOut: &gotProv}
+		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: [][]byte{pub}, cacheDir: t.TempDir(), provOut: &gotProv}
 
-		got, err := fetchRelease(context.Background(), "n8.1.2-3", VariantLGPL, rc)
+		got, err := fetchRelease(context.Background(), "n8.1.2-4", VariantLGPL, rc)
 		if err != nil {
 			t.Fatalf("fetchRelease: %v", err)
 		}
@@ -113,7 +97,7 @@ func TestFetchRelease(t *testing.T) {
 			t.Fatal("returned module bytes differ from served module")
 		}
 
-		if gotProv.FFmpegVersion != "n8.1.2" || gotProv.BuildTag != "n8.1.2-3" {
+		if gotProv.FFmpegVersion != "n8.1.2" || gotProv.BuildTag != "n8.1.2-4" {
 			t.Fatalf("provenance not surfaced: %+v", gotProv)
 		}
 	})
@@ -125,8 +109,8 @@ func TestFetchRelease(t *testing.T) {
 		tampered[moduleFile] = append(append([]byte{}, module...), 'x')
 		srv := serveAssets(t, tampered)
 
-		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: trusted, cacheDir: t.TempDir()}
-		if _, err := fetchRelease(context.Background(), "n8.1.2-3", VariantLGPL, rc); !errors.Is(err, ErrChecksumMismatch) {
+		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: [][]byte{pub}, cacheDir: t.TempDir()}
+		if _, err := fetchRelease(context.Background(), "n8.1.2-4", VariantLGPL, rc); !errors.Is(err, ErrChecksumMismatch) {
 			t.Fatalf("want ErrChecksumMismatch, got %v", err)
 		}
 	})
@@ -135,10 +119,10 @@ func TestFetchRelease(t *testing.T) {
 		t.Parallel()
 
 		srv := serveAssets(t, assets)
-		// Empty trust set — the (valid) signature's key-id is not embedded.
-		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: keySet{}, cacheDir: t.TempDir()}
+		_, otherPub := testSigningKey(t) // a key that did not sign these assets
+		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: [][]byte{otherPub}, cacheDir: t.TempDir()}
 
-		if _, err := fetchRelease(context.Background(), "n8.1.2-3", VariantLGPL, rc); !errors.Is(err, ErrSignatureInvalid) {
+		if _, err := fetchRelease(context.Background(), "n8.1.2-4", VariantLGPL, rc); !errors.Is(err, verify.ErrSignatureInvalid) {
 			t.Fatalf("want ErrSignatureInvalid, got %v", err)
 		}
 	})
@@ -146,11 +130,10 @@ func TestFetchRelease(t *testing.T) {
 	t.Run("errors when an online asset is missing", func(t *testing.T) {
 		t.Parallel()
 
-		// A server with only the module — checksums.txt 404s.
-		srv := serveAssets(t, map[string][]byte{moduleFile: module})
-		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: trusted, cacheDir: t.TempDir()}
+		srv := serveAssets(t, map[string][]byte{moduleFile: module}) // checksums.txt 404s
+		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: [][]byte{pub}, cacheDir: t.TempDir()}
 
-		if _, err := fetchRelease(context.Background(), "n8.1.2-3", VariantLGPL, rc); err == nil {
+		if _, err := fetchRelease(context.Background(), "n8.1.2-4", VariantLGPL, rc); err == nil {
 			t.Fatal("want an error when checksums.txt is absent")
 		}
 	})
@@ -158,8 +141,8 @@ func TestFetchRelease(t *testing.T) {
 	t.Run("errors when an offline bundle file is missing", func(t *testing.T) {
 		t.Parallel()
 
-		rc := &releaseConfig{bundleDir: t.TempDir(), keys: trusted} // empty dir
-		if _, err := fetchRelease(context.Background(), "n8.1.2-3", VariantLGPL, rc); err == nil {
+		rc := &releaseConfig{bundleDir: t.TempDir(), keys: [][]byte{pub}} // empty dir
+		if _, err := fetchRelease(context.Background(), "n8.1.2-4", VariantLGPL, rc); err == nil {
 			t.Fatal("want an error when the bundle is incomplete")
 		}
 	})
@@ -174,9 +157,9 @@ func TestFetchRelease(t *testing.T) {
 			}
 		}
 
-		rc := &releaseConfig{bundleDir: dir, keys: trusted}
+		rc := &releaseConfig{bundleDir: dir, keys: [][]byte{pub}}
 
-		got, err := fetchRelease(context.Background(), "n8.1.2-3", VariantLGPL, rc)
+		got, err := fetchRelease(context.Background(), "n8.1.2-4", VariantLGPL, rc)
 		if err != nil {
 			t.Fatalf("offline fetchRelease: %v", err)
 		}
@@ -194,6 +177,22 @@ func cloneAssets(in map[string][]byte) map[string][]byte {
 	}
 
 	return out
+}
+
+func TestResolveTrust_embeddedDefault(t *testing.T) {
+	t.Parallel()
+
+	// nil keys → afmpeg's embedded trust set (the production default path).
+	rc := &releaseConfig{client: http.DefaultClient}
+
+	ts, err := rc.resolveTrust(context.Background())
+	if err != nil {
+		t.Fatalf("resolveTrust from embedded keys: %v", err)
+	}
+
+	if ts == nil || len(ts.Fingerprints()) == 0 {
+		t.Fatal("embedded keys produced an empty trust set")
+	}
 }
 
 func TestReleaseOptions(t *testing.T) {
@@ -223,12 +222,12 @@ func TestReleaseOptions(t *testing.T) {
 func TestWithModuleRelease_validatesVariant(t *testing.T) {
 	t.Parallel()
 
-	if err := WithModuleRelease("n8.1.2-3", Variant("bogus"))(&config{}); err == nil {
+	if err := WithModuleRelease("n8.1.2-4", Variant("bogus"))(&config{}); err == nil {
 		t.Fatal("want an error for an unknown variant, got nil")
 	}
 
 	cfg := &config{}
-	if err := WithModuleRelease("n8.1.2-3", VariantLGPL)(cfg); err != nil {
+	if err := WithModuleRelease("n8.1.2-4", VariantLGPL)(cfg); err != nil {
 		t.Fatalf("valid variant: %v", err)
 	}
 

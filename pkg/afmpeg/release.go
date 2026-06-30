@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/cockroachdb/errors"
+	"gitlab.com/phpboyscout/signing/verify"
 )
 
 // defaultReleaseBaseURL is the canonical ffmpeg-wasi generic-package layout on
@@ -24,7 +25,10 @@ type releaseConfig struct {
 	cacheDir  string
 	client    *http.Client
 	provOut   *Provenance
-	keys      keySet // the trusted set; defaults to the embedded keys (tests inject)
+
+	// keys are armored OpenPGP public keys; nil → afmpeg's embedded set (tests
+	// inject their own). The WKD cross-check (spec 0011) layers onto this resolver.
+	keys [][]byte
 }
 
 // ReleaseOption configures WithModuleRelease.
@@ -50,7 +54,8 @@ func WithReleaseCacheDir(dir string) ReleaseOption {
 	return func(c *releaseConfig) { c.cacheDir = dir }
 }
 
-// WithReleaseHTTPClient overrides the HTTP client used to fetch the release.
+// WithReleaseHTTPClient overrides the HTTP client used to fetch the release (and,
+// when the WKD cross-check is enabled, to fetch the WKD key).
 func WithReleaseHTTPClient(client *http.Client) ReleaseOption {
 	return func(c *releaseConfig) { c.client = client }
 }
@@ -61,19 +66,20 @@ func WithReleaseProvenance(into *Provenance) ReleaseOption {
 	return func(c *releaseConfig) { c.provOut = into }
 }
 
-// withReleaseKeys overrides the trusted key-set. Unexported: only tests use it,
-// to drive the public WithModuleRelease path against a generated key instead of
-// the embedded production key (which can only be signed for by KMS).
-func withReleaseKeys(keys keySet) ReleaseOption {
-	return func(c *releaseConfig) { c.keys = keys }
+// withReleaseKeys overrides the embedded trust keys (armored OpenPGP public
+// keys). Unexported: only tests use it, to drive the public WithModuleRelease
+// path against a generated key instead of the embedded production keys.
+func withReleaseKeys(armoredKeys ...[]byte) ReleaseOption {
+	return func(c *releaseConfig) { c.keys = armoredKeys }
 }
 
 // WithModuleRelease loads a certified ffmpeg-wasi release for (tag, variant): it
 // fetches the module plus its checksums, signature, and provenance, and verifies
-// — against afmpeg's pinned signing key — the KMS signature over the checksums,
-// the module's and provenance's checksums, and that provenance names this variant
-// (spec 0010). Only then is the module compiled. Any tamper fails with a typed
-// error (ErrSignatureInvalid, ErrChecksumMismatch, ErrProvenanceMismatch).
+// — against afmpeg's pinned OpenPGP trust keys — the detached signature over the
+// checksums, the module's and provenance's checksums, and that provenance names
+// this variant (spec 0010, revised to gitlab.com/phpboyscout/signing). Only then
+// is the module compiled. Any tamper fails with a typed error
+// (signing/verify.ErrSignatureInvalid, ErrChecksumMismatch, ErrProvenanceMismatch).
 //
 // Unlike WithModuleURL (bring-your-own, uncertified), this path is for the
 // project's own published releases — there is no way to skip verification.
@@ -83,11 +89,7 @@ func WithModuleRelease(tag string, variant Variant, opts ...ReleaseOption) Optio
 			return errors.Newf("afmpeg: unknown variant %q (want %q or %q)", variant, VariantLGPL, VariantGPL)
 		}
 
-		rc := &releaseConfig{
-			baseURL: defaultReleaseBaseURL,
-			client:  http.DefaultClient,
-			keys:    releaseSigningKeys,
-		}
+		rc := &releaseConfig{baseURL: defaultReleaseBaseURL, client: http.DefaultClient}
 		for _, opt := range opts {
 			opt(rc)
 		}
@@ -100,20 +102,45 @@ func WithModuleRelease(tag string, variant Variant, opts ...ReleaseOption) Optio
 	}
 }
 
+// resolveTrust builds the trust set afmpeg verifies against: the embedded OpenPGP
+// keys (or test-injected ones). Spec 0011 extends this resolver with the WKD
+// fingerprint cross-check (KeySource "both" + the release email).
+func (rc *releaseConfig) resolveTrust(ctx context.Context) (*verify.TrustSet, error) {
+	keys := rc.keys
+	if keys == nil {
+		var err error
+		if keys, err = embeddedTrustKeys(); err != nil {
+			return nil, err
+		}
+	}
+
+	resolver, err := verify.BuildKeyResolver(verify.KeyResolverConfig{KeySource: "embedded"}, keys...)
+	if err != nil {
+		return nil, err
+	}
+
+	return resolver.Resolve(ctx)
+}
+
 func fetchRelease(ctx context.Context, tag string, variant Variant, rc *releaseConfig) ([]byte, error) {
+	trust, err := rc.resolveTrust(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	moduleFile := "ffmpeg-wasi-" + string(variant) + ".wasm"
 
 	if rc.bundleDir != "" {
-		return fetchReleaseOffline(rc, variant, moduleFile)
+		return fetchReleaseOffline(rc, variant, moduleFile, trust)
 	}
 
-	return fetchReleaseOnline(ctx, tag, variant, moduleFile, rc)
+	return fetchReleaseOnline(ctx, tag, variant, moduleFile, rc, trust)
 }
 
 // fetchReleaseOffline verifies a complete bundle read from a local directory
 // (D-0010-G air-gap): everything is in memory, so the whole bundle goes through
 // verifyRelease.
-func fetchReleaseOffline(rc *releaseConfig, variant Variant, moduleFile string) ([]byte, error) {
+func fetchReleaseOffline(rc *releaseConfig, variant Variant, moduleFile string, trust *verify.TrustSet) ([]byte, error) {
 	module, err := readBundleFile(rc.bundleDir, moduleFile)
 	if err != nil {
 		return nil, err
@@ -143,7 +170,7 @@ func fetchReleaseOffline(rc *releaseConfig, variant Variant, moduleFile string) 
 		provFile:   provenanceFile,
 	}
 
-	prov, err := verifyRelease(bundle, variant, rc.keys)
+	prov, err := verifyRelease(bundle, variant, trust)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +186,7 @@ func fetchReleaseOffline(rc *releaseConfig, variant Variant, moduleFile string) 
 // module's trusted SHA before any module byte is trusted — then fetches the
 // module through the content-addressed cache (a repeat load skips the download;
 // a corrupt cache entry self-heals on its checksum).
-func fetchReleaseOnline(ctx context.Context, tag string, variant Variant, moduleFile string, rc *releaseConfig) ([]byte, error) {
+func fetchReleaseOnline(ctx context.Context, tag string, variant Variant, moduleFile string, rc *releaseConfig, trust *verify.TrustSet) ([]byte, error) {
 	checksums, err := downloadAsset(ctx, rc, tag, "checksums.txt")
 	if err != nil {
 		return nil, err
@@ -175,7 +202,7 @@ func fetchReleaseOnline(ctx context.Context, tag string, variant Variant, module
 		return nil, err
 	}
 
-	prov, moduleSHA, err := verifyManifest(checksums, signature, provenance, variant, moduleFile, provenanceFile, rc.keys)
+	prov, moduleSHA, err := verifyManifest(trust, checksums, signature, provenance, variant, moduleFile, provenanceFile)
 	if err != nil {
 		return nil, err
 	}

@@ -1,27 +1,35 @@
 package afmpeg
 
-import "testing"
+import (
+	"slices"
+	"testing"
 
-// TestEmbeddedReleaseSigningKeys pins the trust root: the embedded set must
-// contain the ffmpeg-wasi release-signing key with exactly the expected key-id
-// (the hex SHA-256 of its SPKI DER), an RSA-4096 key. A mismatch means the wrong
-// key was shipped — the whole point of an embedded, pinned trust root.
-func TestEmbeddedReleaseSigningKeys(t *testing.T) {
+	"gitlab.com/phpboyscout/signing/verify"
+)
+
+// signingKeyFingerprint pins afmpeg's trust root: the OpenPGP fingerprint of
+// ffmpeg-wasi's release-signing key (minted from KMS key
+// alias/ffmpeg-wasi-release-signing-v1, creation time 2026-06-30T00:00:00Z). A
+// mismatch means the wrong key was shipped — the whole point of an embedded,
+// pinned trust root.
+const signingKeyFingerprint = "710881C1DDAEABD138E53004A2166E59EB6060E1"
+
+// TestEmbeddedTrustKeys checks the embedded .asc keys load into a valid trust set
+// and that the pinned ffmpeg-wasi signing key is present.
+func TestEmbeddedTrustKeys(t *testing.T) {
 	t.Parallel()
 
-	const wantKeyID = "1698ceea3728c7e5cc89288675e643c1e9b6110ae88575aeaa15148eb9630a76"
-
-	pub, ok := releaseSigningKeys[wantKeyID]
-	if !ok {
-		got := make([]string, 0, len(releaseSigningKeys))
-		for id := range releaseSigningKeys {
-			got = append(got, id)
-		}
-
-		t.Fatalf("pinned key-id %s absent; embedded set has %v", wantKeyID, got)
+	keys, err := embeddedTrustKeys()
+	if err != nil {
+		t.Fatalf("embeddedTrustKeys: %v", err)
 	}
 
-	if pub.Size() != 512 { // RSA-4096 modulus is 512 bytes
-		t.Fatalf("pinned key is %d-byte modulus, want 512 (RSA-4096)", pub.Size())
+	ts, err := verify.LoadTrustSet(keys...)
+	if err != nil {
+		t.Fatalf("embedded keys do not form a valid trust set: %v", err)
+	}
+
+	if fps := ts.Fingerprints(); !slices.Contains(fps, signingKeyFingerprint) {
+		t.Fatalf("pinned signing-key fingerprint %s absent; embedded set has %v", signingKeyFingerprint, fps)
 	}
 }

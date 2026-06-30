@@ -1,11 +1,22 @@
 # gitleaks configuration
 #
-# Extends the default ruleset shipped with gitleaks. No project-specific
-# allowlist yet — add file-scoped entries here if a test fixture legitimately
-# needs to carry credential-shaped strings (e.g. a redaction corpus).
+# Extends the default ruleset shipped with gitleaks. The allowlist below scopes
+# out the project's **public** OpenPGP trust material — these are public by
+# design (a release-signing trust root; spec 0010/0011), not secrets.
 #
 # Uses the top-level [allowlist] (singular) form for compatibility with the
 # gitleaks-action bundled binary.
 
 [extend]
 useDefault = true
+
+[allowlist]
+description = "Public OpenPGP trust material — embedded release-signing/rotation public keys and the pinned signing-key fingerprint are public by design."
+paths = [
+  '''pkg/afmpeg/keys/.*\.asc''',
+]
+# The pinned ffmpeg-wasi release-signing key fingerprint (public; an OpenPGP key
+# fingerprint, not an API key). Update alongside the embedded key on rotation.
+regexes = [
+  '''710881C1DDAEABD138E53004A2166E59EB6060E1''',
+]

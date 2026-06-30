@@ -3,11 +3,8 @@ package afmpeg
 import (
 	"bytes"
 	"context"
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -15,12 +12,15 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/cucumber/godog"
+	"gitlab.com/phpboyscout/signing/openpgpkey"
+	"gitlab.com/phpboyscout/signing/verify"
 )
 
 // releaseWorld is the per-scenario state for the release-verification feature.
 type releaseWorld struct {
-	key     *rsa.PrivateKey
-	trusted keySet
+	priv    *rsa.PrivateKey
+	pub     []byte   // the signer's armored public key
+	trusted [][]byte // the keys afmpeg is told to trust (default: pub)
 	dir     string
 	tag     string
 	module  []byte
@@ -30,20 +30,23 @@ type releaseWorld struct {
 }
 
 func (w *releaseWorld) aTrustedKey() error {
-	k, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(rand.Reader, 3072)
 	if err != nil {
 		return err
 	}
 
-	w.key = k
-	w.trusted = keySet{keyID(&k.PublicKey): &k.PublicKey}
+	pub, err := openpgpkey.ArmoredPublicKey(priv, "ffmpeg-wasi Release", "ffmpeg-wasi-release@phpboyscout.uk", testKeyEpoch)
+	if err != nil {
+		return err
+	}
+
+	w.priv, w.pub, w.trusted = priv, pub, [][]byte{pub}
 
 	return nil
 }
 
 // writeRelease assembles a signed release for variant into the scenario's dir. If
-// wrongProvFile, provenance names the wrong file for the lgpl variant (a
-// signed-but-inconsistent release) to exercise the provenance cross-check.
+// wrongProvFile, provenance names the wrong file for the lgpl variant.
 func (w *releaseWorld) writeRelease(variant string, wrongProvFile bool) error {
 	moduleFile := "ffmpeg-wasi-" + variant + ".wasm"
 	w.module = []byte("\x00asm bdd " + variant)
@@ -70,18 +73,7 @@ func (w *releaseWorld) writeRelease(variant string, wrongProvFile bool) error {
 
 	checksums := buildChecksums(map[string][]byte{moduleFile: w.module, "provenance.json": provBytes})
 
-	digest := sha256.Sum256(checksums)
-
-	rawSig, err := rsa.SignPSS(rand.Reader, w.key, crypto.SHA256, digest[:], nil)
-	if err != nil {
-		return err
-	}
-
-	sig, err := json.Marshal(sigEnvelope{
-		KeyID:     keyID(&w.key.PublicKey),
-		Algorithm: algRSASSAPSSSHA256,
-		Signature: base64.StdEncoding.EncodeToString(rawSig),
-	})
+	sig, err := openpgpkey.DetachSign(w.priv, w.pub, bytes.NewReader(checksums), testKeyEpoch)
 	if err != nil {
 		return err
 	}
@@ -111,7 +103,17 @@ func (w *releaseWorld) alterModule() error {
 }
 
 func (w *releaseWorld) untrustKey() error {
-	w.trusted = keySet{}
+	other, err := rsa.GenerateKey(rand.Reader, 3072)
+	if err != nil {
+		return err
+	}
+
+	otherPub, err := openpgpkey.ArmoredPublicKey(other, "Someone Else", "someone@example.test", testKeyEpoch)
+	if err != nil {
+		return err
+	}
+
+	w.trusted = [][]byte{otherPub}
 
 	return nil
 }
@@ -125,7 +127,7 @@ func (w *releaseWorld) loadRelease(variant string) error {
 
 	opt := WithModuleRelease(w.tag, Variant(variant),
 		WithReleaseBundleDir(w.dir),
-		withReleaseKeys(w.trusted),
+		withReleaseKeys(w.trusted...),
 		WithReleaseProvenance(&w.prov),
 	)
 	if err := opt(cfg); err != nil {
@@ -168,7 +170,7 @@ func (w *releaseWorld) failsWith(sentinel error) error {
 }
 
 func (w *releaseWorld) failsChecksum() error   { return w.failsWith(ErrChecksumMismatch) }
-func (w *releaseWorld) failsSignature() error  { return w.failsWith(ErrSignatureInvalid) }
+func (w *releaseWorld) failsSignature() error  { return w.failsWith(verify.ErrSignatureInvalid) }
 func (w *releaseWorld) failsProvenance() error { return w.failsWith(ErrProvenanceMismatch) }
 
 // TestReleaseVerificationFeatures runs the Gherkin trust-contract scenarios — the

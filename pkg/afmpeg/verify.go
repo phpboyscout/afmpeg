@@ -1,16 +1,13 @@
 package afmpeg
 
 import (
-	"crypto"
-	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"gitlab.com/phpboyscout/signing/verify"
 )
 
 // Variant selects which licence build of the ffmpeg-wasi engine to load
@@ -41,66 +38,29 @@ type ProvenanceVariant struct {
 	H264Encode string `json:"h264_encode"`
 }
 
-// algRSASSAPSSSHA256 is the only signature algorithm afmpeg accepts (D-0010-E).
-const algRSASSAPSSSHA256 = "RSASSA_PSS_SHA_256"
-
-var (
-	// ErrSignatureInvalid is returned when a release's checksums signature does not
-	// verify against a trusted, embedded public key.
-	ErrSignatureInvalid = errors.New("afmpeg: release signature invalid")
-	// ErrProvenanceMismatch is returned when a release's provenance does not
-	// corroborate the requested variant.
-	ErrProvenanceMismatch = errors.New("afmpeg: release provenance mismatch")
-)
-
-// keySet maps a key-id to a trusted release-signing public key. afmpeg embeds the
-// set (D-0010-F); tests inject their own.
-type keySet map[string]*rsa.PublicKey
-
-// sigEnvelope is the JSON content of checksums.txt.sig: a key-id naming which
-// embedded key signed, the algorithm, and the base64 raw KMS signature.
-type sigEnvelope struct {
-	KeyID     string `json:"key_id"`
-	Algorithm string `json:"algorithm"`
-	Signature string `json:"signature"`
-}
+// ErrProvenanceMismatch is returned when a release's provenance does not
+// corroborate the requested variant. (Signature failures surface as
+// signing/verify's ErrSignatureInvalid; checksum failures as ErrChecksumMismatch.)
+var ErrProvenanceMismatch = errors.New("afmpeg: release provenance mismatch")
 
 // releaseBundle is the set of fetched (or locally supplied) assets for one
-// (tag, variant) release.
+// (tag, variant) release. signature is an ASCII-armored OpenPGP detached
+// signature over checksums.txt (spec 0010 revised).
 type releaseBundle struct {
 	module     []byte
 	checksums  []byte
-	signature  []byte // checksums.txt.sig (a sigEnvelope JSON document)
+	signature  []byte // checksums.txt.sig — armored OpenPGP detached signature
 	provenance []byte
 	moduleFile string // canonical asset name, e.g. "ffmpeg-wasi-lgpl.wasm"
 	provFile   string // "provenance.json"
 }
 
-// keyID is the stable identifier for a public key: the hex SHA-256 of its
-// SubjectPublicKeyInfo DER. It is what `checksums.txt.sig` names and what the
-// embedded key-set is keyed by.
-func keyID(pub *rsa.PublicKey) string {
-	der, err := x509.MarshalPKIXPublicKey(pub)
-	if err != nil {
-		return ""
-	}
-
-	sum := sha256.Sum256(der)
-
-	return hex.EncodeToString(sum[:])
-}
-
-// verifyRelease enforces the spec-0010 trust chain on a fetched bundle, in order:
-//
-//  1. the signature over checksums.txt, by a trusted key (D-0010-E/F);
-//  2. the module's checksum, read from the now-trusted checksums.txt;
-//  3. provenance.json's checksum, binding it into the signed set;
-//  4. provenance agrees with the requested variant (D-0010-H).
-//
-// Verification is offline — it needs only the embedded key-set. It returns the
-// parsed provenance on success, or a typed error identifying the failed rule.
-func verifyRelease(b releaseBundle, variant Variant, keys keySet) (Provenance, error) {
-	prov, moduleSHA, err := verifyManifest(b.checksums, b.signature, b.provenance, variant, b.moduleFile, b.provFile, keys)
+// verifyRelease enforces the trust chain on a complete (in-memory) bundle —
+// the OpenPGP signature over checksums.txt by a trusted key, then the module's
+// and provenance's checksums, then the variant. Used by the offline-bundle path
+// and the unit tests; the online path uses verifyManifest + a cached module fetch.
+func verifyRelease(b releaseBundle, variant Variant, trust *verify.TrustSet) (Provenance, error) {
+	prov, moduleSHA, err := verifyManifest(trust, b.checksums, b.signature, b.provenance, variant, b.moduleFile, b.provFile)
 	if err != nil {
 		return Provenance{}, err
 	}
@@ -112,12 +72,13 @@ func verifyRelease(b releaseBundle, variant Variant, keys keySet) (Provenance, e
 	return prov, nil
 }
 
-// verifyManifest verifies the signed manifest of a release (steps 1, 3, 4 of the
-// chain) and returns the parsed provenance and the module's trusted SHA-256 — so
-// the (large) module can then be fetched through the content-addressed cache and
-// checked against that SHA, instead of being held in memory for verifyRelease.
-func verifyManifest(checksums, signature, provenance []byte, variant Variant, moduleFile, provFile string, keys keySet) (Provenance, string, error) {
-	if err := verifySignature(checksums, signature, keys); err != nil {
+// verifyManifest verifies the signed manifest (steps 1, 3, 4 of the chain): the
+// OpenPGP detached signature over checksums.txt against the trust set, then
+// provenance.json's checksum and the variant. It returns the parsed provenance
+// and the module's trusted SHA-256 — so the (large) module can be fetched through
+// the content-addressed cache and checked against that SHA.
+func verifyManifest(trust *verify.TrustSet, checksums, signature, provenance []byte, variant Variant, moduleFile, provFile string) (Provenance, string, error) {
+	if err := trust.VerifyManifestSignature(checksums, signature); err != nil {
 		return Provenance{}, "", err
 	}
 
@@ -146,37 +107,6 @@ func verifyManifest(checksums, signature, provenance []byte, variant Variant, mo
 	}
 
 	return prov, moduleSHA, nil
-}
-
-// verifySignature checks the detached signature envelope over checksums.txt: the
-// algorithm is the one we accept, the named key-id is trusted, and the RSASSA-PSS
-// signature validates against it.
-func verifySignature(checksums, envelope []byte, keys keySet) error {
-	var env sigEnvelope
-	if err := json.Unmarshal(envelope, &env); err != nil {
-		return errors.Wrap(ErrSignatureInvalid, "parse signature envelope")
-	}
-
-	if env.Algorithm != algRSASSAPSSSHA256 {
-		return errors.Wrapf(ErrSignatureInvalid, "unexpected algorithm %q", env.Algorithm)
-	}
-
-	key, ok := keys[env.KeyID]
-	if !ok {
-		return errors.Wrapf(ErrSignatureInvalid, "unknown key id %q", env.KeyID)
-	}
-
-	sig, err := base64.StdEncoding.DecodeString(env.Signature)
-	if err != nil {
-		return errors.Wrap(ErrSignatureInvalid, "decode signature")
-	}
-
-	digest := sha256.Sum256(checksums)
-	if err := rsa.VerifyPSS(key, crypto.SHA256, digest[:], sig, nil); err != nil {
-		return errors.Wrap(ErrSignatureInvalid, "rsa-pss verify")
-	}
-
-	return nil
 }
 
 // parseChecksums parses sha256sum-style "<hex>  <name>" lines into name→hex.

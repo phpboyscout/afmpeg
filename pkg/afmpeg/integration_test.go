@@ -169,7 +169,7 @@ func TestIntegration_VerifiedRelease(t *testing.T) {
 	var prov afmpeg.Provenance
 
 	rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
-		"n8.1.2-3", afmpeg.VariantLGPL,
+		"n8.1.2-4", afmpeg.VariantLGPL,
 		afmpeg.WithReleaseProvenance(&prov),
 	))
 	if err != nil {
@@ -178,7 +178,7 @@ func TestIntegration_VerifiedRelease(t *testing.T) {
 
 	t.Cleanup(func() { _ = rt.Close(ctx) })
 
-	if prov.FFmpegVersion != "n8.1.2" || prov.BuildTag != "n8.1.2-3" {
+	if prov.FFmpegVersion != "n8.1.2" || prov.BuildTag != "n8.1.2-4" {
 		t.Fatalf("verified provenance unexpected: %+v", prov)
 	}
 

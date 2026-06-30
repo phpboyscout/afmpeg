@@ -1,110 +1,64 @@
 package afmpeg
 
 import (
-	"crypto"
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cockroachdb/errors"
+	"gitlab.com/phpboyscout/signing/openpgpkey"
+	"gitlab.com/phpboyscout/signing/verify"
 )
 
-// assembleBundle builds a release bundle from the given parts and signs its
-// checksums.txt with key, returning the bundle and a key-set that trusts key.
-// Callers tamper individual parts to exercise each verification rule.
-func assembleBundle(t *testing.T, key *rsa.PrivateKey, moduleFile string, module, provBytes []byte) (releaseBundle, keySet) {
+var testKeyEpoch = time.Unix(0, 0)
+
+// testSigningKey returns a generated RSA-3072 key (the minimum signing/verify
+// accepts) and its armored OpenPGP public half — the publisher's keypair stand-in.
+func testSigningKey(t *testing.T) (*rsa.PrivateKey, []byte) {
 	t.Helper()
 
-	checksums := buildChecksums(map[string][]byte{
-		moduleFile:        module,
-		"provenance.json": provBytes,
-	})
-
-	id := keyID(&key.PublicKey)
-	env := sigEnvelope{
-		KeyID:     id,
-		Algorithm: algRSASSAPSSSHA256,
-		Signature: base64.StdEncoding.EncodeToString(signChecksums(t, key, checksums)),
-	}
-	envBytes, err := json.Marshal(env)
+	priv, err := rsa.GenerateKey(rand.Reader, 3072)
 	if err != nil {
-		t.Fatalf("marshal sig envelope: %v", err)
+		t.Fatalf("generate key: %v", err)
 	}
 
-	b := releaseBundle{
-		module:     module,
-		checksums:  checksums,
-		signature:  envBytes,
-		provenance: provBytes,
-		moduleFile: moduleFile,
-		provFile:   "provenance.json",
+	pub, err := openpgpkey.ArmoredPublicKey(priv, "ffmpeg-wasi Release", "ffmpeg-wasi-release@phpboyscout.uk", testKeyEpoch)
+	if err != nil {
+		t.Fatalf("armor public key: %v", err)
 	}
 
-	return b, keySet{id: &key.PublicKey}
+	return priv, pub
 }
 
-// assembleBundleRaw signs the given checksums bytes verbatim (rather than
-// computing them from files), so a test can present a signed-but-malformed
-// checksums file to the parser.
-func assembleBundleRaw(t *testing.T, key *rsa.PrivateKey, checksums, module, provBytes []byte) (releaseBundle, keySet) {
+// detachSign produces an ASCII-armored OpenPGP detached signature over msg —
+// exactly what `gtb sign` emits for checksums.txt.
+func detachSign(t *testing.T, priv *rsa.PrivateKey, armoredPub, msg []byte) []byte {
 	t.Helper()
 
-	id := keyID(&key.PublicKey)
-
-	env := sigEnvelope{
-		KeyID:     id,
-		Algorithm: algRSASSAPSSSHA256,
-		Signature: base64.StdEncoding.EncodeToString(signChecksums(t, key, checksums)),
-	}
-
-	envBytes, err := json.Marshal(env)
+	sig, err := openpgpkey.DetachSign(priv, armoredPub, bytes.NewReader(msg), testKeyEpoch)
 	if err != nil {
-		t.Fatalf("marshal sig envelope: %v", err)
+		t.Fatalf("detach-sign: %v", err)
 	}
 
-	b := releaseBundle{
-		module:     module,
-		checksums:  checksums,
-		signature:  envBytes,
-		provenance: provBytes,
-		moduleFile: "ffmpeg-wasi-lgpl.wasm",
-		provFile:   "provenance.json",
-	}
-
-	return b, keySet{id: &key.PublicKey}
+	return sig
 }
 
-// validBundle is the happy-path bundle for a variant: a fake module plus a
-// provenance whose entry for that variant names the module file.
-func validBundle(t *testing.T, key *rsa.PrivateKey, variant Variant) (releaseBundle, keySet) {
+func mustTrust(t *testing.T, armoredPubs ...[]byte) *verify.TrustSet {
 	t.Helper()
 
-	moduleFile := "ffmpeg-wasi-" + string(variant) + ".wasm"
-	module := []byte("\x00asm fake " + string(variant))
-
-	prov := Provenance{
-		FFmpegVersion:  "n8.1.2",
-		BuildTag:       "n8.1.2-2",
-		Commit:         "deadbeef",
-		ToolingLicense: "MIT",
-		Variants: map[string]ProvenanceVariant{
-			"lgpl": {File: "ffmpeg-wasi-lgpl.wasm", License: "LGPL-2.1-or-later", H264Encode: "openh264"},
-			"gpl":  {File: "ffmpeg-wasi-gpl.wasm", License: "GPL-2.0-or-later", H264Encode: "libx264"},
-		},
-	}
-
-	provBytes, err := json.Marshal(prov)
+	ts, err := verify.LoadTrustSet(armoredPubs...)
 	if err != nil {
-		t.Fatalf("marshal provenance: %v", err)
+		t.Fatalf("load trust set: %v", err)
 	}
 
-	return assembleBundle(t, key, moduleFile, module, provBytes)
+	return ts
 }
 
 func buildChecksums(files map[string][]byte) []byte {
@@ -118,38 +72,81 @@ func buildChecksums(files map[string][]byte) []byte {
 	return []byte(b.String())
 }
 
-func signChecksums(t *testing.T, key *rsa.PrivateKey, checksums []byte) []byte {
+// assembleBundle signs the given module + provenance with priv into a bundle.
+func assembleBundle(t *testing.T, priv *rsa.PrivateKey, pub []byte, moduleFile string, module, provBytes []byte) releaseBundle {
 	t.Helper()
 
-	h := sha256.Sum256(checksums)
+	checksums := buildChecksums(map[string][]byte{moduleFile: module, "provenance.json": provBytes})
 
-	sig, err := rsa.SignPSS(rand.Reader, key, crypto.SHA256, h[:], nil)
-	if err != nil {
-		t.Fatalf("sign checksums: %v", err)
+	return releaseBundle{
+		module:     module,
+		checksums:  checksums,
+		signature:  detachSign(t, priv, pub, checksums),
+		provenance: provBytes,
+		moduleFile: moduleFile,
+		provFile:   "provenance.json",
+	}
+}
+
+// assembleBundleRaw signs the given checksums bytes verbatim, so a test can
+// present a signed-but-malformed checksums file to the parser.
+func assembleBundleRaw(t *testing.T, priv *rsa.PrivateKey, pub, checksums, module, provBytes []byte) releaseBundle {
+	t.Helper()
+
+	return releaseBundle{
+		module:     module,
+		checksums:  checksums,
+		signature:  detachSign(t, priv, pub, checksums),
+		provenance: provBytes,
+		moduleFile: "ffmpeg-wasi-lgpl.wasm",
+		provFile:   "provenance.json",
+	}
+}
+
+// validBundle is the happy-path bundle for a variant: a fake module plus a
+// provenance whose entry for that variant names the module file.
+func validBundle(t *testing.T, priv *rsa.PrivateKey, pub []byte, variant Variant) releaseBundle {
+	t.Helper()
+
+	moduleFile := "ffmpeg-wasi-" + string(variant) + ".wasm"
+	module := []byte("\x00asm fake " + string(variant))
+
+	prov := Provenance{
+		FFmpegVersion:  "n8.1.2",
+		BuildTag:       "n8.1.2-4",
+		Commit:         "deadbeef",
+		ToolingLicense: "MIT",
+		Variants: map[string]ProvenanceVariant{
+			"lgpl": {File: "ffmpeg-wasi-lgpl.wasm", License: "LGPL-2.1-or-later", H264Encode: "openh264"},
+			"gpl":  {File: "ffmpeg-wasi-gpl.wasm", License: "GPL-2.0-or-later", H264Encode: "libx264"},
+		},
 	}
 
-	return sig
+	provBytes, err := json.Marshal(prov)
+	if err != nil {
+		t.Fatalf("marshal provenance: %v", err)
+	}
+
+	return assembleBundle(t, priv, pub, moduleFile, module, provBytes)
 }
 
 func TestVerifyRelease(t *testing.T) {
 	t.Parallel()
 
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("generate key: %v", err)
-	}
+	priv, pub := testSigningKey(t)
+	trust := mustTrust(t, pub)
 
 	t.Run("valid bundle verifies and returns provenance", func(t *testing.T) {
 		t.Parallel()
 
-		b, keys := validBundle(t, key, VariantLGPL)
+		b := validBundle(t, priv, pub, VariantLGPL)
 
-		prov, err := verifyRelease(b, VariantLGPL, keys)
+		prov, err := verifyRelease(b, VariantLGPL, trust)
 		if err != nil {
 			t.Fatalf("verifyRelease: %v", err)
 		}
 
-		if prov.FFmpegVersion != "n8.1.2" || prov.BuildTag != "n8.1.2-2" {
+		if prov.FFmpegVersion != "n8.1.2" || prov.BuildTag != "n8.1.2-4" {
 			t.Fatalf("provenance not surfaced: %+v", prov)
 		}
 	})
@@ -157,10 +154,10 @@ func TestVerifyRelease(t *testing.T) {
 	t.Run("tampered module is a checksum mismatch", func(t *testing.T) {
 		t.Parallel()
 
-		b, keys := validBundle(t, key, VariantLGPL)
+		b := validBundle(t, priv, pub, VariantLGPL)
 		b.module = append(b.module, 'x')
 
-		if _, err := verifyRelease(b, VariantLGPL, keys); !errors.Is(err, ErrChecksumMismatch) {
+		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, ErrChecksumMismatch) {
 			t.Fatalf("want ErrChecksumMismatch, got %v", err)
 		}
 	})
@@ -168,10 +165,10 @@ func TestVerifyRelease(t *testing.T) {
 	t.Run("tampered checksums break the signature", func(t *testing.T) {
 		t.Parallel()
 
-		b, keys := validBundle(t, key, VariantLGPL)
+		b := validBundle(t, priv, pub, VariantLGPL)
 		b.checksums = append(b.checksums, []byte("deadbeef  evil.wasm\n")...)
 
-		if _, err := verifyRelease(b, VariantLGPL, keys); !errors.Is(err, ErrSignatureInvalid) {
+		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, verify.ErrSignatureInvalid) {
 			t.Fatalf("want ErrSignatureInvalid, got %v", err)
 		}
 	})
@@ -179,71 +176,32 @@ func TestVerifyRelease(t *testing.T) {
 	t.Run("tampered provenance is a checksum mismatch", func(t *testing.T) {
 		t.Parallel()
 
-		b, keys := validBundle(t, key, VariantLGPL)
+		b := validBundle(t, priv, pub, VariantLGPL)
 		b.provenance = append(b.provenance, ' ')
 
-		if _, err := verifyRelease(b, VariantLGPL, keys); !errors.Is(err, ErrChecksumMismatch) {
+		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, ErrChecksumMismatch) {
 			t.Fatalf("want ErrChecksumMismatch, got %v", err)
 		}
 	})
 
-	t.Run("unknown key id is rejected", func(t *testing.T) {
+	t.Run("signature from a key not in the trust set is rejected", func(t *testing.T) {
 		t.Parallel()
 
-		b, _ := validBundle(t, key, VariantLGPL)
+		other, otherPub := testSigningKey(t)
+		b := validBundle(t, other, otherPub, VariantLGPL) // signed by an untrusted key
 
-		if _, err := verifyRelease(b, VariantLGPL, keySet{}); !errors.Is(err, ErrSignatureInvalid) {
+		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, verify.ErrSignatureInvalid) {
 			t.Fatalf("want ErrSignatureInvalid, got %v", err)
 		}
 	})
 
-	t.Run("signature from an untrusted key is rejected", func(t *testing.T) {
+	t.Run("a malformed signature is rejected", func(t *testing.T) {
 		t.Parallel()
 
-		b, _ := validBundle(t, key, VariantLGPL)
+		b := validBundle(t, priv, pub, VariantLGPL)
+		b.signature = []byte("-----BEGIN PGP SIGNATURE-----\nnot a real sig\n-----END PGP SIGNATURE-----\n")
 
-		other, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			t.Fatalf("generate key: %v", err)
-		}
-
-		// The set maps the bundle's key-id to a DIFFERENT key — verification must fail.
-		spoofed := keySet{keyID(&key.PublicKey): &other.PublicKey}
-
-		if _, err := verifyRelease(b, VariantLGPL, spoofed); !errors.Is(err, ErrSignatureInvalid) {
-			t.Fatalf("want ErrSignatureInvalid, got %v", err)
-		}
-	})
-
-	t.Run("malformed signature envelope is rejected", func(t *testing.T) {
-		t.Parallel()
-
-		b, keys := validBundle(t, key, VariantLGPL)
-		b.signature = []byte("not json")
-
-		if _, err := verifyRelease(b, VariantLGPL, keys); !errors.Is(err, ErrSignatureInvalid) {
-			t.Fatalf("want ErrSignatureInvalid, got %v", err)
-		}
-	})
-
-	t.Run("wrong signature algorithm is rejected", func(t *testing.T) {
-		t.Parallel()
-
-		b, keys := validBundle(t, key, VariantLGPL)
-		b.signature, _ = json.Marshal(sigEnvelope{KeyID: keyID(&key.PublicKey), Algorithm: "RSASSA_PKCS1_V1_5_SHA_256", Signature: "AAAA"})
-
-		if _, err := verifyRelease(b, VariantLGPL, keys); !errors.Is(err, ErrSignatureInvalid) {
-			t.Fatalf("want ErrSignatureInvalid, got %v", err)
-		}
-	})
-
-	t.Run("non-base64 signature is rejected", func(t *testing.T) {
-		t.Parallel()
-
-		b, keys := validBundle(t, key, VariantLGPL)
-		b.signature, _ = json.Marshal(sigEnvelope{KeyID: keyID(&key.PublicKey), Algorithm: algRSASSAPSSSHA256, Signature: "@@@ not base64 @@@"})
-
-		if _, err := verifyRelease(b, VariantLGPL, keys); !errors.Is(err, ErrSignatureInvalid) {
+		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, verify.ErrSignatureInvalid) {
 			t.Fatalf("want ErrSignatureInvalid, got %v", err)
 		}
 	})
@@ -251,10 +209,9 @@ func TestVerifyRelease(t *testing.T) {
 	t.Run("malformed checksums line is rejected", func(t *testing.T) {
 		t.Parallel()
 
-		// A signed-but-malformed checksums file: passes the signature, fails parsing.
-		b, keys := assembleBundleRaw(t, key, []byte("only-one-field\n"), []byte("\x00asm"), []byte("{}"))
+		b := assembleBundleRaw(t, priv, pub, []byte("only-one-field\n"), []byte("\x00asm"), []byte("{}"))
 
-		if _, err := verifyRelease(b, VariantLGPL, keys); err == nil {
+		if _, err := verifyRelease(b, VariantLGPL, trust); err == nil {
 			t.Fatal("want an error for a malformed checksums line")
 		}
 	})
@@ -262,9 +219,9 @@ func TestVerifyRelease(t *testing.T) {
 	t.Run("provenance that is not valid JSON is rejected", func(t *testing.T) {
 		t.Parallel()
 
-		b, keys := assembleBundle(t, key, "ffmpeg-wasi-lgpl.wasm", []byte("\x00asm"), []byte("{not valid json"))
+		b := assembleBundle(t, priv, pub, "ffmpeg-wasi-lgpl.wasm", []byte("\x00asm"), []byte("{not valid json"))
 
-		if _, err := verifyRelease(b, VariantLGPL, keys); err == nil {
+		if _, err := verifyRelease(b, VariantLGPL, trust); err == nil {
 			t.Fatal("want an error for non-JSON provenance")
 		}
 	})
@@ -272,9 +229,6 @@ func TestVerifyRelease(t *testing.T) {
 	t.Run("provenance that disagrees with the variant is rejected", func(t *testing.T) {
 		t.Parallel()
 
-		// A signed-but-inconsistent release: provenance's lgpl entry names a
-		// different file than the module we fetched for lgpl. Re-signed (valid sig,
-		// valid checksums) so only the provenance cross-check can catch it.
 		prov := Provenance{
 			FFmpegVersion: "n8.1.2",
 			Variants: map[string]ProvenanceVariant{
@@ -287,9 +241,9 @@ func TestVerifyRelease(t *testing.T) {
 			t.Fatalf("marshal provenance: %v", err)
 		}
 
-		b, keys := assembleBundle(t, key, "ffmpeg-wasi-lgpl.wasm", []byte("\x00asm"), provBytes)
+		b := assembleBundle(t, priv, pub, "ffmpeg-wasi-lgpl.wasm", []byte("\x00asm"), provBytes)
 
-		if _, err := verifyRelease(b, VariantLGPL, keys); !errors.Is(err, ErrProvenanceMismatch) {
+		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, ErrProvenanceMismatch) {
 			t.Fatalf("want ErrProvenanceMismatch, got %v", err)
 		}
 	})
