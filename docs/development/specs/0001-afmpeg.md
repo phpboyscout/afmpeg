@@ -259,7 +259,7 @@ was drafted. The resolutions below are binding on specs 0002–0006.
 | **0008** performance-strategy | 4 | spike: measure Wasm-encode perf vs native; non-threaded levers (RuntimePool, build tuning) | R-AF-12 |
 | **0009** afmpeg-cli | 4 | deferred (value-unproven): job-spec-native `cmd/afmpeg`, never `ffmpeg`-arg-compatible | R-AF-13 |
 | **0010** signed-release-acquisition | 4 | certified `WithModuleRelease` (KMS-signed checksum + provenance); BYO `WithModuleURL` stays uncertified | R-AF-14 |
-| **0011** wkd-attestation | 4 | fast-follow: domain-rooted second attestation layer vs the GitLab-compromise / poisoned-well gap | R-AF-15 |
+| **0011** wkd-attestation | 4 | WKD key distribution + embedded↔WKD cross-check + shared offline rotation key (via the `signing` module) | R-AF-15, R-AF-16 |
 
 ## 11. Alternatives considered
 

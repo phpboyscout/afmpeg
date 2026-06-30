@@ -8,6 +8,38 @@ Parent: [0001-afmpeg.md](0001-afmpeg.md) §3 (module acquisition); [0004](0004-r
 Refines: [0006-hardening-roadmap.md](0006-hardening-roadmap.md) §2F (the "done, with residual" note)
 Owns: **R-AF-14** (certified release acquisition)
 
+## Revision 2026-06-30 — adopt the org `signing` module (OpenPGP/WKD)
+
+The initial implementation (releases `n8.1.2-1`..`-3`) used a **bespoke** signature: a raw AWS
+KMS RSASSA-PSS signature in a custom JSON envelope, verified with afmpeg's own stdlib crypto
+(decisions D-0010-E/F below). That worked and is secure, but it **diverged from the org's
+established OpenPGP/WKD signing model** (go-tool-base + `openpgpkey.phpboyscout.uk`). That model
+is now a standalone, dependency-light module — **[`gitlab.com/phpboyscout/signing`](https://gitlab.com/phpboyscout/signing)**
+(library `go.mod` = `go-crypto` + `cockroachdb/errors` only) — so there is no reason to keep a
+parallel scheme. This spec is revised to use it:
+
+- **D-0010-E is superseded.** Releases are signed with an **ASCII-armored OpenPGP detached
+  signature** over `checksums.txt` (`checksums.txt.sig`), produced by the **`gtb sign --backend
+  aws-kms`** CLI (same KMS key, OIDC-gated, as today). afmpeg verifies with
+  **`gitlab.com/phpboyscout/signing/verify`** — `LoadTrustSet(...).VerifyManifestSignature(checksums, sig)`.
+- **D-0010-F is superseded.** OpenPGP identifies the signing key natively (key fingerprint), so
+  the hand-rolled JSON envelope, `key_id`, and key-*set* logic are dropped. The **embedded** trust
+  keys + the **WKD cross-check** + the **rotation key** are the GTB model, specified in
+  [0011](0011-wkd-attestation.md) (revised) via `verify.BuildKeyResolver` / `CompositeResolver`.
+- **D-0010-D stands** — ffmpeg-wasi keeps its own dedicated signing key, now minted as an OpenPGP
+  public key (`gtb keys mint --backend aws-kms`) under its own WKD identity
+  (`ffmpeg-wasi-release@phpboyscout.uk`). The **rotation-authority key is shared org-wide** (one
+  offline Ed25519 key certifies every project's separate signing key).
+- **Unchanged:** the two-path model (§2), the `WithModuleRelease` API and options (§3), the
+  provenance + variant checks, the offline-bundle mode, and the content-addressed cache. Only the
+  *signature/key format* and the *verifier internals* change.
+- **Cutover:** OpenPGP from `n8.1.2-4`; the interim raw-signed `n8.1.2-1`..`-3` are left as-is
+  (not re-signed).
+
+Sections below describing the JSON envelope / stdlib verify (D-0010-E/F, §3.1's key-set, §4's
+`aws kms sign`, §10's stdlib tests) are retained as the record of the initial implementation;
+read them through this revision.
+
 ## 1. Why
 
 §2F shipped `WithModuleURL` — fetch by URL, verify a caller-supplied SHA-256, cache. That is the
