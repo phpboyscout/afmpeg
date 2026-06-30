@@ -14,8 +14,10 @@ import (
 // pinned trust root.
 const signingKeyFingerprint = "710881C1DDAEABD138E53004A2166E59EB6060E1"
 
-// TestEmbeddedTrustKeys checks the embedded .asc keys load into a valid trust set
-// and that the pinned ffmpeg-wasi signing key is present.
+// TestEmbeddedTrustKeys checks afmpeg's trust root: the embedded .asc keys load
+// into a valid trust set that is *exactly* the pinned ffmpeg-wasi signing key.
+// The set must equal the WKD bucket for the cross-check (spec 0011), so the
+// offline rotation-authority key is deliberately not embedded here.
 func TestEmbeddedTrustKeys(t *testing.T) {
 	t.Parallel()
 
@@ -29,7 +31,7 @@ func TestEmbeddedTrustKeys(t *testing.T) {
 		t.Fatalf("embedded keys do not form a valid trust set: %v", err)
 	}
 
-	if fps := ts.Fingerprints(); !slices.Contains(fps, signingKeyFingerprint) {
-		t.Fatalf("pinned signing-key fingerprint %s absent; embedded set has %v", signingKeyFingerprint, fps)
+	if fps := ts.Fingerprints(); !slices.Equal(fps, []string{signingKeyFingerprint}) {
+		t.Fatalf("embedded trust set = %v, want exactly [%s]", fps, signingKeyFingerprint)
 	}
 }

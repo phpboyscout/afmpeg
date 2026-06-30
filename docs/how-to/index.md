@@ -16,6 +16,8 @@ Available:
 - **[Obtain a wasm module](obtain-a-module.md)** — supply the ffmpeg-wasi module: a
   signature-verified certified release (`WithModuleRelease`, recommended), or a file, bytes, an
   afero fs, or a URL with checksum-verified caching (`WithModuleURL`).
+- **[Verify a release by hand](verify-a-release-by-hand.md)** — check a release with just `gpg`,
+  `curl`, and `sha256sum`: WKD key → OpenPGP signature over `checksums.txt` → per-asset SHA-256.
 - **[Run ffmpeg over an in-memory filesystem](run-in-memory.md)** — build a `Runtime`,
   supply the module (`WithModuleFile` / `WithModuleBytes` / `WithModuleFS`),
   transcode against an `afero.MemMapFs`, probe a file, and cancel a render.

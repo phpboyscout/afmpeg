@@ -5,14 +5,17 @@ import (
 	"context"
 	"crypto/rsa"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/cockroachdb/errors"
+	"gitlab.com/phpboyscout/signing/openpgpkey"
 	"gitlab.com/phpboyscout/signing/verify"
 )
 
@@ -182,10 +185,10 @@ func cloneAssets(in map[string][]byte) map[string][]byte {
 func TestResolveTrust_embeddedDefault(t *testing.T) {
 	t.Parallel()
 
-	// nil keys → afmpeg's embedded trust set (the production default path).
+	// nil keys → afmpeg's embedded trust set; useWKD=false → no network.
 	rc := &releaseConfig{client: http.DefaultClient}
 
-	ts, err := rc.resolveTrust(context.Background())
+	ts, err := rc.resolveTrust(context.Background(), false)
 	if err != nil {
 		t.Fatalf("resolveTrust from embedded keys: %v", err)
 	}
@@ -193,6 +196,123 @@ func TestResolveTrust_embeddedDefault(t *testing.T) {
 	if ts == nil || len(ts.Fingerprints()) == 0 {
 		t.Fatal("embedded keys produced an empty trust set")
 	}
+}
+
+// wkdRoundTripper serves one fixed body for any request (the WKD fetch), or an
+// error to simulate an outage — so the cross-check can be driven without the
+// network or the real domain.
+type wkdRoundTripper struct {
+	body []byte
+	err  error
+}
+
+func (rt wkdRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	if rt.err != nil {
+		return nil, rt.err
+	}
+
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewReader(rt.body)),
+		Header:     make(http.Header),
+	}, nil
+}
+
+func wkdClient(rt wkdRoundTripper) *http.Client { return &http.Client{Transport: rt} }
+
+// binaryWKDKey serializes priv's public key into the binary form a WKD hu file
+// serves (UID ffmpeg-wasi-release@phpboyscout.uk, matching defaultWKDEmail).
+func binaryWKDKey(t *testing.T, priv *rsa.PrivateKey) []byte {
+	t.Helper()
+
+	e, err := openpgpkey.Entity(priv, "ffmpeg-wasi Release Signing", defaultWKDEmail, testKeyEpoch)
+	if err != nil {
+		t.Fatalf("entity: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err := e.Serialize(&buf); err != nil {
+		t.Fatalf("serialize: %v", err)
+	}
+
+	return buf.Bytes()
+}
+
+func TestResolveTrust_WKDCrosscheck(t *testing.T) {
+	t.Parallel()
+
+	priv, pub := testSigningKey(t) // UID is defaultWKDEmail
+
+	t.Run("embedded key matching WKD resolves", func(t *testing.T) {
+		t.Parallel()
+
+		rc := &releaseConfig{keys: [][]byte{pub}, wkdEmail: defaultWKDEmail, client: wkdClient(wkdRoundTripper{body: binaryWKDKey(t, priv)})}
+
+		ts, err := rc.resolveTrust(context.Background(), true)
+		if err != nil {
+			t.Fatalf("matching cross-check should succeed: %v", err)
+		}
+
+		if !slices.Contains(ts.Fingerprints(), signingKeyFingerprintOf(t, pub)) {
+			t.Fatalf("resolved trust set lacks the signing key: %v", ts.Fingerprints())
+		}
+	})
+
+	t.Run("WKD serving a different key is a hard mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		otherPriv, _ := testSigningKey(t) // same UID, different key
+
+		rc := &releaseConfig{keys: [][]byte{pub}, wkdEmail: defaultWKDEmail, client: wkdClient(wkdRoundTripper{body: binaryWKDKey(t, otherPriv)})}
+
+		if _, err := rc.resolveTrust(context.Background(), true); !errors.Is(err, verify.ErrKeyResolverMismatch) {
+			t.Fatalf("want ErrKeyResolverMismatch, got %v", err)
+		}
+	})
+
+	t.Run("WKD outage degrades to the embedded key", func(t *testing.T) {
+		t.Parallel()
+
+		rc := &releaseConfig{keys: [][]byte{pub}, wkdEmail: defaultWKDEmail, client: wkdClient(wkdRoundTripper{err: errors.New("network down")})}
+
+		ts, err := rc.resolveTrust(context.Background(), true)
+		if err != nil {
+			t.Fatalf("a WKD outage must not fail the load: %v", err)
+		}
+
+		if !slices.Contains(ts.Fingerprints(), signingKeyFingerprintOf(t, pub)) {
+			t.Fatal("degraded trust set lost the embedded key")
+		}
+	})
+
+	t.Run("offline path never touches WKD", func(t *testing.T) {
+		t.Parallel()
+
+		// The transport errors if used; useWKD=false must avoid it entirely.
+		rc := &releaseConfig{keys: [][]byte{pub}, wkdEmail: defaultWKDEmail, client: wkdClient(wkdRoundTripper{err: errors.New("WKD must not be called offline")})}
+
+		if _, err := rc.resolveTrust(context.Background(), false); err != nil {
+			t.Fatalf("offline resolveTrust should not reach WKD: %v", err)
+		}
+	})
+}
+
+// signingKeyFingerprintOf returns the fingerprint of an armored key, for asserting
+// a resolved trust set contains the expected key.
+func signingKeyFingerprintOf(t *testing.T, armored []byte) string {
+	t.Helper()
+
+	ts, err := verify.LoadTrustSet(armored)
+	if err != nil {
+		t.Fatalf("load trust set: %v", err)
+	}
+
+	fps := ts.Fingerprints()
+	if len(fps) != 1 {
+		t.Fatalf("expected one fingerprint, got %v", fps)
+	}
+
+	return fps[0]
 }
 
 func TestReleaseOptions(t *testing.T) {
@@ -209,12 +329,14 @@ func TestReleaseOptions(t *testing.T) {
 		WithReleaseCacheDir("/var/cache/afmpeg"),
 		WithReleaseHTTPClient(client),
 		WithReleaseProvenance(&prov),
+		WithReleaseWKDEmail("mirror-release@example.test"),
 	} {
 		opt(rc)
 	}
 
 	if rc.baseURL != "https://mirror.example/pkg" || rc.bundleDir != "/srv/bundle" ||
-		rc.cacheDir != "/var/cache/afmpeg" || rc.client != client || rc.provOut != &prov {
+		rc.cacheDir != "/var/cache/afmpeg" || rc.client != client || rc.provOut != &prov ||
+		rc.wkdEmail != "mirror-release@example.test" {
 		t.Fatalf("release options did not apply: %+v", rc)
 	}
 }

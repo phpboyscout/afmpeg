@@ -1,6 +1,8 @@
 # 0011 — WKD key distribution + the embedded↔WKD cross-check
 
-Status: **DRAFT** (revised 2026-06-30 to the org signing module
+Status: **IMPLEMENTED** (2026-06-30; the embedded↔WKD cross-check is default-on in afmpeg's
+`WithModuleRelease`, validated against the live `openpgpkey.phpboyscout.uk` + release `n8.1.2-4`.
+Built on the org signing module
 [`gitlab.com/phpboyscout/signing`](https://gitlab.com/phpboyscout/signing) and the go-tool-base
 WKD model. Supersedes this spec's earlier "independent per-release content attestation" framing,
 which mis-stated the threat it closes.)
@@ -34,30 +36,35 @@ go-tool-base [signing concept](https://gitlab.com/phpboyscout/go-tool-base/-/blo
 
 ## 2. The model (via the `signing` module)
 
-Two OpenPGP keys, both public halves **embedded in afmpeg** *and* **published via WKD**:
+Two OpenPGP keys, with **distinct roles** (this is the key correction — see D-0011-E):
 
 1. **Signing key** — ffmpeg-wasi's dedicated KMS key (D-0010-D), minted to OpenPGP with
-   `gtb keys mint --backend aws-kms`. Signs every release.
+   `gtb keys mint --backend aws-kms`. Signs every release. **This** is what afmpeg embeds and
+   cross-checks against WKD — it is afmpeg's runtime trust anchor.
 2. **Rotation-authority key** — a **shared, org-wide** offline Ed25519 key (D-0011-A); break-glass
-   only, certifies each project's signing key. Paperkey + offline storage.
+   only, certifies/rotates each project's signing key out-of-band. It **never signs releases** and
+   is **not** in afmpeg's runtime trust set; it is org infrastructure (paperkey + offline storage),
+   documented in ffmpeg-wasi's signing explanation.
 
-Verification, in afmpeg, is entirely the module's:
+Verification, in afmpeg, is entirely the module's — the signing key, embedded and WKD-cross-checked:
 
 ```go
 resolver, _ := verify.BuildKeyResolver(verify.KeyResolverConfig{
     KeySource:                 "both",
     ExternalKeyEmail:          "ffmpeg-wasi-release@phpboyscout.uk",
     RequireExternalCrosscheck: false, // see D-0011-D
-    HTTPClient:                hardenedClient, // optional
-}, embeddedSigningASC, embeddedRotationASC)
+    HTTPClient:                client,
+}, embeddedSigningASC) // signing key only — must equal the WKD bucket (D-0011-E)
 
 ts, err := resolver.Resolve(ctx)              // embedded + WKD, fingerprint-checked
 err = ts.VerifyManifestSignature(checksumsTxt, checksumsTxtSig)
 ```
 
-Publication: ffmpeg-wasi's key lands in the **`wkd-staging`** repo (the
-`openpgpkey.phpboyscout.uk` content) and is pushed to **Cloudflare Pages** by the operator from an
-isolated env (wrangler). The by-hand verification how-to (R-AF-16) ships with this.
+In afmpeg this is wired into `WithModuleRelease`: **default-on** for online fetches (D-0011-F),
+skipped on the offline-bundle path, and tunable via `WithReleaseWKDEmail` (override the identity,
+or `""` to disable). Publication: ffmpeg-wasi's signing key lands in the **`wkd-staging`** repo
+(`openpgpkey.phpboyscout.uk`) and is pushed to **Cloudflare Pages** from an isolated env (wrangler).
+The by-hand verification how-to (R-AF-16) ships with this.
 
 ## 3. Decisions
 
@@ -72,17 +79,30 @@ isolated env (wrangler). The by-hand verification how-to (R-AF-16) ships with th
 - **D-0011-D — `RequireExternalCrosscheck = false`.** The module's `CompositeResolver` **always
   rejects a fingerprint mismatch** (a tamper signal) regardless of this flag; the flag only governs
   a WKD *fetch failure*. `false` therefore gives full tamper protection while a transient WKD/domain
-  **outage degrades gracefully** to the (already strong) embedded anchor with a logged warning,
-  rather than blocking legitimate loads. Operators wanting strict fail-closed-on-outage can set it
-  `true`.
+  **outage degrades gracefully** to the (already strong) embedded anchor, rather than blocking
+  legitimate loads. Operators wanting strict fail-closed-on-outage can set it `true`.
+- **D-0011-E — cross-check the *signing key only*; the rotation key is offline-only.** The module
+  compares the embedded set against the WKD set by **exact fingerprint equality**
+  (`checkAgreement` → `reflect.DeepEqual`). The shared rotation key lives under a *different* WKD
+  identity (`release@`, per D-0011-B) and never signs releases, so it cannot be in the same
+  cross-checked set as the per-project signing key. afmpeg therefore embeds **only the signing
+  key** (the `ffmpeg-wasi-release@` WKD bucket holds exactly that), and the rotation authority is
+  realised offline (it certifies the signing key / authorises rotation) rather than as a runtime
+  trust-set member — which adds no verification value anyway, since afmpeg pins the signing key
+  directly. *(This corrects the original "embed both" framing.)*
+- **D-0011-F — default-on.** The cross-check runs on every online `WithModuleRelease`. The
+  offline-bundle path skips it (no network). `WithReleaseWKDEmail` overrides the identity (for a
+  mirror with its own WKD) or disables it (`""`) — verification still happens against the pinned
+  embedded key; the cross-check is a second anchor, not the trust root.
 
-## 4. Open questions
+## 4. Open questions / residuals
 
 - **WKD caching** in afmpeg alongside the module cache (TTL, offline reuse of a previously-fetched
-  WKD key).
-- **Key-rollover ergonomics:** the embedded set carries old+new during a rotation overlap (the
-  module's `RotationOverlap` path); confirm afmpeg's release cadence for shipping embedded-key
-  updates.
+  WKD key). Not implemented — each online load fetches WKD fresh (degrading on outage).
+- **Degrade-on-outage is currently silent** (no `Logger` plumbed into the resolver). A future
+  enhancement could surface a warning when WKD is unreachable and afmpeg falls back to embedded.
+- **Key-rollover ergonomics:** on rotation, afmpeg ships a new embedded signing key + the WKD
+  bucket is republished (both can carry old+new during an overlap window).
 
 ## 5. Non-goals
 
@@ -100,11 +120,17 @@ isolated env (wrangler). The by-hand verification how-to (R-AF-16) ships with th
   location, **not** a GitLab repo. A **by-hand verification how-to** (fetch the WKD key, verify the
   OpenPGP detached signature over `checksums.txt`, then `sha256sum -c`) ships with this spec.
 
-## 7. Sequencing & DoD
+## 7. Sequencing & DoD — ✅ done (2026-06-30)
 
-Depends on 0010 (revised): OpenPGP signing live from `n8.1.2-4`, and afmpeg already importing
-`signing/verify` for the embedded check. **Done** when: afmpeg's `WithModuleRelease` resolves via
-the embedded+WKD cross-check; an embedded↔WKD fingerprint mismatch is rejected (proven by TDD + a
-BDD scenario); ffmpeg-wasi's key is published at `openpgpkey.phpboyscout.uk`; the by-hand how-to
-ships; and the trust-model docs (0010's *release-verification* explanation + ffmpeg-wasi's
-*signing* explanation) are extended to the WKD anchor.
+Depended on 0010 (revised): OpenPGP signing live from `n8.1.2-4` + afmpeg importing
+`signing/verify`. Delivered:
+
+- ✅ `WithModuleRelease` resolves via the embedded↔WKD cross-check (default-on online; offline-bundle
+  skips it). An embedded↔WKD fingerprint mismatch is rejected (`ErrKeyResolverMismatch`); a WKD
+  outage degrades to the pinned embedded key — proven by TDD (`TestResolveTrust_WKDCrosscheck`:
+  match / mismatch / outage / offline-skip).
+- ✅ Validated against the **live** `openpgpkey.phpboyscout.uk` + `n8.1.2-4`
+  (`TestIntegration_VerifiedRelease`).
+- ✅ ffmpeg-wasi's signing key published at `openpgpkey.phpboyscout.uk` (`hu/914cy8ej…`).
+- ✅ The by-hand verification how-to ships (R-AF-16); the trust-model docs (afmpeg
+  *release-verification* + ffmpeg-wasi *signing* explanations) extended to the WKD anchor.

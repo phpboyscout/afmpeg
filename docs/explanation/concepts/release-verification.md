@@ -1,7 +1,7 @@
 ---
 title: Verifying a release
-description: How afmpeg certifies an ffmpeg-wasi release — the KMS-signed checksums, the pinned key, what each layer defends, and the one gap a second layer will close.
-date: 2026-06-29
+description: How afmpeg certifies an ffmpeg-wasi release — the OpenPGP-signed checksums, the embedded signing key, the WKD second anchor, and what each layer does and does not defend.
+date: 2026-06-30
 tags: [explanation, security, releases, signing]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
 ---
@@ -17,47 +17,80 @@ acquisition paths with deliberately different trust postures (spec
 - **`WithModuleRelease`** — *certified*, for the project's own published releases. This page is
   about that path.
 
+Verification reuses the org signing module, **`gitlab.com/phpboyscout/signing`** — the same
+OpenPGP/WKD machinery go-tool-base uses — rather than any afmpeg-specific crypto.
+
 ## The chain
 
 Every ffmpeg-wasi release publishes `checksums.txt` (the SHA-256 of every asset, including
-`provenance.json`) and `checksums.txt.sig` — a **detached RSASSA-PSS-SHA256 signature over
-`checksums.txt`**. `WithModuleRelease` verifies, in order:
+`provenance.json`) and `checksums.txt.sig` — an **ASCII-armored OpenPGP detached signature over
+`checksums.txt`**, produced by `gtb sign` from a key held in AWS KMS. `WithModuleRelease`
+verifies, in order:
 
-1. **The signature**, against a public key **embedded in afmpeg**. The private key lives in AWS
-   KMS and can be wielded only by ffmpeg-wasi's tagged-release CI job (via GitLab OIDC) — no
-   human, no long-lived credential. The signature envelope names a *key-id*; afmpeg looks it up
-   in its pinned set.
+1. **The signature**, against the release-signing public key **embedded in afmpeg**
+   (`signing/verify`'s `VerifyManifestSignature`). The private key lives in AWS KMS and can be
+   wielded only by ffmpeg-wasi's tagged-release CI job (via GitLab OIDC) — no human, no long-lived
+   credential. OpenPGP identifies the signing key by fingerprint; afmpeg's embedded key is the
+   trust anchor.
 2. **The module's checksum**, read from the now-trusted `checksums.txt`.
 3. **`provenance.json`'s checksum**, binding it into the signed set.
 4. **Provenance agrees with the variant** you requested (e.g. `VariantLGPL` ↔
    `ffmpeg-wasi-lgpl.wasm`).
 
 Only then is the module compiled. Each failure is its own typed error —
-`ErrSignatureInvalid`, `ErrChecksumMismatch`, `ErrProvenanceMismatch`. Because the signature
-covers `checksums.txt` and `checksums.txt` covers everything else, **one signature certifies the
-whole release**.
+`signing/verify.ErrSignatureInvalid`, `ErrChecksumMismatch`, `ErrProvenanceMismatch`. Because the
+signature covers `checksums.txt` and `checksums.txt` covers everything else, **one signature
+certifies the whole release**.
+
+## The second anchor: WKD (spec 0011)
+
+The embedded key is pinned in the binary, but where did *that* key come from? On every **online**
+fetch afmpeg adds a second, independent check: it fetches the signing key from the **Web Key
+Directory** on `openpgpkey.phpboyscout.uk` and requires it to **match the embedded key by
+fingerprint** (`signing/verify`'s composite resolver). The domain is a control plane administered
+separately from GitLab and AWS, so the key has an anchor that does not depend on the platform that
+hosts the releases.
+
+- A **fingerprint mismatch** (embedded vs WKD) is a hard failure — a tamper signal.
+- A **WKD outage** degrades gracefully to the pinned embedded key (which is already a strong
+  anchor): a transient domain problem never blocks a legitimate load.
+- The **offline-bundle** path (`WithReleaseBundleDir`) skips WKD entirely — it must not touch the
+  network. `WithReleaseWKDEmail` overrides the WKD identity (for a mirror) or disables it (`""`).
+
+There are **two** OpenPGP keys in the model, with distinct roles. The **signing key**
+(`ffmpeg-wasi-release@phpboyscout.uk`) is what afmpeg embeds and cross-checks — it signs releases.
+The **rotation-authority key** (`release@phpboyscout.uk`) is a shared, *offline* break-glass key
+that certifies and rotates signing keys; it never signs releases and is **not** in afmpeg's
+runtime trust set (afmpeg pins the signing key directly, so the rotation key adds no runtime
+verification — it is org infrastructure).
 
 ## Why these choices
 
-- **The trust root ships *in* afmpeg.** The key is pinned (embedded), so verification is offline
-  and non-circular — you never fetch the key you're verifying against. It's a *set* of keys, so
-  rotation is graceful: a new key is added in an afmpeg release and the old one retired later,
-  with no flag-day (and a compromised key can be dropped promptly).
+- **The trust root ships *in* afmpeg.** The signing key is pinned (embedded), so verification is
+  non-circular — you never fetch *only* the key you're verifying against. Rotation ships a new
+  embedded key in an afmpeg release (old + new can overlap), and the WKD bucket is republished.
 - **A dedicated key, not a shared one.** ffmpeg-wasi signs with its own key, never go-tool-base's
-  — a shared key would let one project's pipeline forge the other's releases (spec 0010
-  D-0010-D).
+  — a shared key would let one project's pipeline forge the other's releases (spec 0010 D-0010-D).
 - **No skip.** Verification is mandatory on this path; air-gapped use is served by
-  `WithReleaseBundleDir` (verify a local directory of pre-downloaded assets), which still
-  verifies fully — there is no "trust me" switch to misuse.
+  `WithReleaseBundleDir` (verify a local directory of pre-downloaded assets), which still verifies
+  the OpenPGP signature fully — there is no "trust me" switch to misuse.
 
-## What this does *not* defend — yet
+## What this does — and does not — defend
 
-The KMS signature defends against leaked credentials, the apply runner, and non-tag pipelines.
-It does **not** defend against a **compromised GitLab account that can push a tag**: that
-triggers the legitimate release pipeline, which signs a *malicious* build with the *real* key,
-and verification would pass. This is the "poisoned well" scenario.
+The signature defends against a swapped or tampered artifact: leaked credentials, the apply
+runner, and non-tag pipelines all **cannot** produce a valid signature. The WKD cross-check adds
+**key/registry-substitution defense** (an attacker must compromise *both* the release platform and
+the independently-administered domain) and **independent key distribution** (third parties
+discover the key from the domain, not the repo).
 
-Closing it needs a **second, independent attestation rooted in a control plane GitLab can't
-touch** (the `phpboyscout.uk` domain) — a committed fast-follow, spec
-[0011](../../development/specs/0011-wkd-attestation.md). Until then, the KMS signature is a strong
-first layer, and this gap is stated plainly rather than papered over.
+What **no** signing scheme here closes is a **compromised GitLab account that can push a tag**:
+that triggers the legitimate release pipeline, which signs a genuine-but-malicious build with the
+real key. That is the domain of GitLab account hardening (protected tags, 2FA, required approvals)
+and reproducible builds — out of scope, and stated plainly rather than papered over. The WKD
+anchor narrows the attack surface; it does not eliminate that case.
+
+## Verifying by hand
+
+You don't need afmpeg (or Go) to check a release — see
+[Verify a release by hand](../../how-to/verify-a-release-by-hand.md): fetch the key from WKD,
+verify the OpenPGP signature over `checksums.txt`, then `sha256sum -c`.

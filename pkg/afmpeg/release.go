@@ -18,6 +18,12 @@ const defaultReleaseBaseURL = "https://gitlab.com/api/v4/projects/83847809/packa
 
 const provenanceFile = "provenance.json"
 
+// defaultWKDEmail is the release-signing identity whose key is published via the
+// Web Key Directory on phpboyscout.uk. On every online fetch afmpeg cross-checks
+// its embedded signing key against the copy served here — a control plane
+// independent of GitLab (spec 0011). Empty disables the cross-check.
+const defaultWKDEmail = "ffmpeg-wasi-release@phpboyscout.uk"
+
 // releaseConfig configures a certified release fetch.
 type releaseConfig struct {
 	baseURL   string
@@ -27,8 +33,12 @@ type releaseConfig struct {
 	provOut   *Provenance
 
 	// keys are armored OpenPGP public keys; nil → afmpeg's embedded set (tests
-	// inject their own). The WKD cross-check (spec 0011) layers onto this resolver.
+	// inject their own).
 	keys [][]byte
+
+	// wkdEmail drives the embedded↔WKD cross-check (spec 0011); empty disables it.
+	// Defaults to defaultWKDEmail. The offline-bundle path never performs WKD.
+	wkdEmail string
 }
 
 // ReleaseOption configures WithModuleRelease.
@@ -66,6 +76,16 @@ func WithReleaseProvenance(into *Provenance) ReleaseOption {
 	return func(c *releaseConfig) { c.provOut = into }
 }
 
+// WithReleaseWKDEmail overrides the Web Key Directory identity afmpeg cross-checks
+// its embedded signing key against (spec 0011). The default
+// (ffmpeg-wasi-release@phpboyscout.uk) is correct for canonical releases; override
+// it for a mirror that publishes its own WKD, or pass "" to disable the
+// cross-check entirely (verification still happens against the pinned embedded
+// key — the cross-check is a second, independent anchor, not the trust root).
+func WithReleaseWKDEmail(email string) ReleaseOption {
+	return func(c *releaseConfig) { c.wkdEmail = email }
+}
+
 // withReleaseKeys overrides the embedded trust keys (armored OpenPGP public
 // keys). Unexported: only tests use it, to drive the public WithModuleRelease
 // path against a generated key instead of the embedded production keys.
@@ -89,7 +109,7 @@ func WithModuleRelease(tag string, variant Variant, opts ...ReleaseOption) Optio
 			return errors.Newf("afmpeg: unknown variant %q (want %q or %q)", variant, VariantLGPL, VariantGPL)
 		}
 
-		rc := &releaseConfig{baseURL: defaultReleaseBaseURL, client: http.DefaultClient}
+		rc := &releaseConfig{baseURL: defaultReleaseBaseURL, client: http.DefaultClient, wkdEmail: defaultWKDEmail}
 		for _, opt := range opts {
 			opt(rc)
 		}
@@ -102,10 +122,14 @@ func WithModuleRelease(tag string, variant Variant, opts ...ReleaseOption) Optio
 	}
 }
 
-// resolveTrust builds the trust set afmpeg verifies against: the embedded OpenPGP
-// keys (or test-injected ones). Spec 0011 extends this resolver with the WKD
-// fingerprint cross-check (KeySource "both" + the release email).
-func (rc *releaseConfig) resolveTrust(ctx context.Context) (*verify.TrustSet, error) {
+// resolveTrust builds the trust set afmpeg verifies against. The trust root is
+// always the embedded (or test-injected) OpenPGP signing key. When useWKD and a
+// wkdEmail are set, the resolver also fetches that key from the Web Key Directory
+// and requires the two to agree by fingerprint (spec 0011): a mismatch is a hard
+// failure (ErrKeyResolverMismatch), but a WKD outage degrades gracefully to the
+// embedded key (RequireExternalCrosscheck=false). The offline-bundle path passes
+// useWKD=false — it must not reach the network.
+func (rc *releaseConfig) resolveTrust(ctx context.Context, useWKD bool) (*verify.TrustSet, error) {
 	keys := rc.keys
 	if keys == nil {
 		var err error
@@ -114,7 +138,17 @@ func (rc *releaseConfig) resolveTrust(ctx context.Context) (*verify.TrustSet, er
 		}
 	}
 
-	resolver, err := verify.BuildKeyResolver(verify.KeyResolverConfig{KeySource: "embedded"}, keys...)
+	cfg := verify.KeyResolverConfig{KeySource: "embedded"}
+	if useWKD && rc.wkdEmail != "" {
+		cfg = verify.KeyResolverConfig{
+			KeySource:                 "both",
+			ExternalKeyEmail:          rc.wkdEmail,
+			RequireExternalCrosscheck: false,
+			HTTPClient:                rc.client,
+		}
+	}
+
+	resolver, err := verify.BuildKeyResolver(cfg, keys...)
 	if err != nil {
 		return nil, err
 	}
@@ -123,15 +157,20 @@ func (rc *releaseConfig) resolveTrust(ctx context.Context) (*verify.TrustSet, er
 }
 
 func fetchRelease(ctx context.Context, tag string, variant Variant, rc *releaseConfig) ([]byte, error) {
-	trust, err := rc.resolveTrust(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	moduleFile := "ffmpeg-wasi-" + string(variant) + ".wasm"
 
 	if rc.bundleDir != "" {
+		trust, err := rc.resolveTrust(ctx, false) // offline: embedded only, no network
+		if err != nil {
+			return nil, err
+		}
+
 		return fetchReleaseOffline(rc, variant, moduleFile, trust)
+	}
+
+	trust, err := rc.resolveTrust(ctx, true) // online: embedded↔WKD cross-check
+	if err != nil {
+		return nil, err
 	}
 
 	return fetchReleaseOnline(ctx, tag, variant, moduleFile, rc, trust)
