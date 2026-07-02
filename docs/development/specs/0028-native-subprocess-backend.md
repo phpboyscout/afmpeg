@@ -1,8 +1,9 @@
 # 0028 — native backends (the hardware-acceleration escape hatch)
 
-Status: **PROPOSED** (a strategic architecture spec — records a deliberate direction, not committed
-implementation. The primary path (Backend B) is a firm MUST for the design; the third path
-(Backend C) is an explicit MAY, deferred.)
+Status: **PROPOSED — spike-validated** (a strategic architecture spec; the direction is decided and
+the I/O model is proven end-to-end by the 2026-07-02 spikes (§5), but implementation is not yet
+committed. The primary path (Backend B) is a firm MUST for the design; the third path (Backend C)
+is an explicit MAY, deferred.)
 Date: 2026-07-02
 Parent: [0001](0001-afmpeg.md) (architecture); [0007](0007-libav-direct-engine.md) (the engine we extend)
 Source: external review `docs/development/external-review/ARCHITECTURE_REVIEW.md` §6–§12, refined by
@@ -87,22 +88,36 @@ an *option*, not a priority:
   `PUT` — it would require fragmented MP4 or a host-disk temp file. Backend B does not have this
   limitation.
 
-## 5. Spike evidence (2026-07-02)
+## 5. Spike evidence (2026-07-02) — both backends validated
 
-A real afero↔loopback-HTTP bridge (token-auth, Range-aware) driving native ffmpeg 6.1.1, all I/O in
-afero (no host-disk touch):
+Two spikes, both preserved reproducibly under
+[`docs/development/spikes/0028-custom-avio-bridge/`](../spikes/0028-custom-avio-bridge/).
+
+**5.1 — Backend C (HTTP bridge), a real afero↔loopback-HTTP bridge (token-auth, Range-aware)
+driving native ffmpeg 6.1.1, all I/O in afero (no host-disk touch):**
 
 | Path tested | Result |
 |---|---|
-| Input read from afero over HTTP **Range** (moov-at-end MP4) | ✅ 21 Range requests — **seeking works** |
+| Input read from afero over HTTP **Range** (moov-at-end MP4) | ✅ 21 Range requests — seeking works |
 | `ffprobe` over the bridge | ✅ format detected |
 | Output → fragmented MP4 / MKV / WebM / MPEG-TS (`PUT`) | ✅ all write to afero |
 | Output → **non-fragmented MP4** / faststart (`PUT`) | ❌ *muxer needs a backward seek a PUT sink can't do* |
 
-**Reading:** the subprocess + afero-bridge concept is sound (Backend C is *feasible*), but the
-non-frag-MP4 failure is precisely why **Backend B's custom *seekable* AVIO is the better design** —
-it removes the one limitation the HTTP path can't. The remaining unknown (§10) is a native
-`driver.c` build + a custom-AVIO round-trip; the I/O-bridge half is now de-risked.
+**5.2 — Backend B (custom AVIO/IPC), the decisive one.** A **native libav-linked C program** whose
+*entire* I/O is `avio_alloc_context` read/write/**seek** callbacks over a **Unix socket** to a Go
+host serving an **in-memory store** (the afero stand-in), remuxing to a **non-fragmented MP4**:
+
+| Signal | Result |
+|---|---|
+| Input read + output write — *all* through custom AVIO/IPC to the in-memory store | ✅ no host file for the media I/O |
+| Output is a **valid non-fragmented MP4** (ffprobe: `mov,mp4`, 3.0 s, 2 streams; `moov` after `mdat`, no `moof`) | ✅ |
+| **Backward seek on the output during `av_write_trailer`** (the moov / `mdat`-size patch) | ✅ 1 — **the exact op HTTP `PUT` failed on**, handled by `seek_cb` |
+| Native `libav*` linkage (the `driver.c`-compiled-native path) | ✅ compiles + runs |
+
+**Reading:** Backend C is feasible but limited (no non-frag MP4). **Backend B is validated
+end-to-end** — the custom *seekable* AVIO removes that limitation, keeps *all* media I/O in the
+in-memory (afero) store over IPC, and confirms the native-libav-link feasibility. The design's last
+unknown is closed; there is no remaining architectural risk to Backend B's I/O model.
 
 ## 6. Licensing — identical to the ffmpeg-wasi model
 
@@ -153,12 +168,16 @@ in.
 
 ## 10. De-risking spike & test surface
 
-**Before any implementation commits,** one focused spike closes the remaining unknown: **build
-`driver.c` for a native target and prove a minimal custom-AVIO round-trip** — a seekable read *and*
-write of a **non-fragmented MP4** driven entirely through `afero.Fs` over a Unix socket, confirming
-the `seek_cb` removes the HTTP path's limitation. Then: unit tests for the IPC framing; an
-integration test running the native driver over the bridge (gated, like `AFMPEG_TEST_FFMPEG_WASI`);
-and an HW-accel smoke test gated on device availability in CI.
+**✅ Done (2026-07-02) — the architectural unknown is closed** (§5.2, code preserved under
+`docs/development/spikes/0028-custom-avio-bridge/`): a native libav-linked program did a
+custom-AVIO round-trip — seekable read *and* write of a **non-fragmented MP4** driven entirely
+through an in-memory (afero-equivalent) store over a Unix socket, with the `seek_cb` servicing the
+`av_write_trailer` backward seek that the HTTP path could not. Backend B's I/O model carries no
+residual architectural risk.
+
+**Remaining (implementation-time, not blockers) test surface:** unit tests for the IPC framing;
+an integration test running the *real* native `driver` over the bridge (gated, like
+`AFMPEG_TEST_FFMPEG_WASI`); and an HW-accel smoke test gated on device availability in CI.
 
 ## 11. Sequencing & dependencies
 
@@ -171,5 +190,9 @@ throughput consumer need** — no speculative build. Backend C is deferred indep
 
 The direction is decided and bifurcated: Backend B (custom native driver + seekable AVIO/IPC) is the
 MUST; Backend C (local HTTP) is a deferred MAY. The HW-accel premise, the CGO-free/MIT posture, the
-security trade-off, the licensing model, and the spike evidence are recorded — enough to green-light
-the §10 de-risking spike as the next concrete step, with implementation still uncommitted.
+security trade-off, and the licensing model are recorded, and — as of 2026-07-02 — **both backends'
+I/O models are spike-validated end-to-end (§5), Backend B's decisively** (native custom-AVIO writing
+a non-fragmented MP4 through an in-memory store). There is no remaining architectural risk; the spec
+is **complete as a proposal**. What remains is a *product decision to build it* (gated on a real
+HW-accel consumer need) and then the implementation — the native toolchain/build matrix, the IPC
+framing, and the packaging module (D-0028-E) — none of which is committed here.
