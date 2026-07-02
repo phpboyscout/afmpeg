@@ -45,7 +45,7 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0025 — A/V sync & frame-rate](specs/0025-av-sync-and-framerate.md) | **PROPOSED** (external review, low severity): CFR / vsync policy vs the `fps`-filter workaround |
 | [0026 — engine hot-path performance](specs/0026-engine-hot-path-performance.md) | **PROPOSED** (external review): reuse AVFrame, lowest-PTS demux, larger AVIO buffer — code-level companion to 0008 |
 | [0027 — runtime security hardening](specs/0027-runtime-security-hardening.md) | **PROPOSED** (external review): wazero memory ceiling (OOM), hard timeout, cJSON guards — protects the untrusted-media thesis |
-| [0028 — native subprocess backend](specs/0028-native-subprocess-backend.md) | **PROPOSED** (external review, strategic): opt-in native FFmpeg via HTTP bridge for HW-accel — revives R-AF-11 CGO-free; sandbox trade-off |
+| [0028 — native backends](specs/0028-native-subprocess-backend.md) | **PROPOSED** (strategic): HW-accel escape hatch — **our native `driver.c` + seekable AVIO/IPC (MUST)** + a deferred local-ffmpeg-via-HTTP path (MAY); WASM stays default; CGO-free/MIT |
 | [external review — validation & disposition](external-review/README.md) | The commissioned external review + our per-finding validation verdicts and spec mapping |
 
 ## Method

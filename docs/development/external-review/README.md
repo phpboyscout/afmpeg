@@ -38,7 +38,7 @@ specs we'd already drafted):**
 | No A/V-sync / frame-rate mode (VFR drift) — **low severity** (the `fps` filter mitigates) | `pull_sinks` forwards buffersink PTS as-is | [0025](../specs/0025-av-sync-and-framerate.md) |
 | Hot-path inefficiency: per-packet `AVFrame` alloc, round-robin demux, 32 KB AVIO buffer | `pull_sinks` alloc/free per packet; round-robin read loop; default AVIO | [0026](../specs/0026-engine-hot-path-performance.md) |
 | **Runtime hardening**: no wazero memory limit (OOM), no hard timeout, cJSON guards | `runtime.go` `New()` lacks `WithMemoryLimitPages`; `Run` holds `mu` sans deadline | [0027](../specs/0027-runtime-security-hardening.md) |
-| **Dual-backend**: opt-in native FFmpeg subprocess via an HTTP bridge (HW-accel) | architectural proposal; feasibility sound, sidesteps the CGO objection | [0028](../specs/0028-native-subprocess-backend.md) |
+| **Native backend** for HW-accel (proposal: subprocess via HTTP bridge) | feasibility spike-validated; **refined** into our-own native driver (MUST) + deferred local-HTTP (MAY) | [0028](../specs/0028-native-subprocess-backend.md) |
 
 **Notable corrections we made to the review:**
 - The dual-backend proposal (0028) revives **R-AF-11**, which we *dropped* in

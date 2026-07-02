@@ -276,7 +276,7 @@ was drafted. The resolutions below are binding on specs 0002–0006.
 | **0025** av-sync-and-framerate | — | *PROPOSED* (ext review, low sev): CFR/vsync vs the `fps`-filter workaround | R-PARITY-AVSYNC |
 | **0026** engine-hot-path-performance | — | *PROPOSED* (ext review): AVFrame reuse, lowest-PTS demux, larger AVIO buffer (companion to 0008) | R-ENGINE-PERF |
 | **0027** runtime-security-hardening | — | *PROPOSED* (ext review): wazero memory ceiling, hard timeout, cJSON guards | R-SEC-HARDENING |
-| **0028** native-subprocess-backend | — | *PROPOSED* (ext review, strategic): opt-in native FFmpeg via HTTP bridge (HW-accel); revives R-AF-11 CGO-free | R-NATIVE-BACKEND |
+| **0028** native-backends | — | *PROPOSED* (strategic): HW-accel escape hatch — **B) our native driver + seekable AVIO/IPC (MUST)**; C) local ffmpeg via HTTP (MAY, deferred); WASM stays default; CGO-free/MIT | R-NATIVE-ENGINE, R-NATIVE-LOCAL |
 
 ## 11. Alternatives considered
 
