@@ -21,6 +21,9 @@ Available:
 - **[Run ffmpeg over an in-memory filesystem](run-in-memory.md)** — build a `Runtime`,
   supply the module (`WithModuleFile` / `WithModuleBytes` / `WithModuleFS`),
   transcode against an `afero.MemMapFs`, probe a file, and cancel a render.
+- **[Remux without re-encoding (stream copy)](remux-without-re-encoding.md)** — change a
+  container, mix copy with transcode, or join like-codec segments packet-for-packet with the
+  `CodecCopy` sentinel — no decode, no encode, no quality loss.
 - **[Compose a command with the builder](compose-a-command.md)** — assemble any
   invocation (inputs / filtergraph / outputs) as typed data and run it with `RunJob`
   (`JobSpec()`).

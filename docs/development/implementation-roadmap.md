@@ -30,9 +30,13 @@ a solo implementer):
 
 ### Phase 1 — Foundational engine capabilities (Tier-1, highest leverage)
 Engine track. These reshape what the engine *is* and are prerequisites for later specs. Do as **one
-job-spec-vocabulary-versioned batch** (establish the version-gating mechanism here — see prereqs).
+job-spec-vocabulary-versioned batch** (the version-gating mechanism was established here — see
+prereqs; it shipped standalone at **v1**, so each spec below bumps the version).
 - **[0013](specs/0013-remux-and-stream-copy.md) remux & stream copy** (`copy` sentinel, bitstream
-  filters, concat demuxer) — foundational for 0019 (subtitle copy) & 0020 (cover art).
+  filters, concat demuxer) — foundational for 0019 (subtitle copy) & 0020 (cover art). **✅ SHIPPED
+  at vocab v2** (verified mp4/mkv/webm; full A/V concat + copy-trim want 0015 ts + 0014 seek). Its
+  Matroska output surfaced and fixed a pre-existing WASI entropy hang (`/dev/urandom` now served by
+  the vfs).
 - **[0014](specs/0014-seeking-and-time-ranges.md) seeking & time ranges** (`-ss/-t/-to`) —
   foundational for 0021; pairs with 0013's keyframe-accurate copy-trim.
 - **[0024](specs/0024-input-options-and-formats.md) input options & formats** — activate the inert

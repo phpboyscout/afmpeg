@@ -1,8 +1,16 @@
 # 0013 — remux & stream copy
 
-Status: **DRAFT / SCOPING** (the Tier-1, highest value-to-cost parity item from [0012](0012-feature-parity-roadmap.md)
-§7. Owns the `copy` codec, the bitstream-filter selector, and the concat-demuxer input mode in the
-job-spec vocabulary. Review before building.)
+Status: **IMPLEMENTED** (Phase 1 of the [implementation roadmap](../implementation-roadmap.md); the
+Tier-1, highest value-to-cost parity item from [0012](0012-feature-parity-roadmap.md) §7. The `copy`
+codec sentinel, unbracketed `in:type[:idx]` map specifiers, `outputs[].bitstream_filters` (auto +
+explicit override + `"none"`), and the `inputs[].concat` demuxer mode all ship at **vocabulary
+version 2**. Copy bypasses the graph/decoder/encoder; a job freely mixes copy and transcode streams.
+Verified on mp4/mkv/webm — cross-container remux (mp4→mkv), mixed copy+transcode, video concat-copy,
+and BSF override, all with self-bootstrapped h264/aac fixtures. **Full A/V concat-copy and the
+keyframe-accurate copy-trim demos want MPEG-TS + fast seek — MPEG-TS is [0015](0015-container-coverage.md),
+seek is [0014](0014-seeking-and-time-ranges.md)** — the mechanism is proven; those containers/ops
+switch it on. Landed alongside the [/dev/urandom vfs fix](../../explanation/components/vfs-bridge.md)
+that first made Matroska output possible.)
 Date: 2026-06-30
 Parent: [0012](0012-feature-parity-roadmap.md) §4F/§5 (Tier 1); [0007](0007-libav-direct-engine.md) §4 (the vocabulary)
 Owns: **R-PARITY-REMUX** (stream copy / `-c copy`, bitstream filters, concat demuxer)
