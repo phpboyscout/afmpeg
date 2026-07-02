@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/afero"
@@ -23,6 +24,26 @@ const (
 
 	// stderrTailBytes bounds how much module stderr is surfaced on a failure.
 	stderrTailBytes = 1500
+
+	// wasmPageSize is the WebAssembly linear-memory page size (64 KiB); a memory
+	// limit in bytes is converted to a whole number of pages, rounded up.
+	wasmPageSize = 64 << 10
+
+	// maxMemoryLimitPages is the wasm32 ceiling (65536 pages == 4 GiB). wazero's
+	// WithMemoryLimitPages panics above this, so a byte limit is clamped to it.
+	maxMemoryLimitPages = 1 << 16
+
+	// defaultMemoryLimitBytes caps guest linear memory out of the box so a crafted
+	// input declaring outsized dimensions fails cleanly (guest ENOMEM) instead of
+	// OOM-killing the host (spec 0027 §4A, D-0027-B). WithMemoryLimit overrides;
+	// WithMemoryLimit(0) removes the cap.
+	defaultMemoryLimitBytes = 512 << 20
+
+	// defaultTimeout bounds every invocation out of the box so a non-terminating
+	// decode cannot hold the Runtime mutex indefinitely (spec 0027 §4B, D-0027-C).
+	// WithTimeout overrides; WithTimeout(0) removes the deadline. Only imposed when
+	// the caller's context carries no deadline of its own.
+	defaultTimeout = 1 * time.Hour
 )
 
 // ErrNoModule is returned by New when no wasm module source is configured. The
@@ -36,6 +57,10 @@ type Runtime struct {
 	rt       wazero.Runtime
 	compiled wazero.CompiledModule
 	mu       sync.Mutex
+
+	// timeout is the default per-invocation deadline imposed by Run when the
+	// caller's context carries none (spec 0027 §4B). Zero disables it.
+	timeout time.Duration
 }
 
 // Result is the outcome of a Run: the exit code and the module's captured stdout
@@ -67,10 +92,14 @@ type ProbeStream struct {
 	Channels   int    `json:"channels"`    // audio
 }
 
-// config accumulates New's options.
+// config accumulates New's options. memoryLimitBytes and timeout start at their
+// safe defaults so an out-of-the-box Runtime is hardened even with no option set
+// (spec 0027 D-0027-A); an option may lower, raise, or (with 0) disable each.
 type config struct {
-	module []byte
-	fetch  func(context.Context) ([]byte, error)
+	module           []byte
+	fetch            func(context.Context) ([]byte, error)
+	memoryLimitBytes int
+	timeout          time.Duration
 }
 
 // Option configures a Runtime at construction.
@@ -113,10 +142,39 @@ func WithModuleFS(fs afero.Fs, path string) Option {
 	}
 }
 
+// WithMemoryLimit caps the guest's linear memory at bytes (rounded up to whole
+// 64 KiB wasm pages, clamped to the wasm32 maximum of 4 GiB). Past the cap the
+// guest's memory.grow fails, so an over-allocating decode returns ENOMEM and
+// exits non-zero instead of OOM-killing the host (spec 0027 §4A). A default of
+// 512 MB applies when this option is absent; WithMemoryLimit(0) removes the cap
+// for a consumer that knowingly wants the unbounded behaviour.
+func WithMemoryLimit(bytes int) Option {
+	return func(c *config) error {
+		c.memoryLimitBytes = bytes
+
+		return nil
+	}
+}
+
+// WithTimeout sets the default maximum duration of a single invocation. Run
+// imposes it only when the caller's context carries no deadline of its own; a
+// caller deadline is always honoured as-is (spec 0027 §4B). A default of 1 hour
+// applies when this option is absent; WithTimeout(0) removes the default deadline.
+func WithTimeout(d time.Duration) Option {
+	return func(c *config) error {
+		c.timeout = d
+
+		return nil
+	}
+}
+
 // New compiles the configured wasm module once and returns a reusable Runtime.
 // Exactly one WithModule* option is required.
 func New(ctx context.Context, opts ...Option) (*Runtime, error) {
-	cfg := &config{}
+	cfg := &config{
+		memoryLimitBytes: defaultMemoryLimitBytes,
+		timeout:          defaultTimeout,
+	}
 
 	for _, opt := range opts {
 		if err := opt(cfg); err != nil {
@@ -139,9 +197,15 @@ func New(ctx context.Context, opts ...Option) (*Runtime, error) {
 		return nil, ErrNoModule
 	}
 
-	rt := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig().
+	rtCfg := wazero.NewRuntimeConfig().
 		WithCoreFeatures(runtimeCoreFeatures).
-		WithCloseOnContextDone(true))
+		WithCloseOnContextDone(true)
+
+	if pages := memoryLimitPages(cfg.memoryLimitBytes); pages > 0 {
+		rtCfg = rtCfg.WithMemoryLimitPages(pages)
+	}
+
+	rt := wazero.NewRuntimeWithConfig(ctx, rtCfg)
 
 	if err := instantiateEnv(ctx, rt); err != nil {
 		_ = rt.Close(ctx)
@@ -158,7 +222,23 @@ func New(ctx context.Context, opts ...Option) (*Runtime, error) {
 		return nil, errors.Wrap(err, "afmpeg: compile module")
 	}
 
-	return &Runtime{rt: rt, compiled: compiled}, nil
+	return &Runtime{rt: rt, compiled: compiled, timeout: cfg.timeout}, nil
+}
+
+// memoryLimitPages converts a byte ceiling to whole wasm pages, rounded up and
+// clamped to the wasm32 maximum. A non-positive limit means "no cap" and yields
+// 0, signalling New to leave the runtime's memory unbounded.
+func memoryLimitPages(bytes int) uint32 {
+	if bytes <= 0 {
+		return 0
+	}
+
+	pages := (bytes + wasmPageSize - 1) / wasmPageSize
+	if pages > maxMemoryLimitPages {
+		return maxMemoryLimitPages
+	}
+
+	return uint32(pages) //nolint:gosec // clamped to maxMemoryLimitPages above
 }
 
 // Close releases the runtime's resources.
@@ -171,6 +251,16 @@ func (r *Runtime) Close(ctx context.Context) error {
 // exit code and captured stderr; a non-zero exit is reported in Result with a
 // nil error. Only host-side failures return a non-nil error.
 func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result, error) {
+	// Impose the default deadline before locking, but only when the caller brings
+	// none — a caller's own deadline is honoured as-is (spec 0027 §4B). This bounds
+	// how long a pathological decode can hold r.mu, keeping the Runtime usable.
+	if _, ok := ctx.Deadline(); !ok && r.timeout > 0 {
+		var cancel context.CancelFunc
+
+		ctx, cancel = context.WithTimeout(ctx, r.timeout)
+		defer cancel()
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

@@ -41,5 +41,13 @@
 // consumer's code (spec 0005). Probe reports a media file's container, duration,
 // and streams over the same bridge.
 //
+// Because the point is to process untrusted media, a Runtime is hardened by
+// default: guest linear memory is capped (WithMemoryLimit, default 512 MB) so an
+// over-allocating decode fails cleanly instead of OOM-killing the host, and every
+// invocation runs under a deadline (WithTimeout, default one hour) so a
+// non-terminating decode cannot wedge the Runtime. Both are tunable, and passing
+// 0 removes a bound; a caller-supplied context deadline is always honoured over
+// the default (spec 0027).
+//
 // [ffmpeg-wasi]: https://ffmpeg-wasi.phpboyscout.uk
 package afmpeg

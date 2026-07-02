@@ -88,7 +88,30 @@ func dispatch(args []string) int {
 		for {
 			// Busy loop until the host cancels the context.
 		}
+	case strings.HasPrefix(cmd, "grow:"):
+		return grow(strings.TrimPrefix(cmd, "grow:"))
 	}
+
+	return 0
+}
+
+// grow allocates mb megabytes and touches every page, forcing the wasm linear
+// memory to grow. Under a low guest memory ceiling the underlying memory.grow
+// fails and the Go runtime aborts with a non-zero exit — the clean guest-side
+// failure the host memory limit is meant to produce (spec 0027 §4A).
+func grow(arg string) int {
+	mb, err := strconv.Atoi(arg)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "bad grow size")
+		return 2
+	}
+
+	chunk := make([]byte, mb<<20)
+	for i := 0; i < len(chunk); i += 4 << 10 {
+		chunk[i] = byte(i)
+	}
+
+	fmt.Fprintf(os.Stdout, "grew %d bytes\n", len(chunk))
 
 	return 0
 }

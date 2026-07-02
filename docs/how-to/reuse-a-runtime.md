@@ -62,6 +62,33 @@ func (s *Service) Close(ctx context.Context) error { return s.engine.Close(ctx) 
 Each call gets its **own** `afero.Fs`, so jobs never see each other's files even though they
 share the engine.
 
+## Safe by default: memory ceiling and invocation deadline
+
+Because afmpeg's job is to process **untrusted** media, a `Runtime` is hardened out of the box —
+you do not have to opt in (spec [0027](../development/specs/0027-runtime-security-hardening.md)):
+
+- **Guest memory is capped at 512 MB.** A crafted file declaring outsized dimensions can make
+  libav try to allocate gigabytes; the cap turns that into a clean guest-side failure (a non-zero
+  exit) instead of an OOM-kill of your host process.
+- **Every invocation runs under a 1-hour deadline.** A pathological, non-terminating decode
+  cannot hang forever and wedge the `Runtime` — the invocation aborts and the engine stays usable.
+
+Tune or remove either bound explicitly:
+
+```go
+engine, err := afmpeg.New(ctx,
+    afmpeg.WithModuleFile(modulePath),
+    afmpeg.WithMemoryLimit(1<<30),        // raise the guest ceiling to 1 GB
+    afmpeg.WithTimeout(5*time.Minute),    // tighten the per-invocation deadline
+)
+```
+
+The deadline is a **default**, not an override: if the context you pass to `Run`/`RunJob`/`Probe`
+already carries a deadline, afmpeg honours yours and never extends it. The imposed default only
+applies when your context has none (e.g. `context.Background()`). Pass `WithMemoryLimit(0)` or
+`WithTimeout(0)` to remove a bound entirely — for the rare consumer who knowingly wants the
+unbounded behaviour.
+
 ## Throughput: invocations serialise
 
 A `Runtime` runs **one invocation at a time** — `Run`/`RunJob`/`Probe` take an internal lock,
