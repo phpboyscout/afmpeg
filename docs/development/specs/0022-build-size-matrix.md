@@ -1,155 +1,137 @@
-# 0022 — build & size matrix (lean/full)
+# 0022 — the build & distribution matrix
 
-Status: **DRAFT / SCOPING**
-Date: 2026-06-30
+Status: **DRAFT / SCOPING** (refined 2026-07-02 — the lean/intermediate/full profile model, the
+runtime×profile mapping, and the native platform set are RESOLVED with the user; the concrete
+codec-set-per-profile in §6 is the proposed starting policy. This spec **governs the
+codec-bundling decision every other spec defers to**.)
+Date: 2026-06-30 (refined 2026-07-02)
 Parent: [0012](0012-feature-parity-roadmap.md), [0007](0007-libav-direct-engine.md)
-Owns: R-AF-3 (size-matrix portion) — the build-profile axis, the release-artifact matrix, and the
-extension of afmpeg's `variant` to `(licence × profile)`.
+Governs the bucketing for: [0015](0015-container-coverage.md) [0016](0016-native-codec-batch.md)
+[0017](0017-native-filter-batch.md) [0018](0018-lgpl-encoder-expansion.md)
+[0019](0019-text-and-subtitles.md) [0023](0023-hevc-and-av1.md); the native runtime is
+[0028](0028-native-subprocess-backend.md).
+Owns: **R-AF-3** (the build-variant / size-matrix portion)
 
 ## 1. Why
 
-Today's `.wasm` is ~5.4 MB at the [0007 §6](0007-libav-direct-engine.md) baseline. As
-[0015](0015-container-coverage.md)–[0019](0019-text-and-subtitles.md) + [0023](0023-hevc-and-av1.md)
-land demuxers/muxers/codecs/filters/libs, "enable everything" bloats it without bound — every
-consumer pays for libass + x265 even to thumbnail a PNG. FFmpeg's `--disable-everything` + allowlist
-already gives byte-level control ([0012 §2](0012-feature-parity-roadmap.md) size-budget row), so the
-question is **not "can we trim"** but **"what cuts do we ship, sign, and pin."** This spec is the
-cross-cutting decision the parity batch defers to: each of 0015–0019/0023 asks "which bucket?" — the
-answer lives here.
+As the parity specs add codecs/formats/filters and 0028 adds a native runtime, "**what goes in
+which distributable?**" needs one governing policy rather than each spec guessing. This is it: the
+axes, the profiles, the artifact matrix, and the release/signing/pinning implications. The codec
+specs (0015–0019, 0023) each say *what a codec is*; this spec says *which artifact it ships in*.
 
-## 2. Scope
+## 2. The axes
 
-In: the build-**profile** axis (its existence, shape, and naming); the lean allowlist vs the full
-superset; the release-artifact/provenance/signing matrix; how afmpeg's `WithModuleRelease` extends;
-per-artifact size budgets + a CI size-assertion gate. Out: the *contents* of each parity batch (owned
-by 0015–0019/0023 — they only consult §6's bucket rule); the licence axis itself (0007 §5 / 0010 —
-this spec is orthogonal to it); heavy-codec placement mechanics (0023).
-
-## 3. Approach / design
-
-**Two-point capability axis — `lean` (default) + `full` (opt-in) — orthogonal to LGPL/GPL.** A
-`PROFILE` build-arg sits beside the existing `VARIANT`; the allowlist in `build/libav.sh` splits into
-`ENABLE_LEAN` (today's baseline + the web quartet) and `ENABLE_FULL_EXTRA` (the 0015–0019 batches),
-with `full = lean ∪ extra`. The published matrix is the product **licence × profile**:
-
-| | **lean** (web-delivery essentials) | **full** (kitchen sink) |
+| Axis | Values | Notes |
 |---|---|---|
-| **lgpl** (default) | `ffmpeg-wasi-lgpl-lean.wasm` ← the default-default | `ffmpeg-wasi-lgpl-full.wasm` |
-| **gpl** | `ffmpeg-wasi-gpl-lean.wasm` | `ffmpeg-wasi-gpl-full.wasm` |
+| **Runtime** | WASM · Native | WASM: sandboxed, portable, **arch-independent**, single-thread. Native ([0028](0028-native-subprocess-backend.md)): threads + SIMD + HW-accel, **per-platform**. |
+| **Profile** | lean · intermediate · full | Capability *classes* (§3), not arbitrary size cuts. |
+| **Licence** | LGPL · GPL | LGPL is the default; GPL adds x264 / x265. |
+| **Platform** (native only) | linux/amd64 · linux/arm64 · darwin/arm64 | Windows **deferred**, no date (D-0022-F). WASM has no platform axis. |
 
-**lean** = H.264 (dec+enc) · AAC · MP3 · Opus · VP8/VP9 (→ the [0018](0018-lgpl-encoder-expansion.md)
-quartet: opus/lame/libvpx/libwebp) · WebP · the mp4/mov + matroska/webm + mp3/wav/ogg
-demux+mux set · the core filter set (`scale crop pad overlay concat xfade fps format` + the audio
-core `amix volume afade aresample aformat`). This is "deliver media to a browser" and nothing else.
+## 3. The profiles — capability classes
 
-**full** = lean **+** the native decoder/muxer/filter batches (ac3, pcm family, image decoders,
-prores; mpegts, hls/dash, flv, avi, gif; the eq/color/compose/thumbnail/deinterlace/loudnorm filter
-batch) **+** the external-lib heavies (freetype `drawtext`, libass `subtitles`, and — gpl-full only —
-x265). The native batch is nearly free (size only); freetype/libass/x265 are why it is a *separate*
-artifact, not the default.
+- **Lean** — web-delivery essentials: the codecs/containers/filters that cover the great majority
+  of real jobs at the smallest size. Roughly what ffmpeg-wasi ships today. **WASM only.**
+- **Intermediate** — lean **+ every practical *software* codec** (no hardware, no heavy
+  thread-hungry encoders): the native-decoder batch, the LGPL encoder libs, the full filter set,
+  all software containers, subtitles, AV1-*decode*. **Both runtimes, and byte-for-byte the *same
+  codec set* in each** (D-0022-B — clean partitions; intermediate never flexes or muddies between
+  WASM and Native).
+- **Full** — intermediate **+ the heavy hitters**: heavy *software* encoders (x265/HEVC, software
+  AV1 encode) **and** hardware-accelerated codecs (NVENC/VAAPI/VideoToolbox/QSV). Threads + SIMD +
+  hardware make these viable, so **Native only**.
 
-**Rejected: named profiles** (`web`/`broadcast`/`audio`). They are *soft* segmentation we cannot
-predict before consumer signal, and each new name multiplies the matrix. A consumer needing a bespoke
-cut already has the mechanism — the `--disable-everything` + `--build-arg` allowlist — to roll their
-own; we do not chase that surface speculatively. Two honest points (essentials vs everything) is the
-floor; **this spec caps the dimensionality at `licence × profile` — no third axis.**
+The load-bearing property: **intermediate is identical in WASM and Native.** A consumer develops
+against WASM-intermediate (sandboxed, portable, slower) and drops to Native-intermediate (identical
+capabilities, fast, unsandboxed) with **zero code or codec-support change** — only the
+performance/security posture shifts.
 
-## 4. Build & release impact
+## 4. Runtime × profile mapping
 
-- **`build/libav.sh` / `build/Dockerfile`** — add `PROFILE` (`lean`|`full`) beside `VARIANT`; the
-  `ENABLE` string becomes `ENABLE_LEAN` + a `[ "$PROFILE" = full ] && ENABLE="$ENABLE $ENABLE_FULL_EXTRA"`
-  append. Heavy-lib `--build-arg`s in `build/deps.sh` gate on **both** axes (x265 ⇒ gpl-full only;
-  freetype/libass ⇒ any `*-full`).
-- **`.gitlab-ci.yml`** — the 2 build jobs (`build:lgpl|gpl`) become **4** (`build:{lgpl,gpl}-{lean,full}`).
-  Roughly **2× the CI compile time/cost** — the explicit proliferation tax to flag.
-- **`build/sign-release.sh`** — `provenance.json`'s `variants` map grows from 2 entries to **4**
-  (keyed `lgpl-lean`…`gpl-full`), each recording licence, profile, h264 encoder, **and built size**
-  (§6). `checksums.txt` covers **4 `.wasm` + 4 `.gz`** (8 modules) + provenance; one signature still
-  certifies the lot (0010 unchanged in mechanism — only wider).
-- **`release` job** — publishes 8 module assets (+ `.gz`) instead of 4; the asset-link list and the
-  generic-package upload loop scale accordingly. Each artifact is independently pinnable.
+- **WASM → { lean, intermediate }.** No WASM-full: HW-accel and the heavy encoders need native.
+- **Native → { intermediate, full }.** No Native-lean: native's whole point is capability, so
+  intermediate is its floor.
 
-## 5. Licensing interaction
+## 5. The artifact matrix
 
-The profile axis introduces **no new licence risk** — it is a clean product with the 0007 §5 / 0010
-licence axis. GPL-only components (x264, x265, GPL filters) live **only** in `gpl-*` regardless of
-profile; freetype (FTL/GPL-compatible) and libass (ISC) are LGPL-clean, so `lgpl-full` stays a true
-LGPL artifact — the "strengthen the *default* variant" thesis of [0012 §3](0012-feature-parity-roadmap.md)
-holds at both profiles. full pulls more external libs ⇒ more corresponding-source/relink surface, but
-all of it is already met by the public MIT repo + pinned upstream (0007 §5). The openh264 AVC-patent
-caveat is unchanged and present in every `lgpl-*`. WKD attestation ([0011](0011-wkd-attestation.md))
-covers each of the 4 artifacts via the single signed `checksums.txt` — no per-artifact key work.
+Per release:
 
-## 6. Decisions + open questions
+| Runtime | Profile | Licences | Platforms | Count |
+|---|---|---|---|---|
+| WASM | lean | lgpl, gpl | (arch-independent) | 2 |
+| WASM | intermediate | lgpl, gpl | (arch-independent) | 2 |
+| Native | intermediate | lgpl, gpl | linux/amd64, linux/arm64, darwin/arm64 | 6 |
+| Native | full | lgpl, gpl | linux/amd64, linux/arm64, darwin/arm64 | 6 |
 
-- **D-0022-A — axis = `lean` (default) + `full` (opt-in), orthogonal to licence. Named profiles
-  rejected.** Two points only; the dimensionality ceiling is `licence × profile`.
-- **D-0022-B — lean = the web-delivery allowlist of §3** (today's baseline + the 0018 quartet); full =
-  lean ∪ the 0015–0019 batches + (gpl-full) x265. The lean allowlist is the authoritative list, lives
-  in `build/libav.sh`, and is the contract the size budget guards.
-- **D-0022-C — ship all 4 artifacts (full symmetric matrix).** Symmetry avoids special-case
-  resolver/provenance/CI logic and preserves today's `gpl` pin as `gpl-lean` (no capability
-  regression). `gpl-lean` is the lowest-value cell (x264 quality at minimal size is a narrow want) and
-  is the first candidate to *stop publishing* if asset upkeep bites — the build still supports it.
-- **D-0022-D — afmpeg surface: `Variant` stays the licence enum; add `type Profile string`
-  (`ProfileLean`/`ProfileFull`, default `ProfileLean`).** `WithModuleRelease(tag, variant, opts…)`
-  gains `WithProfile(Profile)`; the resolver builds `ffmpeg-wasi-<licence>-<profile>.wasm` and the
-  provenance cross-check (0010 D-0010-H) asserts **both** axes. The 2-arg call still compiles
-  (defaults to lean), so existing consumers move artifact with one option, not a rewrite.
-- **D-0022-E — enforcement is a per-artifact size budget + a CI gate**, not a guideline. Budgets
-  (`--enable-small`, raw `.wasm`): **lgpl-lean ≤ 8 MB · gpl-lean ≤ 10 MB · lgpl-full ≤ 16 MB ·
-  gpl-full ≤ 22 MB** (starting numbers; x265 dominates gpl-full). A `build/size-budgets.txt` ceiling
-  is asserted in CI (`stat -c%s` vs ceiling) — a regression **fails the pipeline**; actual sizes land
-  in `provenance.json` so drift is auditable per release.
-- **D-0022-F — the bucket rule the siblings defer to:** a new component lands in **lean** iff it is a
-  web-delivery essential (the §3 set); otherwise **full**. 0015/0016/0017/0018/0023 each cite this
-  rule rather than re-deciding.
-- **Open:** (Q1) publish `gpl-lean` day-one or lazily on first pin? (Q2) artifact **rename** migration
-  — pre-profile tags (`n8.1.2-*`) used `ffmpeg-wasi-lgpl.wasm`; does the resolver alias `lgpl ⇒
-  lgpl-lean` for old tags, or do profiles only apply from the introducing tag onward? (Q3) gzip-size
-  budget too, or raw only? (Q4) is libwebp lean or full? (leaning lean — pairs with the quartet).
+**= 16 signed artifacts per release** (Windows, when un-deferred, adds intermediate+full × lgpl+gpl
+= 4 → 20). We do not shy from this number — §7 shows it costs one signature, plus a build matrix.
 
-## 7. Requirements
+## 6. Codec-set-per-profile — the proposed policy (what the other specs defer to)
 
-- **R-0022-1** A `PROFILE` build axis (`lean`|`full`) orthogonal to `VARIANT`, driving the
-  `build/libav.sh` allowlist split; `full ⊇ lean` by construction.
-- **R-0022-2** The lean allowlist is defined, web-delivery-scoped, and is a strict subset of full.
-- **R-0022-3** Each published artifact has a committed size budget enforced by a CI gate that fails on
-  regression; built sizes recorded in `provenance.json`.
-- **R-0022-4** `provenance.json` records `(licence, profile, size)` per artifact; `checksums.txt`
-  covers all 4 `.wasm` (+ `.gz`); the single 0010 signature certifies the set.
-- **R-0022-5** afmpeg's release acquisition resolves/verifies `(licence × profile)`; default profile =
-  lean; provenance cross-check asserts both axes with a typed mismatch error.
-- **R-0022-6** 0015–0019/0023 each tag their additions `lean` or `full` per D-0022-F.
+Additive: each profile is the previous plus its column. Codec specs are cited for the source of each set.
 
-## 8. Test surface
+| | **Lean** (WASM) | **Intermediate** (+ over lean) | **Full** (+ over intermediate, Native) |
+|---|---|---|---|
+| **Decode** | h264, hevc, vp8/9, aac, mp3, opus, vorbis, flac, png, mjpeg | ac3/eac3, pcm family, prores, dnxhd, mpeg2/4, vc1, theora, alac, dts, dv, gif/bmp/tiff/webp, **AV1 (dav1d)** [0016/0023] | — |
+| **Encode** | h264 (openh264; +**libx264** in gpl), aac, mjpeg, png | **Opus, MP3, VP8/9, WebP, Vorbis** [0018]; gif, ac3, pcm, alac [0016] | **x265/HEVC** (gpl only), **software AV1** (aom/SVT) [0023]; **HW: h264/hevc/av1 _nvenc/_vaapi/_videotoolbox/_qsv** |
+| **Containers** | mp4, mov, mkv, webm, mp3, wav, ogg, image2 | mpegts, flv, avi, gif, hls, dash, cmaf, adts, caf, aiff [0015] | — |
+| **Filters** | the curated set (scale/crop/pad/overlay/concat/xfade/format/fps + core audio) | the full native batch [0017] + drawtext/subtitles (freetype/libass) [0019] | — |
 
-- **CI size gate** — the budget assertion is itself the headline test (regression = red pipeline).
-- **Build-matrix smoke** — each of the 4 artifacts loads under wazero + answers an `op:"probe"`.
-- **Capability negative test** — a lean module is asserted to **lack** a full-only codec/filter
-  (e.g. `subtitles`/x265), so the cut is real, not nominal.
-- **afmpeg resolver/provenance tests** — `(licence, profile)` URL resolution; provenance asserts both
-  axes; `WithProfile` default = lean; variant/profile-mismatch ⇒ typed error (extends 0010 §10).
-- **Doc deliverable** — the [0012 §6](0012-feature-parity-roadmap.md) codec/filter matrix page gains a
-  per-artifact column, generated/checked against the 4 builds.
+**Licence placement:** openh264 → all (LGPL); **libx264** → any *gpl* variant (incl. lean-gpl);
+**x265** → *full-gpl only* (GPL + heavy); HW-accel encoders → both licences (the hardware encodes,
+the wrappers are LGPL-compatible); the LGPL encoder quartet (Opus/MP3/VP8-9/WebP) → both.
 
-## 9. Dependencies & sequencing
+## 7. Release, signing & pinning
 
-- **Gates** 0015/0016/0017/0018/0019/0023 — each defers its lean/full placement to D-0022-F, so the
-  **axis + naming decision (D-0022-A/D) must land before the batches start enabling components**; the
-  full plumbing can follow as the first full-only component arrives.
-- **Depends on** [0007](0007-libav-direct-engine.md) (the build), [0010](0010-signed-release-acquisition.md)
-  (the `Variant` enum, provenance cross-check, signing — widened, not rebuilt),
-  [0011](0011-wkd-attestation.md) (attestation spans all 4 via one signed manifest).
-- **Sequencing:** decide the axis here (this spec) → implement `PROFILE` plumbing + the 4-way CI/
-  provenance/afmpeg surface as 0015/0016 lands its first full-only component → siblings slot into
-  buckets thereafter.
+- **Signing scales for free.** One `checksums.txt` + one OpenPGP signature **per release** covers
+  *all 16 artifacts* (the manifest just lists more files) — the [0010](0010-signed-release-acquisition.md)/[0011](0011-wkd-attestation.md)
+  model is unchanged; WKD/provenance don't grow. `provenance.json` enumerates every
+  (runtime, profile, licence, platform).
+- **Consumer selection.** afmpeg's `variant` generalises to **(profile, licence)**;
+  `WithModuleRelease` picks the WASM artifact, `WithNativeRelease` adds the **platform**
+  auto-detected from `runtime.GOOS`/`GOARCH`. A clear error when a requested (profile, platform)
+  isn't published.
+- **The real cost is the native build matrix, not the count.** Cross-compiling libav\* + the driver
+  for `darwin/arm64` and `linux/arm64` from the CI host needs per-target toolchains/sysroots
+  (goreleaser-style runners or cross-SDKs). 16 CI build jobs. This — not signing — is the genuine
+  new engineering, and it lands with 0028's native tier, not before.
 
-## 10. Definition of done (this scoping spec)
+## 8. Decisions
 
-The `lean`/`full` axis, its orthogonality to licence, the 4-artifact published matrix, the lean
-allowlist boundary, the afmpeg `(licence × profile)` surface, the per-artifact size budgets + CI gate,
-and the bucket rule the siblings consult are all decided and recorded — with the proliferation cost
-(2× CI, 8 module assets, a wider provenance/pin surface) named, not hidden. The open questions (Q1–Q4)
-are flagged for the implementing MR. 0015–0019/0023 can cite D-0022-F instead of re-litigating "which
-bucket?".
+- **D-0022-A — three profiles** (lean/intermediate/full) defined by capability class, not size.
+- **D-0022-B — intermediate is identical across WASM and Native. RESOLVED (2026-07-02):** clean
+  partitions; no flexing or muddied middle.
+- **D-0022-C — heavy *software* encode (x265, software AV1) lands in FULL, not intermediate.
+  RESOLVED:** keeps intermediate clean + practical single-threaded.
+- **D-0022-D — mapping:** WASM {lean, intermediate}; Native {intermediate, full}.
+- **D-0022-E — lean ships BOTH LGPL and GPL. RESOLVED:** x264 offers quality gains; let consumers
+  choose.
+- **D-0022-F — native platforms: linux/{amd64,arm64} + darwin/arm64. RESOLVED;** Windows deferred,
+  no date.
+- **D-0022-G — one signature per release covers every artifact** (no per-artifact signing).
+- **Open:** the exact lean vs intermediate line for a few borderline decoders; whether WASM-full is
+  ever warranted (currently no); the `provenance`/naming scheme for 16+ assets.
+
+## 9. Requirements
+
+- **R-AF-3 (size/variant portion)** — releases publish the profile × licence × runtime × platform
+  matrix (§5); each artifact's codec set follows the §6 policy; intermediate is identical across
+  runtimes; all artifacts are covered by a single per-release signature; afmpeg selects by
+  (profile, licence, platform). A per-artifact **size budget** + a CI size-assertion gate.
+
+## 10. Sequencing & dependencies
+
+This spec **gates the bucket placement** the codec specs (0016/0017/0018/0019/0023) defer to — so
+it should be settled before those build. The WASM profiles (lean/intermediate) can ship first (no
+new runtime); the Native profiles (intermediate/full) + the platform matrix depend on
+[0028](0028-native-subprocess-backend.md) and its build toolchain. Supersedes the current
+lgpl/gpl-only variant model ([0007](0007-libav-direct-engine.md) §5, ffmpeg-wasi `variants.md`),
+which becomes the WASM-lean row of this matrix.
+
+## 11. Definition of done
+
+The axes, the three capability-class profiles, the runtime×profile×licence×platform matrix (16
+artifacts), the codec-set-per-profile policy, and the release/signing/pinning implications are
+recorded and agreed. The codec specs cite §6 for placement; 0028 cites §5/§7 for the native matrix;
+the size-budget gate is specified. Implementation (the build matrix, the native toolchains, the
+afmpeg selection API) is downstream and uncommitted here.

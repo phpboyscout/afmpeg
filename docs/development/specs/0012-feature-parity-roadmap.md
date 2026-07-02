@@ -224,7 +224,7 @@ dependencies before any implementation commits):
 | **Text & subtitles** | drawtext (freetype) + subtitles burn-in/decode/mux (libass) + a subtitle stream type | 2 | [0019](0019-text-and-subtitles.md) | R-PARITY-SUBTITLES |
 | **Metadata & chapters** | read/set tags, chapters, disposition, cover art | 1-2 | [0020](0020-metadata-and-chapters.md) | R-PARITY-METADATA |
 | **Frame extraction op** | a first-class `frames` op (thumbnails/frames-at-timestamps) | 2 | [0021](0021-frame-extraction-op.md) | R-PARITY-FRAMES |
-| **Build & size matrix** | the lean/full × LGPL/GPL build-profile axis (R-AF-3) | — | [0022](0022-build-size-matrix.md) | R-AF-3 (size) |
+| **Build & distribution matrix** | lean/intermediate/full × WASM/Native × LGPL/GPL × platform; codec-set-per-profile (R-AF-3) | — | [0022](0022-build-size-matrix.md) | R-AF-3 (size) |
 | **HEVC / AV1** | x265 (GPL, full) + dav1d (default); AV1 encode deferred | 3 | [0023](0023-hevc-and-av1.md) | R-PARITY-HEAVY-CODECS |
 | Performance | instance pool + build tuning | — | [0008](0008-performance-strategy.md) | R-AF-12 |
 

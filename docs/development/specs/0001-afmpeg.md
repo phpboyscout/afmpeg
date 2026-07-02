@@ -270,7 +270,7 @@ was drafted. The resolutions below are binding on specs 0002–0006.
 | **0019** text-and-subtitles | 5 | drawtext (freetype) + subtitle burn-in/streams (libass) + a subtitle stream type | R-PARITY-SUBTITLES |
 | **0020** metadata-and-chapters | 5 | probe-read + output-set tags, chapters, disposition, language, cover art | R-PARITY-METADATA |
 | **0021** frame-extraction-op | 5 | a first-class `frames` op (thumbnails / frames at timestamps / scene-select) | R-PARITY-FRAMES |
-| **0022** build-size-matrix | 5 | the lean/full × LGPL/GPL build-profile axis + release-artifact matrix | R-AF-3 (size) |
+| **0022** build-distribution-matrix | 5 | governing bundling policy: lean/intermediate/full × WASM/Native × LGPL/GPL × platform; codec-set-per-profile (16 artifacts) | R-AF-3 (size) |
 | **0023** hevc-and-av1 | 5 | Tier-3 heavy codecs: x265 (GPL/full), dav1d AV1 decode (default); AV1 encode deferred | R-PARITY-HEAVY-CODECS |
 | **0024** input-options-and-formats | — | *PROPOSED* (ext review): activate `inputs[].options`, forced/raw input format, stream selection | R-PARITY-INPUT-OPTIONS |
 | **0025** av-sync-and-framerate | — | *PROPOSED* (ext review, low sev): CFR/vsync vs the `fps`-filter workaround | R-PARITY-AVSYNC |

@@ -39,7 +39,7 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0019 — text & subtitles](specs/0019-text-and-subtitles.md) | drawtext (freetype) + subtitle burn-in/streams (libass) + a subtitle stream type — child of 0012 |
 | [0020 — metadata & chapters](specs/0020-metadata-and-chapters.md) | Probe-read + output-set tags, chapters, disposition, language, cover art — child of 0012 |
 | [0021 — frame extraction op](specs/0021-frame-extraction-op.md) | A first-class `frames` op (thumbnails / frames at timestamps / scene-select) — child of 0012 |
-| [0022 — build & size matrix](specs/0022-build-size-matrix.md) | The lean/full × LGPL/GPL build-profile axis + release-artifact matrix (R-AF-3) — child of 0012 |
+| [0022 — build & distribution matrix](specs/0022-build-size-matrix.md) | The governing bundling policy: **lean/intermediate/full** profiles × runtime (WASM/Native) × LGPL/GPL × platform; the codec-set-per-profile every codec spec defers to (R-AF-3) |
 | [0023 — HEVC & AV1](specs/0023-hevc-and-av1.md) | Tier-3 heavy codecs: x265 (GPL/full), dav1d AV1 decode (default); AV1 encode deferred — child of 0012 |
 | [0024 — input options & formats](specs/0024-input-options-and-formats.md) | **PROPOSED** (external review): activate `inputs[].options`, forced/raw input format, input stream selection |
 | [0025 — A/V sync & frame-rate](specs/0025-av-sync-and-framerate.md) | **PROPOSED** (external review, low severity): CFR / vsync policy vs the `fps`-filter workaround |
