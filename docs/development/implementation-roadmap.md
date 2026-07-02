@@ -20,11 +20,13 @@ a solo implementer):
 
 ## Phased build order
 
-### Phase 0 — Harden the core (do first; cheap; no deps)
+### Phase 0 — Harden the core (do first; cheap; no deps) — ✅ DONE
 - **[0027](specs/0027-runtime-security-hardening.md) runtime security hardening** — the wazero
-  memory ceiling above all (a crafted file can currently OOM-kill the host, undercutting the whole
+  memory ceiling above all (a crafted file could OOM-kill the host, undercutting the whole
   "safely process untrusted media" thesis), plus the deadline policy + cJSON guards. Small, high
-  value, unblocks nothing but protects everything. **Start here.**
+  value, unblocks nothing but protects everything. **Shipped:** `WithMemoryLimit` (default 512 MB)
+  + `WithTimeout` (default 1 h) in `runtime.go` with `-race` acceptance tests; the `cJSON_IsObject`
+  guard is committed in `ffmpeg-wasi/src/process.c` for the next engine rebuild.
 
 ### Phase 1 — Foundational engine capabilities (Tier-1, highest leverage)
 Engine track. These reshape what the engine *is* and are prerequisites for later specs. Do as **one

@@ -1,9 +1,10 @@
 # 0027 — runtime security hardening
 
-Status: **PROPOSED** (external review — decision pending. A commissioned security review of
-ffmpeg-wasi + its afmpeg host surfaced three concrete hardening gaps; this spec designs the
-fixes. The user decides whether to promote it to buildable work. **Design only — nothing
-implemented.**)
+Status: **IMPLEMENTED** (promoted from the external review to Phase 0 of the
+[implementation roadmap](../implementation-roadmap.md) and built. Host fixes 4A + 4B shipped in
+afmpeg with `-race` acceptance tests; engine fix 4C is committed in `ffmpeg-wasi/src/process.c`
+and ships in the next routine engine rebuild. D-0027-B resolved to **512 MB**; D-0027-C resolved
+to **impose-a-default-deadline (1 h) with override**.)
 Date: 2026-07-02
 Parent: [0007](0007-libav-direct-engine.md) (the engine this hosts); [0004](0004-runtime-and-api.md) (the `Runtime`/`New` surface these options extend)
 Source: external commissioned review — [`ffmpeg-wasi/security_review.md`](../../../../ffmpeg-wasi/security_review.md) + [`security_review_supplementary.md`](../../../../ffmpeg-wasi/security_review_supplementary.md)
@@ -118,20 +119,22 @@ rt, err := afmpeg.New(ctx,
 
 ## 6. Decisions + open questions
 
-- **D-0027-A — harden by default, opt out explicitly. PROPOSED.** The default `Runtime` is safe
+- **D-0027-A — harden by default, opt out explicitly. ADOPTED.** The default `Runtime` is safe
   (a memory cap and a deadline apply with no option set); a consumer must *explicitly* pass a
-  sentinel to remove a bound. A sandbox whose protections are off-by-default is not a sandbox.
-- **D-0027-B — memory ceiling as bytes, default value. OPEN.** Option takes bytes (converted to
-  pages internally). **Default: 512 MB proposed** (the review's lower suggestion) vs 1 GB (headroom
-  for higher-resolution work). Lower is safer for the multi-tenant/`RuntimePool` (0006 §2E) case;
-  higher avoids surprising a legitimate 4K job. Pick against a real resolution target.
-- **D-0027-C — deadline policy: impose vs refuse. OPEN.** Impose-a-default-deadline (proposed,
-  friendlier — `context.Background()` still works, just bounded) vs refuse-a-context-without-a-
-  deadline (stricter, forces the consumer to own the bound, harsher API). Impose-with-override is
-  the recommended default.
-- **D-0027-D — JSON guard scope. PROPOSED.** Guard the `options` walk (and sibling nested-container
-  walks) in `parse_output`; do not attempt a full schema validator — the job spec is trusted input,
-  so this is defence-in-depth, not a security boundary.
+  sentinel (`WithMemoryLimit(0)` / `WithTimeout(0)`) to remove a bound. A sandbox whose protections
+  are off-by-default is not a sandbox.
+- **D-0027-B — memory ceiling as bytes, default value. RESOLVED → 512 MB.** Option takes bytes
+  (converted to pages internally). Chose the review's lower suggestion over 1 GB: safer for the
+  multi-tenant/`RuntimePool` (0006 §2E) case, and `WithMemoryLimit` raises it for a legitimate 4K
+  job. Implemented as `defaultMemoryLimitBytes = 512 << 20` in `runtime.go`.
+- **D-0027-C — deadline policy: impose vs refuse. RESOLVED → impose-with-override.**
+  Impose-a-default-deadline (friendlier — `context.Background()` still works, just bounded) over
+  refuse-a-context-without-a-deadline (harsher API contract). Default `defaultTimeout = 1 * time.Hour`;
+  `Run` imposes it only when the caller's context carries no deadline, and honours an earlier caller
+  deadline as-is (never extends it).
+- **D-0027-D — JSON guard scope. ADOPTED.** Guarded the `options` walk with `cJSON_IsObject` in
+  `parse_output`; did not attempt a full schema validator — the job spec is trusted input, so this
+  is defence-in-depth, not a security boundary.
 
 ## 7. Requirements
 
