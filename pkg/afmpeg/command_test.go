@@ -106,6 +106,63 @@ func TestCommand_JobSpec(t *testing.T) {
 	}
 }
 
+// TestCommand_JobSpec_Copy renders the spec-0013 copy vocabulary: the "copy"
+// codec sentinel, unbracketed input-stream map specifiers, per-stream bitstream
+// filters, and a concat-demuxer input.
+func TestCommand_JobSpec_Copy(t *testing.T) {
+	t.Parallel()
+
+	cmd := afmpeg.NewCommand(
+		afmpeg.WithConcatInput("a.ts", "b.ts"),
+		afmpeg.WithOutput("out.ts",
+			afmpeg.Map("0:v"), afmpeg.Map("0:a"),
+			afmpeg.VideoCodec(afmpeg.CodecCopy), afmpeg.AudioCodec(afmpeg.CodecCopy),
+			afmpeg.BitstreamFilter("0:v", "h264_mp4toannexb")),
+	)
+
+	data, err := cmd.JobSpec()
+	if err != nil {
+		t.Fatalf("JobSpec: %v", err)
+	}
+
+	var got struct {
+		Inputs []struct {
+			Path   string   `json:"path"`
+			Concat []string `json:"concat"`
+		} `json:"inputs"`
+		Outputs []struct {
+			Map              []string          `json:"map"`
+			VideoCodec       string            `json:"video_codec"`
+			AudioCodec       string            `json:"audio_codec"`
+			BitstreamFilters map[string]string `json:"bitstream_filters"`
+		} `json:"outputs"`
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, data)
+	}
+
+	if len(got.Inputs) != 1 || len(got.Inputs[0].Concat) != 2 || got.Inputs[0].Concat[0] != "a.ts" {
+		t.Fatalf("concat input = %+v", got.Inputs)
+	}
+
+	if got.Inputs[0].Path != "" {
+		t.Errorf("concat input emitted a path %q, want none", got.Inputs[0].Path)
+	}
+
+	o := got.Outputs[0]
+	if o.VideoCodec != "copy" || o.AudioCodec != "copy" {
+		t.Errorf("codecs = %q/%q, want copy/copy", o.VideoCodec, o.AudioCodec)
+	}
+
+	if len(o.Map) != 2 || o.Map[0] != "0:v" || o.Map[1] != "0:a" {
+		t.Errorf("map = %v, want [0:v 0:a]", o.Map)
+	}
+
+	if o.BitstreamFilters["0:v"] != "h264_mp4toannexb" {
+		t.Errorf("bitstream_filters = %v", o.BitstreamFilters)
+	}
+}
+
 // TestNewCommand_Options exercises the functional-options builder.
 func TestNewCommand_Options(t *testing.T) {
 	t.Parallel()

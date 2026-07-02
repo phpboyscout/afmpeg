@@ -89,8 +89,13 @@ func TestTimeout_ImposedDefault(t *testing.T) {
 		t.Fatalf("timeout took %v, want it bounded near 150ms", elapsed)
 	}
 
-	// The Runtime must still work — the hung invocation released the mutex.
-	res, err := rt.Run(context.Background(), afero.NewMemMapFs(), "exit:0")
+	// The Runtime must still work — the hung invocation released the mutex. Give
+	// this probe an explicit, generous deadline so it proves "not wedged" without
+	// racing the tight default timeout against module instantiation under load.
+	okCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	res, err := rt.Run(okCtx, afero.NewMemMapFs(), "exit:0")
 	if err != nil || res.ExitCode != 0 {
 		t.Fatalf("Run after a timed-out invocation: res=%+v err=%v, want usable Runtime", res, err)
 	}

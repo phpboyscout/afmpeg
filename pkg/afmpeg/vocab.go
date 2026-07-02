@@ -12,12 +12,14 @@ import (
 // §4 contract; roadmap Phase 1 version-gating). It increments additively, once
 // per landed vocabulary spec, in merge order:
 //
-//	1 — stream copy / bitstream filters / concat demuxer (spec 0013)
+//	1 — baseline + the version gate; no process/probe field changes
+//	2 — stream copy / bitstream filters (spec 0013): the "copy" codec sentinel,
+//	    "in:type[:idx]" map specifiers, and Output.BitstreamFilters
 //
 // Every process/probe spec is stamped with it; the engine rejects a spec whose
 // version exceeds what it supports, so a new field can never be silently dropped
 // by an older engine (it fails the whole spec instead).
-const vocabVersion = 1
+const vocabVersion = 2
 
 // engineVocab is the engine's reply to the op:"version" query — its highest
 // supported vocabulary version and the FFmpeg build it links.
@@ -49,9 +51,9 @@ func evaluateVocab(engineVer int, gated bool) error {
 // a too-old engine answers it); a non-zero exit or unparseable reply means "not
 // a gated engine" and is tolerated.
 func (r *Runtime) preflightVocab(ctx context.Context) error {
-	ctx, cancel := r.withDeadline(ctx)
-	defer cancel()
-
+	// Preflight runs the trusted, pinned module (not untrusted media), so it is
+	// bounded only by the caller's New context — not the per-invocation WithTimeout
+	// default, which is for media jobs and may be set very short.
 	spec, err := json.Marshal(jobSpec{Op: "version"})
 	if err != nil {
 		return errors.Wrap(err, "afmpeg: marshal version query")

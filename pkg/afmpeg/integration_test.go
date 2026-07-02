@@ -410,3 +410,230 @@ func TestIntegration_VersionGate(t *testing.T) {
 		t.Fatalf("too-new spec exit = %d, want 3 (version-too-new):\n%s", res.ExitCode, res.Stderr)
 	}
 }
+
+// bootstrapAVMP4 self-produces a tiny H.264/AAC mp4 in fs (spec 0013 §8: the
+// dep-free PNG/WAV corpus can't emit H.264, so encode one with the shipped
+// openh264 first, then the copy tests remux that). Fails the test on error.
+func bootstrapAVMP4(t *testing.T, rt *afmpeg.Runtime, fs afero.Fs, path string) {
+	t.Helper()
+
+	if err := afero.WriteFile(fs, "boot.png", makePNG(32, 32), 0o644); err != nil {
+		t.Fatalf("seed png: %v", err)
+	}
+	if err := afero.WriteFile(fs, "boot.wav", makeWAVMono(8000, 1.0), 0o644); err != nil {
+		t.Fatalf("seed wav: %v", err)
+	}
+
+	boot := afmpeg.Command{
+		Inputs:        []afmpeg.Input{{Path: "boot.png"}, {Path: "boot.wav"}},
+		FilterComplex: "[0:v]format=yuv420p[v];[1:a]anull[a]",
+		Outputs: []afmpeg.Output{{
+			Path: path, Map: []string{"[v]", "[a]"},
+			VideoCodec: "libopenh264", AudioCodec: "aac",
+		}},
+	}
+
+	res, err := rt.RunJob(context.Background(), fs, boot)
+	if err != nil || res.ExitCode != 0 {
+		t.Fatalf("bootstrap H.264/AAC mp4: res=%+v err=%v", res, err)
+	}
+}
+
+// TestIntegration_StreamCopy_Remux proves the 0013 copy path end-to-end with a
+// real container change: an H.264/AAC mp4 is remuxed to Matroska with both streams
+// copied (no re-encode) via the "copy" codec sentinel + "in:type" map specifiers,
+// and the copied codecs survive. (Matroska output also exercises the /dev/urandom
+// vfs device — libav seeds mkv track UIDs from it.)
+func TestIntegration_StreamCopy_Remux(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapAVMP4(t, rt, fs, "src.mp4")
+
+	cmd := afmpeg.Command{
+		Inputs: []afmpeg.Input{{Path: "src.mp4"}},
+		Outputs: []afmpeg.Output{{
+			Path: "out.mkv", Map: []string{"0:v", "0:a"},
+			VideoCodec: afmpeg.CodecCopy, AudioCodec: afmpeg.CodecCopy,
+		}},
+	}
+
+	res, err := rt.RunJob(ctx, fs, cmd)
+	if err != nil || res.ExitCode != 0 {
+		t.Fatalf("copy remux: res=%+v err=%v", res, err)
+	}
+
+	if !strings.Contains(res.Stdout, `"disposition":"copy"`) {
+		t.Fatalf("process result did not report a copied stream:\n%s", res.Stdout)
+	}
+
+	// The remuxed file must be Matroska and preserve the source codecs (no re-encode).
+	p, err := rt.Probe(ctx, fs, "out.mkv")
+	if err != nil {
+		t.Fatalf("probe remux: %v", err)
+	}
+
+	if !strings.Contains(p.Format, "matroska") {
+		t.Fatalf("remux format = %q, want matroska", p.Format)
+	}
+
+	var haveH264, haveAAC bool
+	for _, s := range p.Streams {
+		haveH264 = haveH264 || s.Codec == "h264"
+		haveAAC = haveAAC || s.Codec == "aac"
+	}
+	if !haveH264 || !haveAAC {
+		t.Fatalf("remux streams = %+v, want h264 + aac preserved", p.Streams)
+	}
+}
+
+// TestIntegration_StreamCopy_Concat proves the concat-demuxer input mode: two
+// like-codec segments are joined into one continuous input and stream-copied out.
+//
+// The join is video-only here on purpose. Full A/V concat of mp4 segments with
+// copy hits mp4's audio-priming timestamp discontinuity at the segment boundary
+// (non-monotonic DTS) — a property of concatenating mp4, not of the demuxer. The
+// marquee concat-copy source is MPEG-TS, which has no such issue and lands with
+// spec 0015; this test proves R-0013-3 (the demuxer joins like-codec inputs) on
+// the containers 0013 ships.
+func TestIntegration_StreamCopy_Concat(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapAVMP4(t, rt, fs, "seg0.mp4")
+	bootstrapAVMP4(t, rt, fs, "seg1.mp4")
+
+	cmd := afmpeg.Command{
+		Inputs: []afmpeg.Input{{Concat: []string{"seg0.mp4", "seg1.mp4"}}},
+		Outputs: []afmpeg.Output{{
+			Path: "joined.mp4", Map: []string{"0:v"}, VideoCodec: afmpeg.CodecCopy,
+		}},
+	}
+
+	res, err := rt.RunJob(ctx, fs, cmd)
+	if err != nil || res.ExitCode != 0 {
+		t.Fatalf("concat copy: res=%+v err=%v", res, err)
+	}
+
+	// A valid joined output whose video codec survived the copy.
+	joined, err := rt.Probe(ctx, fs, "joined.mp4")
+	if err != nil {
+		t.Fatalf("probe joined: %v", err)
+	}
+
+	if len(joined.Streams) != 1 || joined.Streams[0].Codec != "h264" {
+		t.Fatalf("joined streams = %+v, want one copied h264 stream", joined.Streams)
+	}
+}
+
+// TestIntegration_StreamCopy_BitstreamFilterNone proves an explicit bitstream
+// filter override is honoured: forcing "none" on a copied stream still remuxes.
+func TestIntegration_StreamCopy_BitstreamFilterNone(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapAVMP4(t, rt, fs, "src.mp4")
+
+	cmd := afmpeg.Command{
+		Inputs: []afmpeg.Input{{Path: "src.mp4"}},
+		Outputs: []afmpeg.Output{{
+			Path: "out.mkv", Map: []string{"0:v", "0:a"},
+			VideoCodec: afmpeg.CodecCopy, AudioCodec: afmpeg.CodecCopy,
+			BitstreamFilters: map[string]string{"0:v": "none"},
+		}},
+	}
+
+	res, err := rt.RunJob(ctx, fs, cmd)
+	if err != nil || res.ExitCode != 0 {
+		t.Fatalf("copy with bsf=none: res=%+v err=%v", res, err)
+	}
+
+	if out, err := afero.ReadFile(fs, "out.mkv"); err != nil || len(out) < 12 {
+		t.Fatalf("no valid mkv produced: err=%v len=%d", err, len(out))
+	}
+}
+
+// TestIntegration_StreamCopy_Mixed proves copy and transcode coexist in one job:
+// the video is copied while the audio is re-encoded through the graph.
+func TestIntegration_StreamCopy_Mixed(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapAVMP4(t, rt, fs, "src.mp4")
+
+	// Copy the video (0:v) unchanged; re-encode the audio through the graph.
+	cmd := afmpeg.Command{
+		Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+		FilterComplex: "[0:a]volume=0.5[aout]",
+		Outputs: []afmpeg.Output{{
+			Path: "out.mp4", Map: []string{"0:v", "[aout]"},
+			VideoCodec: afmpeg.CodecCopy, AudioCodec: "aac",
+		}},
+	}
+
+	res, err := rt.RunJob(ctx, fs, cmd)
+	if err != nil || res.ExitCode != 0 {
+		t.Fatalf("mixed copy+transcode: res=%+v err=%v", res, err)
+	}
+
+	out, err := afero.ReadFile(fs, "out.mp4")
+	if err != nil || len(out) < 12 || string(out[4:8]) != "ftyp" {
+		t.Fatalf("mixed job produced no valid mp4: err=%v len=%d", err, len(out))
+	}
+}
