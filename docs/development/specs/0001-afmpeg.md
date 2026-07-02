@@ -272,6 +272,11 @@ was drafted. The resolutions below are binding on specs 0002–0006.
 | **0021** frame-extraction-op | 5 | a first-class `frames` op (thumbnails / frames at timestamps / scene-select) | R-PARITY-FRAMES |
 | **0022** build-size-matrix | 5 | the lean/full × LGPL/GPL build-profile axis + release-artifact matrix | R-AF-3 (size) |
 | **0023** hevc-and-av1 | 5 | Tier-3 heavy codecs: x265 (GPL/full), dav1d AV1 decode (default); AV1 encode deferred | R-PARITY-HEAVY-CODECS |
+| **0024** input-options-and-formats | — | *PROPOSED* (ext review): activate `inputs[].options`, forced/raw input format, stream selection | R-PARITY-INPUT-OPTIONS |
+| **0025** av-sync-and-framerate | — | *PROPOSED* (ext review, low sev): CFR/vsync vs the `fps`-filter workaround | R-PARITY-AVSYNC |
+| **0026** engine-hot-path-performance | — | *PROPOSED* (ext review): AVFrame reuse, lowest-PTS demux, larger AVIO buffer (companion to 0008) | R-ENGINE-PERF |
+| **0027** runtime-security-hardening | — | *PROPOSED* (ext review): wazero memory ceiling, hard timeout, cJSON guards | R-SEC-HARDENING |
+| **0028** native-subprocess-backend | — | *PROPOSED* (ext review, strategic): opt-in native FFmpeg via HTTP bridge (HW-accel); revives R-AF-11 CGO-free | R-NATIVE-BACKEND |
 
 ## 11. Alternatives considered
 

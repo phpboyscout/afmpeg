@@ -41,6 +41,12 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0021 — frame extraction op](specs/0021-frame-extraction-op.md) | A first-class `frames` op (thumbnails / frames at timestamps / scene-select) — child of 0012 |
 | [0022 — build & size matrix](specs/0022-build-size-matrix.md) | The lean/full × LGPL/GPL build-profile axis + release-artifact matrix (R-AF-3) — child of 0012 |
 | [0023 — HEVC & AV1](specs/0023-hevc-and-av1.md) | Tier-3 heavy codecs: x265 (GPL/full), dav1d AV1 decode (default); AV1 encode deferred — child of 0012 |
+| [0024 — input options & formats](specs/0024-input-options-and-formats.md) | **PROPOSED** (external review): activate `inputs[].options`, forced/raw input format, input stream selection |
+| [0025 — A/V sync & frame-rate](specs/0025-av-sync-and-framerate.md) | **PROPOSED** (external review, low severity): CFR / vsync policy vs the `fps`-filter workaround |
+| [0026 — engine hot-path performance](specs/0026-engine-hot-path-performance.md) | **PROPOSED** (external review): reuse AVFrame, lowest-PTS demux, larger AVIO buffer — code-level companion to 0008 |
+| [0027 — runtime security hardening](specs/0027-runtime-security-hardening.md) | **PROPOSED** (external review): wazero memory ceiling (OOM), hard timeout, cJSON guards — protects the untrusted-media thesis |
+| [0028 — native subprocess backend](specs/0028-native-subprocess-backend.md) | **PROPOSED** (external review, strategic): opt-in native FFmpeg via HTTP bridge for HW-accel — revives R-AF-11 CGO-free; sandbox trade-off |
+| [external review — validation & disposition](external-review/README.md) | The commissioned external review + our per-finding validation verdicts and spec mapping |
 
 ## Method
 
