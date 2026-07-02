@@ -54,8 +54,9 @@ func TestCommand_JobSpec(t *testing.T) {
 	}
 
 	var got struct {
-		Op     string `json:"op"`
-		Inputs []struct {
+		Op      string `json:"op"`
+		Version int    `json:"version"`
+		Inputs  []struct {
 			Path string `json:"path"`
 		} `json:"inputs"`
 		Filter  string `json:"filter"`
@@ -73,6 +74,10 @@ func TestCommand_JobSpec(t *testing.T) {
 
 	if got.Op != "process" {
 		t.Errorf("op = %q, want process", got.Op)
+	}
+
+	if got.Version < 1 {
+		t.Errorf("version = %d, want the current vocabulary version (>= 1)", got.Version)
 	}
 
 	if len(got.Inputs) != 2 || got.Inputs[0].Path != "a.png" || got.Inputs[1].Path != "music.mp3" {

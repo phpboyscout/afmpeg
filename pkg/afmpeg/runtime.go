@@ -168,9 +168,10 @@ func WithTimeout(d time.Duration) Option {
 	}
 }
 
-// New compiles the configured wasm module once and returns a reusable Runtime.
-// Exactly one WithModule* option is required.
-func New(ctx context.Context, opts ...Option) (*Runtime, error) {
+// resolveConfig applies the options over the hardened defaults and resolves the
+// module source (a deferred fetch is run with New's context), returning a config
+// whose module bytes are ready to compile or ErrNoModule if none was supplied.
+func resolveConfig(ctx context.Context, opts []Option) (*config, error) {
 	cfg := &config{
 		memoryLimitBytes: defaultMemoryLimitBytes,
 		timeout:          defaultTimeout,
@@ -195,6 +196,17 @@ func New(ctx context.Context, opts ...Option) (*Runtime, error) {
 
 	if len(cfg.module) == 0 {
 		return nil, ErrNoModule
+	}
+
+	return cfg, nil
+}
+
+// New compiles the configured wasm module once and returns a reusable Runtime.
+// Exactly one WithModule* option is required.
+func New(ctx context.Context, opts ...Option) (*Runtime, error) {
+	cfg, err := resolveConfig(ctx, opts)
+	if err != nil {
+		return nil, err
 	}
 
 	rtCfg := wazero.NewRuntimeConfig().
@@ -222,7 +234,19 @@ func New(ctx context.Context, opts ...Option) (*Runtime, error) {
 		return nil, errors.Wrap(err, "afmpeg: compile module")
 	}
 
-	return &Runtime{rt: rt, compiled: compiled, timeout: cfg.timeout}, nil
+	runtime := &Runtime{rt: rt, compiled: compiled, timeout: cfg.timeout}
+
+	// Fail loudly now if the module is a gated ffmpeg-wasi engine too old for the
+	// vocabulary this afmpeg emits, rather than silently dropping new fields at
+	// the first job (roadmap Phase 1 version-gating). A generic/pre-gate module
+	// is tolerated — Runtime stays able to run any wasm module.
+	if err := runtime.preflightVocab(ctx); err != nil {
+		_ = runtime.Close(ctx)
+
+		return nil, err
+	}
+
+	return runtime, nil
 }
 
 // memoryLimitPages converts a byte ceiling to whole wasm pages, rounded up and
@@ -246,6 +270,17 @@ func (r *Runtime) Close(ctx context.Context) error {
 	return errors.Wrap(r.rt.Close(ctx), "afmpeg: close runtime")
 }
 
+// withDeadline imposes the default invocation deadline on ctx when the caller
+// brought none (spec 0027 §4B), returning the (possibly wrapped) context and a
+// cancel func the caller must defer. A caller's own deadline is left untouched.
+func (r *Runtime) withDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
+	if _, ok := ctx.Deadline(); !ok && r.timeout > 0 {
+		return context.WithTimeout(ctx, r.timeout)
+	}
+
+	return ctx, func() {}
+}
+
 // Run executes one ffmpeg invocation with its filesystem bridged to fs (paths in
 // args resolve against fs, e.g. "in/clip.mp4", "out/reel.mp4"). It returns the
 // exit code and captured stderr; a non-zero exit is reported in Result with a
@@ -254,12 +289,8 @@ func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result,
 	// Impose the default deadline before locking, but only when the caller brings
 	// none — a caller's own deadline is honoured as-is (spec 0027 §4B). This bounds
 	// how long a pathological decode can hold r.mu, keeping the Runtime usable.
-	if _, ok := ctx.Deadline(); !ok && r.timeout > 0 {
-		var cancel context.CancelFunc
-
-		ctx, cancel = context.WithTimeout(ctx, r.timeout)
-		defer cancel()
-	}
+	ctx, cancel := r.withDeadline(ctx)
+	defer cancel()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -276,7 +307,7 @@ func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result,
 // ffmpeg-wasi engine's probe op (`{"op":"probe"}`), reading the structured JSON it
 // returns on stdout. It needs the ffmpeg-wasi engine (the structured module).
 func (r *Runtime) Probe(ctx context.Context, fs afero.Fs, path string) (Probe, error) {
-	spec, err := json.Marshal(jobSpec{Op: "probe", Inputs: []jobInput{{Path: path}}})
+	spec, err := json.Marshal(jobSpec{Op: "probe", Version: vocabVersion, Inputs: []jobInput{{Path: path}}})
 	if err != nil {
 		return Probe{}, errors.Wrap(err, "afmpeg: marshal probe spec")
 	}

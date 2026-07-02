@@ -36,8 +36,11 @@ type Output struct {
 }
 
 // jobSpec is the JSON the ffmpeg-wasi engine consumes (the process / probe ops).
+// Version stamps the job-spec vocabulary the spec is written in; the engine
+// rejects a spec whose Version exceeds what it supports (spec 0007 §4 contract).
 type jobSpec struct {
 	Op      string      `json:"op"`
+	Version int         `json:"version"`
 	Inputs  []jobInput  `json:"inputs"`
 	Filter  string      `json:"filter,omitempty"`
 	Outputs []jobOutput `json:"outputs,omitempty"`
@@ -59,7 +62,7 @@ type jobOutput struct {
 // inputs, the filtergraph, and each output's codecs / maps / encoder options. It
 // is pure — no I/O, safe to inspect or log.
 func (c Command) JobSpec() ([]byte, error) {
-	spec := jobSpec{Op: "process", Filter: c.FilterComplex}
+	spec := jobSpec{Op: "process", Version: vocabVersion, Filter: c.FilterComplex}
 
 	for _, in := range c.Inputs {
 		spec.Inputs = append(spec.Inputs, jobInput(in))

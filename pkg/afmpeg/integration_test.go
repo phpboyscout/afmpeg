@@ -365,3 +365,48 @@ func TestIntegration_Probe_FFmpegWasiDriver(t *testing.T) {
 		t.Fatalf("Probe streams = %+v, want one pcm_s16le audio stream", p.Streams)
 	}
 }
+
+// TestIntegration_VersionGate proves the engine's job-spec version gate against a
+// real driver: op:version reports a vocab version, and a spec declaring a version
+// newer than the engine supports is rejected with the distinct exit code 3 (not
+// the malformed-spec code 2) rather than silently dropping its fields. Gated on
+// AFMPEG_TEST_FFMPEG_WASI.
+func TestIntegration_VersionGate(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+
+	// op:version reports a machine-readable vocab version (what New's preflight reads).
+	ver, err := rt.Run(ctx, fs, `{"op":"version"}`)
+	if err != nil || ver.ExitCode != 0 {
+		t.Fatalf("version op: res=%+v err=%v", ver, err)
+	}
+
+	if !strings.Contains(ver.Stdout, `"vocab_version"`) {
+		t.Fatalf("version stdout missing vocab_version:\n%s", ver.Stdout)
+	}
+
+	// A spec from the future is rejected with exit 3, not silently accepted.
+	res, err := rt.Run(ctx, fs, `{"op":"process","version":999999,"inputs":[{"path":"x"}],"outputs":[{"path":"y.mp4","audio_codec":"aac"}]}`)
+	if err != nil {
+		t.Fatalf("too-new spec Run: %v", err)
+	}
+
+	if res.ExitCode != 3 {
+		t.Fatalf("too-new spec exit = %d, want 3 (version-too-new):\n%s", res.ExitCode, res.Stderr)
+	}
+}

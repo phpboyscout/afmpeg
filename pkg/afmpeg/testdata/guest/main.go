@@ -45,6 +45,14 @@ func jobMode(spec string) int {
 		return 2
 	}
 
+	// Answer the vocabulary-version query with a sentinel far above any afmpeg
+	// vocabVersion, so New's preflight always accepts this stand-in engine; the
+	// version-ordering logic itself is unit-tested in evaluateVocab.
+	if job.Op == "version" {
+		fmt.Print("{\"vocab_version\":1000000,\"ffmpeg_version\":\"test-guest\"}\n")
+		return 0
+	}
+
 	if job.Op != "probe" {
 		return 0
 	}
