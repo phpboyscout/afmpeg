@@ -18,6 +18,12 @@ const (
 	// devNull is the guest path discarded by the null device.
 	devNull = "/dev/null"
 
+	// devURandom and devRandom are the guest paths served by the random device —
+	// the host entropy source libav needs to seed formats like Matroska (see
+	// randFile). Both map to the same non-blocking crypto/rand source.
+	devURandom = "/dev/urandom"
+	devRandom  = "/dev/random"
+
 	// defaultTmpPrefix is the guest directory routed to the scratch fs.
 	defaultTmpPrefix = "/tmp"
 )
@@ -90,6 +96,10 @@ func (f *FS) OpenFile(
 		return newNullFile(), 0
 	}
 
+	if isDevRandom(name) {
+		return newRandFile(), 0
+	}
+
 	af, err := f.backendFor(name).OpenFile(name, toOSFlag(flag), perm)
 	if err != nil {
 		return nil, experimentalsys.UnwrapOSError(err)
@@ -102,6 +112,10 @@ func (f *FS) OpenFile(
 func (f *FS) Stat(name string) (wsys.Stat_t, experimentalsys.Errno) {
 	if isDevNull(name) {
 		return nullStat(), 0
+	}
+
+	if isDevRandom(name) {
+		return randStat(), 0
 	}
 
 	info, err := f.backendFor(name).Stat(name)
@@ -171,6 +185,13 @@ func normalize(name string) string {
 // isDevNull reports whether name addresses the overlaid null device.
 func isDevNull(name string) bool {
 	return normalize(name) == devNull
+}
+
+// isDevRandom reports whether name addresses an overlaid random device.
+func isDevRandom(name string) bool {
+	clean := normalize(name)
+
+	return clean == devURandom || clean == devRandom
 }
 
 // statFromInfo builds a wazero Stat_t from an fs.FileInfo. afero backends do

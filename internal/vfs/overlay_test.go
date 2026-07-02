@@ -139,6 +139,61 @@ func TestDevNull(t *testing.T) {
 	}
 }
 
+// TestDevRandom covers the entropy device: reads fill the buffer with random
+// bytes (successive reads differ), writes are discarded, and it stats as a
+// character device. libav opens /dev/urandom to seed formats like Matroska;
+// without it, av_get_random_seed hangs under wasi (see randFile).
+func TestDevRandom(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{"/dev/urandom", "/dev/random"} {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			v := vfs.New(afero.NewMemMapFs())
+
+			f, errno := v.OpenFile(path, experimentalsys.O_RDONLY, 0)
+			if errno != 0 {
+				t.Fatalf("OpenFile %s: errno %v", path, errno)
+			}
+
+			a := make([]byte, 32)
+			if n, errno := f.Read(a); errno != 0 || n != len(a) {
+				t.Fatalf("Read = %d errno=%v, want %d random bytes", n, errno, len(a))
+			}
+
+			b := make([]byte, 32)
+			if n, errno := f.Read(b); errno != 0 || n != len(b) {
+				t.Fatalf("Read (2nd) = %d errno=%v, want %d", n, errno, len(b))
+			}
+
+			// Two reads of a random device must (overwhelmingly) differ.
+			if string(a) == string(b) {
+				t.Fatalf("two /dev/urandom reads returned identical bytes — not random")
+			}
+
+			// Reads never short: crypto/rand fills the whole slice.
+			zero := make([]byte, 32)
+			if string(a) == string(zero) {
+				t.Fatalf("read returned all zeros — no entropy")
+			}
+
+			if st, errno := f.Stat(); errno != 0 || st.Mode&fs.ModeCharDevice == 0 {
+				t.Fatalf("file Stat mode = %v errno=%v, want char device", st.Mode, errno)
+			}
+
+			if errno := f.Close(); errno != 0 {
+				t.Fatalf("Close: errno %v", errno)
+			}
+
+			st, errno := v.Stat(path)
+			if errno != 0 || st.Mode&fs.ModeCharDevice == 0 {
+				t.Fatalf("Stat %s mode = %v errno=%v, want char device", path, st.Mode, errno)
+			}
+		})
+	}
+}
+
 // TestZeroLengthOps covers the short-circuit paths fd_read/fd_write take for
 // empty buffers.
 func TestZeroLengthOps(t *testing.T) {

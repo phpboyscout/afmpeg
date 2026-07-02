@@ -54,18 +54,46 @@ payload → seek back → overwrite → read back — is verified against `MemMa
 `BasePathFs`, and `OsFs`. This is gate **G1** in the
 [execution plan](../../development/specs/0003-vfs-bridge.md).
 
-## The /tmp and /dev/null overlay
+## The synthetic overlays (`/tmp` and the device files)
 
-Two synthetic locations the guest expects are overlaid on top of the caller's
-filesystem:
+A guest ffmpeg expects a few POSIX locations that a bare `afero.Fs` does not
+provide. The bridge overlays them on top of the caller's filesystem:
 
 - **`/tmp`** is routed to an isolated in-memory scratch filesystem, so the
   guest's temporary writes never pollute the caller's `afero.Fs`. (Callers can
   supply their own scratch fs to inspect what the guest wrote.)
 - **`/dev/null`** is a discard sink: writes succeed and vanish, reads report
   EOF.
+- **`/dev/urandom`** (and `/dev/random`) serve cryptographically-random bytes
+  from the host's `crypto/rand`. This one is not a convenience — it is
+  **load-bearing**, and the reason is a genuine WASI gotcha (below).
 
 Everything else resolves against the caller's filesystem.
+
+### Why `/dev/urandom` is load-bearing
+
+Several libav muxers need a random identifier — the Matroska muxer, for
+instance, gives each track a random UID, which means seeding a PRNG during muxer
+init. That PRNG is seeded by libavutil's `av_get_random_seed()`.
+
+In the wasm build, `av_get_random_seed()` has exactly **one** compiled entropy
+source: reading `/dev/urandom` (the Windows, arc4random, gcrypt and openssl paths
+are all configured out). When that read fails, it falls back to
+`get_generic_seed()` — a loop that harvests entropy from **`clock()` jitter** and
+only exits once the process clock has advanced far enough. Under WASI there is no
+`/dev/urandom`, *and* `clock()` does not advance, so the fallback **never
+returns**. The symptom is stark: any attempt to write a Matroska/WebM file hangs
+forever — the muxer stalls in init, seeding, before it emits its first byte (the
+loop that would *consume* the random UID is never even reached).
+
+Serving `/dev/urandom` from the vfs closes the hole at its source: the very first
+entropy read succeeds with real randomness, `av_get_random_seed()` returns
+immediately, and the fallback loop is never reached. It fixes not just Matroska
+but *every* format that needs a random seed. This is the recurring shape of WASI
+work — it is a smaller world than POSIX, and each missing device is a place a
+"portable" C fallback can quietly misbehave (see also ffmpeg-wasi's
+[build shims](https://ffmpeg-wasi.phpboyscout.uk/explanation/the-build/), which
+fill the *link-time* gaps the same spirit fills here at runtime).
 
 ## The no-host-filesystem guarantee
 
