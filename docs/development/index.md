@@ -12,6 +12,10 @@ afmpeg follows **spec-driven development**: no implementation change without a s
 implements. The specs are the authoritative decision record; the code is downstream of
 them.
 
+> **Picking up implementation?** Start at the
+> [implementation roadmap](implementation-roadmap.md) — the phased build order across all
+> specs (0013–0028) with dependencies and prerequisites. Every spec is currently design-only.
+
 ## Specs
 
 The source of truth. Start with 0001, the thesis; it decomposes into the component specs.
