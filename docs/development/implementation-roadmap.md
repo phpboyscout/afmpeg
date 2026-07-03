@@ -57,7 +57,9 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
 - **[0015](specs/0015-container-coverage.md) / [0016](specs/0016-native-codec-batch.md) /
   [0017](specs/0017-native-filter-batch.md)** — native `--enable-*` batches (containers, decoders/
   native-encoders, filters) → the **intermediate** allowlist (lean stays minimal). No new libs,
-  parallelizable, big coverage-per-effort.
+  parallelizable, big coverage-per-effort. **0015 ✅ SHIPPED at vocab v5** (mpegts/hls/dash/segment/
+  flv/avi/gif + audio containers; `outputs[].format`/`format_options`; HLS segmenting + fMP4 verified;
+  switched on 0013's mp4→ts copy + full A/V ts concat). 0016/0017 remain.
 
 ### Phase 3 — Codec reach + build-on capabilities
 - **[0018](specs/0018-lgpl-encoder-expansion.md) LGPL encoders** (Opus/MP3/VP8-9/WebP/Vorbis) —

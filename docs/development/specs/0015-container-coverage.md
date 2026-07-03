@@ -1,7 +1,19 @@
 # 0015 — container coverage
 
-Status: **DRAFT / SCOPING** (one of the 0012 parity batch — design only, not buildable work.
-Spans ffmpeg-wasi's build allowlist + the job-spec muxer vocabulary. Review before building.)
+Status: **IMPLEMENTED** (Phase 2 of the [implementation roadmap](../implementation-roadmap.md);
+shipped at **vocabulary version 5** into the **intermediate** build profile ([0022](0022-build-size-matrix.md)).
+The native (de)muxer batch — `mpegts`, `flv`, `avi`, `gif`, `hls`, `dash`, `segment`,
+`ogg`/`adts`/`caf`/`aiff`/`au`, plus the fMP4 `movflags` on the lean `mp4` muxer — is enabled in
+`INTERMEDIATE_ENABLE` (gif rides with its enc/dec codec per §9). The vocabulary adds
+`outputs[].format` (forced muxer, D-0015-C) and `outputs[].format_options` (muxer dict →
+write_header, D-0015-B), routed in `process.c`; a segmenting output is one `outputs[]` entry
+(D-0015-A) that reports **`segmented: true`** (Q1: marker, not an enumerated child list — segments
+are on the fs by pattern). Q2 confirmed: the re-encode path needs no BSF; a copy remux auto-inserts
+`h264_mp4toannexb` (0013). Q3: segment naming is caller-supplied via `format_options`. Zero licence
+delta — all native (R-0015-4). Verified: round-trips → mpegts/flv/avi/gif; **HLS segmenting**
+(≥2 `.ts` + `.m3u8` on an in-memory fs, no network); **fragmented MP4** (moof); forced-muxer
+selection; and **0013's deferred mp4→ts copy remux + full A/V ts concat-copy**, which MPEG-TS
+switches on.)
 Date: 2026-06-30
 Parent: [0012](0012-feature-parity-roadmap.md) §4C/§5 (Tier 1 container batch); [0007](0007-libav-direct-engine.md) (the engine + the job-spec contract)
 Owns: **R-PARITY-CONTAINERS**

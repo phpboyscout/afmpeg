@@ -29,6 +29,9 @@ Available:
   no-re-encode copy-trim.
 - **[Read a raw or headerless input](read-a-raw-input.md)** — decode raw `.yuv`/`.pcm` or a
   mislabelled file by forcing the demuxer and supplying its geometry via demuxer options.
+- **[Package for streaming (MPEG-TS, HLS, fragmented MP4)](package-for-streaming.md)** — write
+  broadcast/adaptive-streaming containers and HLS segment sets to the in-memory fs, no network
+  (needs the intermediate-profile module).
 - **[Compose a command with the builder](compose-a-command.md)** — assemble any
   invocation (inputs / filtergraph / outputs) as typed data and run it with `RunJob`
   (`JobSpec()`).
