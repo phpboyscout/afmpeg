@@ -59,7 +59,9 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   native-encoders, filters) → the **intermediate** allowlist (lean stays minimal). No new libs,
   parallelizable, big coverage-per-effort. **0015 ✅ SHIPPED at vocab v5** (mpegts/hls/dash/segment/
   flv/avi/gif + audio containers; `outputs[].format`/`format_options`; HLS segmenting + fMP4 verified;
-  switched on 0013's mp4→ts copy + full A/V ts concat). 0016/0017 remain.
+  switched on 0013's mp4→ts copy + full A/V ts concat). **0017 ✅ SHIPPED** (native filter batch —
+  colour/compose/select/palette/deinterlace/loudnorm/…; flag-only, no vocab change; `eq` is GPL-only).
+  **0016 remains.**
 
 ### Phase 3 — Codec reach + build-on capabilities
 - **[0018](specs/0018-lgpl-encoder-expansion.md) LGPL encoders** (Opus/MP3/VP8-9/WebP/Vorbis) —

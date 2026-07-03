@@ -1,7 +1,18 @@
 # 0017 — native filter batch
 
-Status: **DRAFT / SCOPING** (one of the [0012](0012-feature-parity-roadmap.md) §7 child specs —
-the Tier-1 in-tree filter expansion. Design only; no implementation. Review before building.)
+Status: **IMPLEMENTED** (Phase 2 of the [implementation roadmap](../implementation-roadmap.md);
+into the **intermediate** build profile ([0022](0022-build-size-matrix.md)), **flag-only, no
+vocabulary change** as designed — the filters extend the `filter` string's reach. The §3 groups
+are added to `INTERMEDIATE_ENABLE` in `build/libav.sh`; the supported-filter reference matrix is
+published (ffmpeg-wasi `docs/reference/filters.md`). Verified per group over the real driver
+(colour, compose/`hstack`, `thumbnail`, `yadif`, geometry+`vignette`, `palettegen`|`paletteuse`→GIF,
+`loudnorm`, `atempo`, `highpass`+`equalizer`). **Correction to §5:** `eq` is a **GPL** filter, so
+it ships only in the gpl variant, not the LGPL-clean batch (dropped from the LGPL enable list).
+Q-0017-1 (analysis-filter metadata on stdout) remains **dispatched, not resolved** — those filters
+run but log to stderr; surfacing structured results would be its own driver/vocab spec. Q-0017-3
+(lean/full split) is 0022's; the whole batch sits in intermediate for now. D-0017-A..D recorded.
+Note: `loudnorm` resamples to 192 kHz, so an AAC output needs a following `aresample` — a
+filtergraph concern, not an engine one. drawtext/subtitles remain deferred to 0019.)
 Date: 2026-06-30
 Parent: [0012](0012-feature-parity-roadmap.md) (§4D filter table, §5 Tier 1); [0007](0007-libav-direct-engine.md) (the engine + the `filter` field)
 Owns: **R-PARITY-NATIVE-FILTERS**
