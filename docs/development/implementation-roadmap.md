@@ -72,6 +72,8 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   wasm exception-handling (EH feature enabled in the runtime).
 - **[0020](specs/0020-metadata-and-chapters.md) metadata & chapters** (needs 0013).
 - **[0021](specs/0021-frame-extraction-op.md) frames op** (needs 0014 + 0017's select/thumbnail).
+  **DONE** — the third engine op (`frames.c`), four selectors → templated stills; afmpeg `FrameJob`
+  + `Runtime.Frames`; vocab **v6**.
 
 ### Phase 4 — Cross-cutting + measured perf
 - **[0019](specs/0019-text-and-subtitles.md) text & subtitles** — freetype + libass libs **and** a

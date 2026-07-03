@@ -53,13 +53,30 @@ func jobMode(spec string) int {
 		return 0
 	}
 
-	if job.Op != "probe" {
-		return 0
-	}
-
 	path := ""
 	if len(job.Inputs) > 0 {
 		path = job.Inputs[0].Path
+	}
+
+	// "frames" op: the input path selects a canned response so Runtime.Frames'
+	// parse/error paths are unit-tested without the real engine.
+	if job.Op == "frames" {
+		switch path {
+		case "frames-fail":
+			fmt.Fprintln(os.Stderr, "frames boom")
+			return 1
+		case "frames-badjson":
+			fmt.Print("not json\n")
+		default:
+			fmt.Print("{\"frames\":[{\"path\":\"f_000.png\",\"index\":0,\"timestamp\":1.5}]," +
+				"\"count\":1}\n")
+		}
+
+		return 0
+	}
+
+	if job.Op != "probe" {
+		return 0
 	}
 
 	switch path {

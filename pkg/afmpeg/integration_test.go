@@ -1106,6 +1106,133 @@ func TestIntegration_LGPLEncoders(t *testing.T) {
 	})
 }
 
+// TestIntegration_Frames drives the spec-0021 `frames` op against a real clip:
+// each selector (single/list/interval/thumbnail), scale, count cap, and a second
+// image codec — asserting file counts and decoded dimensions over the driver.
+func TestIntegration_Frames(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4") // ~2.0s, 25fps, 32x32
+
+	// exists asserts every reported frame was actually written.
+	exists := func(t *testing.T, res afmpeg.FramesResult) {
+		t.Helper()
+		if len(res.Frames) != res.Count {
+			t.Fatalf("count %d != len(frames) %d", res.Count, len(res.Frames))
+		}
+		for _, f := range res.Frames {
+			if ok, _ := afero.Exists(fs, f.Path); !ok {
+				t.Fatalf("reported frame %q not written", f.Path)
+			}
+		}
+	}
+
+	t.Run("single timestamp", func(t *testing.T) {
+		ts := 1.0
+		res, err := rt.Frames(ctx, fs, afmpeg.FrameJob{
+			Input: "src.mp4", Path: "one.png", Select: afmpeg.FrameSelect{Timestamp: &ts},
+		})
+		if err != nil {
+			t.Fatalf("frames: %v", err)
+		}
+		if res.Count != 1 {
+			t.Fatalf("count = %d, want 1", res.Count)
+		}
+		exists(t, res)
+		p, err := rt.Probe(ctx, fs, "one.png")
+		if err != nil || len(p.Streams) != 1 || p.Streams[0].Width != 32 || p.Streams[0].Height != 32 {
+			t.Fatalf("probe one.png: streams=%+v err=%v", p.Streams, err)
+		}
+	})
+
+	t.Run("explicit list", func(t *testing.T) {
+		res, err := rt.Frames(ctx, fs, afmpeg.FrameJob{
+			Input: "src.mp4", Path: "ts_%02d.png",
+			Select: afmpeg.FrameSelect{Timestamps: []float64{0.2, 0.8, 1.6}},
+		})
+		if err != nil || res.Count != 3 {
+			t.Fatalf("list: count=%d err=%v", res.Count, err)
+		}
+		exists(t, res)
+	})
+
+	t.Run("interval", func(t *testing.T) {
+		res, err := rt.Frames(ctx, fs, afmpeg.FrameJob{
+			Input: "src.mp4", Path: "iv_%02d.png", Select: afmpeg.FrameSelect{Interval: 0.5},
+		})
+		// ~2.0s at 0.5s → {0,0.5,1.0,1.5}, allowing a boundary frame at 2.0.
+		if err != nil || res.Count < 4 || res.Count > 5 {
+			t.Fatalf("interval: count=%d (want 4-5) err=%v", res.Count, err)
+		}
+		exists(t, res)
+	})
+
+	t.Run("thumbnail", func(t *testing.T) {
+		res, err := rt.Frames(ctx, fs, afmpeg.FrameJob{
+			Input: "src.mp4", Path: "th_%02d.png", Select: afmpeg.FrameSelect{Thumbnail: true},
+		})
+		if err != nil || res.Count < 1 {
+			t.Fatalf("thumbnail: count=%d err=%v", res.Count, err)
+		}
+		exists(t, res)
+	})
+
+	t.Run("scale", func(t *testing.T) {
+		ts := 0.5
+		res, err := rt.Frames(ctx, fs, afmpeg.FrameJob{
+			Input: "src.mp4", Path: "sc.png", Scale: "16:-2",
+			Select: afmpeg.FrameSelect{Timestamp: &ts},
+		})
+		if err != nil || res.Count != 1 {
+			t.Fatalf("scale: count=%d err=%v", res.Count, err)
+		}
+		p, err := rt.Probe(ctx, fs, "sc.png")
+		if err != nil || len(p.Streams) != 1 || p.Streams[0].Width != 16 {
+			t.Fatalf("scaled frame: streams=%+v err=%v (want width 16)", p.Streams, err)
+		}
+	})
+
+	t.Run("count cap", func(t *testing.T) {
+		res, err := rt.Frames(ctx, fs, afmpeg.FrameJob{
+			Input: "src.mp4", Path: "cap_%03d.png", Count: 3,
+			Select: afmpeg.FrameSelect{Interval: 0.1}, // ~20 without the cap
+		})
+		if err != nil || res.Count != 3 {
+			t.Fatalf("count cap: count=%d (want 3) err=%v", res.Count, err)
+		}
+		exists(t, res)
+	})
+
+	t.Run("mjpeg codec", func(t *testing.T) {
+		ts := 1.0
+		res, err := rt.Frames(ctx, fs, afmpeg.FrameJob{
+			Input: "src.mp4", Path: "m.jpg", Codec: "mjpeg", Select: afmpeg.FrameSelect{Timestamp: &ts},
+		})
+		if err != nil || res.Count != 1 {
+			t.Fatalf("mjpeg: count=%d err=%v", res.Count, err)
+		}
+		p, err := rt.Probe(ctx, fs, "m.jpg")
+		if err != nil || len(p.Streams) != 1 || p.Streams[0].Codec != "mjpeg" {
+			t.Fatalf("mjpeg frame: streams=%+v err=%v", p.Streams, err)
+		}
+	})
+}
+
 // TestIntegration_NativeFilters proves the spec-0017 filter batch: one graph per
 // group parses and produces output (the filters are flag-only additions to the
 // filtergraph string — no vocabulary change). Needs the intermediate-profile

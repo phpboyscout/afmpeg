@@ -1,8 +1,15 @@
 # 0021 — frame extraction op
 
-Status: **DRAFT / SCOPING** (a NEW first-class engine `op` — the third after `probe`/`process`
-([0007](0007-libav-direct-engine.md) §4). Promotes the [0012](0012-feature-parity-roadmap.md) §4F
-"thumbnail / frame-extract" row, Tier 2 (§5). Design only — review before building.)
+Status: **IMPLEMENTED** (Phase 3 of the [implementation roadmap](../implementation-roadmap.md).
+The third first-class engine `op` after `probe`/`process`: `op_frames` in ffmpeg-wasi's new
+`src/frames.c` (dispatched from `driver.c`), a seek-driven gather loop over the four selectors —
+single `timestamp`, explicit `timestamps`, regular `interval`, and `scene` (`select='gt(scene,T)'`
+or `thumbnail`) — each frame optionally scaled and encoded (png/mjpeg/webp) to an engine-owned
+templated path, reported in result JSON. afmpeg models it as a typed `FrameJob`/`FrameSelect` with
+a `Runtime.Frames` method (`pkg/afmpeg/frames.go`). Bumps the job-spec vocabulary to **v6**. Seek
+selectors run in any profile; `scene` needs the intermediate `select`/`thumbnail` filters. Proven
+by `frames.c` selectors + afmpeg's `TestIntegration_Frames` (all selectors, scale, count, mjpeg).
+The `tile` contact-sheet stretch (§3/D-0021-E) is deferred as a follow-up.)
 Date: 2026-06-30
 Parent: [0012](0012-feature-parity-roadmap.md) §4F/§7; [0007](0007-libav-direct-engine.md) §4 (the `op` dispatch)
 Owns: **R-PARITY-FRAMES** — the `frames` op + its job-spec vocabulary.

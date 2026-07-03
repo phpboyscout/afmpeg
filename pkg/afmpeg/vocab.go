@@ -21,11 +21,14 @@ import (
 //	    Input.Options (demuxer dict, incl. raw geometry), N:v:K graph selection
 //	5 — container coverage (spec 0015): Output.Format (forced muxer),
 //	    Output.FormatOptions (muxer dict — segmenting/fragmentation)
+//	6 — frame extraction (spec 0021): the op:"frames" — FrameJob with
+//	    Select {Timestamp | Timestamps | Interval | SceneThreshold | Thumbnail},
+//	    templated Path, Codec/Scale/Count
 //
 // Every process/probe spec is stamped with it; the engine rejects a spec whose
 // version exceeds what it supports, so a new field can never be silently dropped
 // by an older engine (it fails the whole spec instead).
-const vocabVersion = 5
+const vocabVersion = 6
 
 // engineVocab is the engine's reply to the op:"version" query — its highest
 // supported vocabulary version and the FFmpeg build it links.
