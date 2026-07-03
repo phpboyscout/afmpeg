@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.5.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.5.0)
+
+### Features
+
+- **0018**: LGPL external encoders — round-trip tests + EH runtime feature
+- **afmpeg**: container muxer selection & format options (spec 0015)
+- **afmpeg**: input options, forced formats & indexed selection (spec 0024)
+- **afmpeg**: seeking & time ranges vocabulary (spec 0014)
+- **afmpeg**: stream copy, bitstream filters & concat vocabulary (spec 0013)
+- **afmpeg**: gate the job-spec vocabulary version with a New() preflight
+- **afmpeg**: cap guest memory and bound invocation time (spec 0027)
+- **afmpeg**: WKD cross-check on certified release verification (spec 0011)
+- **afmpeg**: verify releases via gitlab.com/phpboyscout/signing (OpenPGP)
+- **afmpeg**: WithModuleRelease — signed, verified release acquisition (0010)
+
+### Bug Fixes
+
+- **vfs**: serve /dev/urandom so entropy-seeded muxers don't hang
+
 ## [v0.4.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.4.0)
 
 ### Features
