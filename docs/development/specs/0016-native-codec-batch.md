@@ -1,7 +1,17 @@
 # 0016 — native codec batch
 
-Status: **DRAFT / SCOPING** (one of the 0013–0023 batch promoting [0012](0012-feature-parity-roadmap.md)'s
-gap table into buildable specs. Tier 1. Design only — no implementation. Review before building.)
+Status: **IMPLEMENTED** (Phase 2 of the [implementation roadmap](../implementation-roadmap.md);
+into the **intermediate** build profile ([0022](0022-build-size-matrix.md)), **flag-only, no
+vocabulary change** as designed — more valid `video_codec`/`audio_codec` strings and demuxable
+inputs. The §2 native decoders (ac3/eac3/dca, alac/wmav2, the PCM tail, bmp/tiff, prores/dnxhd/dv,
+mpeg2video/mpeg4/vc1/wmv3/theora) and encoders (ac3, alac, the PCM tail, gif — with bmp/tiff added
+so images round-trip) are in `INTERMEDIATE_ENABLE`; the supported-codec matrix is published
+(ffmpeg-wasi `docs/reference/codecs.md`). All LGPL-clean, no `--enable-gpl`/`--enable-nonfree`
+(R-PARITY-NATIVE-CODECS). Q1 resolved: both `vc1` and `wmv3`. Q2: the common PCM subset (§2), not
+the full grid. Q3: gif encode acceptance rode with 0015/0017. D-0016-B: DTS decode-only (`dca`).
+Verified by encode→decode round-trips for every codec with an encoder (ac3, alac, pcm_s24le/f32le,
+bmp, tiff — gif via 0015/0017); the **decode-only** codecs are enabled but await the shared
+licence-clean media corpus (§8) to exercise. §5 lean/full bucketing handed to 0022.)
 Date: 2026-06-30
 Parent: [0012](0012-feature-parity-roadmap.md) §4A/§4B/§7; [0007](0007-libav-direct-engine.md) §6 (the codec baseline)
 Owns: **R-PARITY-NATIVE-CODECS** (the in-tree decoder/encoder allowlist)

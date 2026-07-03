@@ -46,8 +46,9 @@ gate v1 → 0013 v2 → 0014 v3 → 0024 v4.**
   **✅ SHIPPED at vocab v4** (demuxer options + typed leftover-key error, `format` forced demuxer,
   raw video/PCM round-trips, `N:v:K` indexed graph inputs; raw demuxers added to the build).
 
-### Phase 2 — Bundling foundation + cheap breadth
+### Phase 2 — Bundling foundation + cheap breadth — ✅ DONE
 Codec track. Establish the profile machinery, then flood the intermediate profile with native flags.
+**All shipped:** 0022 profile machinery → 0015 containers (v5) → 0017 filters → 0016 codecs.
 - **[0022](specs/0022-build-size-matrix.md) profile machinery (WASM side)** — add the `PROFILE`
   build-arg: `lean` = today's build; `intermediate` = a new target (starts == lean). Small
   mechanism; the batches below fill it. **✅ SHIPPED** — `PROFILE=lean|intermediate` in `libav.sh`
@@ -61,7 +62,8 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   flv/avi/gif + audio containers; `outputs[].format`/`format_options`; HLS segmenting + fMP4 verified;
   switched on 0013's mp4→ts copy + full A/V ts concat). **0017 ✅ SHIPPED** (native filter batch —
   colour/compose/select/palette/deinterlace/loudnorm/…; flag-only, no vocab change; `eq` is GPL-only).
-  **0016 remains.**
+  **0016 ✅ SHIPPED** (native decoders ac3/eac3/dca/prores/dnxhd/dv/mpeg2/4/vc1/wmv3/theora/alac/… +
+  encoders ac3/alac/PCM/bmp/tiff; flag-only; decode-only codecs await a media corpus).
 
 ### Phase 3 — Codec reach + build-on capabilities
 - **[0018](specs/0018-lgpl-encoder-expansion.md) LGPL encoders** (Opus/MP3/VP8-9/WebP/Vorbis) —
