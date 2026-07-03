@@ -920,6 +920,82 @@ func TestIntegration_IndexedStreamSelection(t *testing.T) {
 	}
 }
 
+// TestIntegration_NativeFilters proves the spec-0017 filter batch: one graph per
+// group parses and produces output (the filters are flag-only additions to the
+// filtergraph string — no vocabulary change). Needs the intermediate-profile
+// module.
+func TestIntegration_NativeFilters(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4")
+
+	cases := []struct {
+		name   string
+		filter string
+		out    string
+		output afmpeg.Output
+	}{
+		{"hue+curves (color/levels)", "[0:v]hue=s=0,curves=preset=lighter[v]", "v.mp4",
+			afmpeg.Output{Map: []string{"[v]"}, VideoCodec: "libopenh264"}},
+		{"hstack (compose)", "[0:v]split=2[a][b];[a][b]hstack[v]", "h.mp4",
+			afmpeg.Output{Map: []string{"[v]"}, VideoCodec: "libopenh264"}},
+		{"thumbnail (frame select)", "[0:v]thumbnail[v]", "t.mp4",
+			afmpeg.Output{Map: []string{"[v]"}, VideoCodec: "libopenh264"}},
+		{"yadif (deinterlace)", "[0:v]yadif[v]", "y.mp4",
+			afmpeg.Output{Map: []string{"[v]"}, VideoCodec: "libopenh264"}},
+		{"rotate+hflip (geometry)", "[0:v]hflip,vignette[v]", "g.mp4",
+			afmpeg.Output{Map: []string{"[v]"}, VideoCodec: "libopenh264"}},
+		{"palettegen|paletteuse → gif", "[0:v]scale=48:48,split[a][b];[a]palettegen[p];[b][p]paletteuse[v]", "p.gif",
+			afmpeg.Output{Map: []string{"[v]"}, VideoCodec: "gif"}},
+		// loudnorm resamples to 192 kHz internally; aac needs a supported rate, so
+		// the graph resamples down — the realistic loudnorm→aac shape.
+		{"loudnorm (audio loudness)", "[0:a]loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[a]", "l.mp4",
+			afmpeg.Output{Map: []string{"[a]"}, AudioCodec: "aac"}},
+		{"atempo (audio speed)", "[0:a]atempo=1.5[a]", "s.mp4",
+			afmpeg.Output{Map: []string{"[a]"}, AudioCodec: "aac"}},
+		{"highpass+equalizer (audio EQ)", "[0:a]highpass=f=200,equalizer=f=1000:width_type=h:width=200:g=-3[a]", "e.mp4",
+			afmpeg.Output{Map: []string{"[a]"}, AudioCodec: "aac"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out := tc.output
+			out.Path = tc.out
+			cmd := afmpeg.Command{
+				Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+				FilterComplex: tc.filter,
+				Outputs:       []afmpeg.Output{out},
+			}
+
+			res, err := rt.RunJob(ctx, fs, cmd)
+			if err != nil || res.ExitCode != 0 {
+				t.Fatalf("%s: res=%+v err=%v", tc.name, res, err)
+			}
+
+			// The graph ran and produced a probeable file with a stream.
+			p, err := rt.Probe(ctx, fs, tc.out)
+			if err != nil || len(p.Streams) == 0 {
+				t.Fatalf("%s: probe %s = %+v err=%v, want a stream", tc.name, tc.out, p, err)
+			}
+		})
+	}
+}
+
 // TestIntegration_Containers round-trips the spec-0015 native container batch:
 // transcode a clip into each new muxer, then probe it back and assert the format
 // and stream codecs survived. Needs the intermediate-profile module.
