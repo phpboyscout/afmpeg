@@ -1,8 +1,16 @@
 # 0024 — input demuxer options, forced/raw formats & stream selection
 
-Status: **PROPOSED** (from the external review — decision pending. A candidate for the 0012 parity
-batch, not committed work. The input-side mirror of [0015](0015-container-coverage.md)'s output side.
-Design only.)
+Status: **IMPLEMENTED** (Phase 1 of the [implementation roadmap](../implementation-roadmap.md);
+shipped at **vocabulary version 4**. The formerly-inert `inputs[].options` now reaches the demuxer
+as an AVDictionary (`avformat_open_input`'s 4th arg), `inputs[].format` forces the demuxer
+(`av_find_input_format`), and raw/headerless inputs (`rawvideo`, `s16le`, `f32le`) open via
+`format` + geometry options and transcode through the existing path. Q1 resolved: 0013 owns the
+`in:type[:idx]` grammar, and this spec extends `parse_input_pad` so a **graph** input pad honours
+the same `N:v:K` index (verified: a two-video-stream source selected by `[0:v:1]`). Q2 resolved:
+an unconsumed demuxer option is a **typed error** (fail-loud). Q3: the lean raw set is `rawvideo` +
+`pcm_s16le`/`pcm_f32le` demuxers (the configure names; the runtime demuxer names are `rawvideo`,
+`s16le`, `f32le`); the long PCM tail defers to [0022](0022-build-size-matrix.md). Nil licence delta
+— all native libavformat. The advertised-but-dead field the external review flagged is now live.)
 Date: 2026-07-02
 Parent: [0012](0012-feature-parity-roadmap.md) §4F (per-input decode options, input stream selection);
 [0007](0007-libav-direct-engine.md) §4 (the job-spec contract)

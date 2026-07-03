@@ -27,6 +27,8 @@ Available:
 - **[Extract a clip (seek and time ranges)](extract-a-clip.md)** — cut a time window without
   decoding from the file start: a cheap keyframe cut, a frame-accurate one, or a
   no-re-encode copy-trim.
+- **[Read a raw or headerless input](read-a-raw-input.md)** — decode raw `.yuv`/`.pcm` or a
+  mislabelled file by forcing the demuxer and supplying its geometry via demuxer options.
 - **[Compose a command with the builder](compose-a-command.md)** — assemble any
   invocation (inputs / filtergraph / outputs) as typed data and run it with `RunJob`
   (`JobSpec()`).

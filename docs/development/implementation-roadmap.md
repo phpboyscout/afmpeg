@@ -28,10 +28,11 @@ a solo implementer):
   + `WithTimeout` (default 1 h) in `runtime.go` with `-race` acceptance tests; the `cJSON_IsObject`
   guard is committed in `ffmpeg-wasi/src/process.c` for the next engine rebuild.
 
-### Phase 1 — Foundational engine capabilities (Tier-1, highest leverage)
-Engine track. These reshape what the engine *is* and are prerequisites for later specs. Do as **one
+### Phase 1 — Foundational engine capabilities (Tier-1, highest leverage) — ✅ DONE
+Engine track. These reshape what the engine *is* and are prerequisites for later specs. Done as **one
 job-spec-vocabulary-versioned batch** (the version-gating mechanism was established here — see
-prereqs; it shipped standalone at **v1**, so each spec below bumps the version).
+prereqs; it shipped standalone at **v1**, so each spec below bumped the version). **All shipped:
+gate v1 → 0013 v2 → 0014 v3 → 0024 v4.**
 - **[0013](specs/0013-remux-and-stream-copy.md) remux & stream copy** (`copy` sentinel, bitstream
   filters, concat demuxer) — foundational for 0019 (subtitle copy) & 0020 (cover art). **✅ SHIPPED
   at vocab v2** (verified mp4/mkv/webm; full A/V concat + copy-trim want 0015 ts + 0014 seek). Its
@@ -42,6 +43,8 @@ prereqs; it shipped standalone at **v1**, so each spec below bumps the version).
   (fast/accurate seek, duration/end windows, copy_ts, probe `start_sec`; copy-trim verified).
 - **[0024](specs/0024-input-options-and-formats.md) input options & formats** — activate the inert
   `inputs[].options`, forced/raw input format, input stream selection. Cheap; symmetric to 0015.
+  **✅ SHIPPED at vocab v4** (demuxer options + typed leftover-key error, `format` forced demuxer,
+  raw video/PCM round-trips, `N:v:K` indexed graph inputs; raw demuxers added to the build).
 
 ### Phase 2 — Bundling foundation + cheap breadth
 Codec track. Establish the profile machinery, then flood the intermediate profile with native flags.
@@ -105,6 +108,7 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
 
 ## Start-here summary
 
-`0027` (memory limit) → the `0013/0014/0024` engine batch → `0022` profile machinery + the
-`0015/0016/0017` native batches → `0018` + `0020/0021` → `0019` + `0026`. Everything in Phase 5 is
-gated on an external trigger (a HW-accel consumer, a perf target) and can wait.
+~~`0027` (memory limit) → the `0013/0014/0024` engine batch~~ **← done (Phase 0 + Phase 1, vocab
+v1–v4).** Next: `0022` profile machinery + the `0015/0016/0017` native batches → `0018` +
+`0020/0021` → `0019` + `0026`. Everything in Phase 5 is gated on an external trigger (a HW-accel
+consumer, a perf target) and can wait.
