@@ -17,11 +17,13 @@ import (
 //	    "in:type[:idx]" map specifiers, and Output.BitstreamFilters
 //	3 — seeking & time ranges (spec 0014): Input.Seek {Start, Mode},
 //	    Output.Duration | End (mutually exclusive), Output.CopyTS
+//	4 — input options & formats (spec 0024): Input.Format (forced demuxer),
+//	    Input.Options (demuxer dict, incl. raw geometry), N:v:K graph selection
 //
 // Every process/probe spec is stamped with it; the engine rejects a spec whose
 // version exceeds what it supports, so a new field can never be silently dropped
 // by an older engine (it fails the whole spec instead).
-const vocabVersion = 3
+const vocabVersion = 4
 
 // engineVocab is the engine's reply to the op:"version" query — its highest
 // supported vocabulary version and the FFmpeg build it links.

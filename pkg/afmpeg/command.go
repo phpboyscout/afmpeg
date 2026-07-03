@@ -36,6 +36,16 @@ type Input struct {
 	// (spec 0014) — the engine seeks the demuxer to the keyframe at-or-before
 	// Start, so the packets before it are never read.
 	Seek *Seek
+
+	// Format forces the demuxer by name (e.g. "rawvideo", "s16le", "mp4") instead
+	// of auto-probing — required for headerless/raw inputs (spec 0024).
+	Format string
+
+	// Options are demuxer options passed as an AVDictionary (spec 0024); raw
+	// geometry rides here (e.g. {"video_size": "1280x720", "pixel_format":
+	// "yuv420p", "framerate": "25"} for rawvideo, {"sample_rate": "48000"} for
+	// PCM). An unconsumed key is a typed error.
+	Options map[string]string
 }
 
 // Seek is an input's start window (mirrors ffmpeg's -ss).
@@ -91,9 +101,11 @@ type jobSpec struct {
 }
 
 type jobInput struct {
-	Path   string   `json:"path,omitempty"`
-	Concat []string `json:"concat,omitempty"`
-	Seek   *jobSeek `json:"seek,omitempty"`
+	Path    string            `json:"path,omitempty"`
+	Concat  []string          `json:"concat,omitempty"`
+	Seek    *jobSeek          `json:"seek,omitempty"`
+	Format  string            `json:"format,omitempty"`
+	Options map[string]string `json:"options,omitempty"`
 }
 
 type jobSeek struct {
@@ -131,7 +143,7 @@ func (c Command) JobSpec() ([]byte, error) {
 	spec := jobSpec{Op: "process", Version: vocabVersion, Filter: c.FilterComplex}
 
 	for _, in := range c.Inputs {
-		ji := jobInput{Path: in.Path, Concat: in.Concat}
+		ji := jobInput{Path: in.Path, Concat: in.Concat, Format: in.Format, Options: in.Options}
 		if in.Seek != nil {
 			ji.Seek = &jobSeek{Start: in.Seek.Start, Mode: in.Seek.Mode}
 		}

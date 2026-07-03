@@ -693,6 +693,232 @@ func TestIntegration_Seek_CopyTrim(t *testing.T) {
 	}
 }
 
+// makeRawYUV420p builds frames of raw yuv420p video — Y a diagonal gradient,
+// U/V mid-grey — the headerless bytes a "rawvideo" input reads (spec 0024).
+func makeRawYUV420p(w, h, frames int) []byte {
+	ySize, cSize := w*h, (w/2)*(h/2)
+	buf := make([]byte, 0, frames*(ySize+2*cSize))
+	for f := 0; f < frames; f++ {
+		y := make([]byte, ySize)
+		for i := range y {
+			y[i] = byte((i + f*8) & 0xff)
+		}
+		buf = append(buf, y...)
+		grey := make([]byte, cSize)
+		for i := range grey {
+			grey[i] = 128
+		}
+		buf = append(buf, grey...) // U
+		buf = append(buf, grey...) // V
+	}
+
+	return buf
+}
+
+// makeRawPCMS16LE builds seconds of mono signed-16-bit little-endian PCM (a low
+// tone) — the headerless bytes an "s16le" input reads (spec 0024).
+func makeRawPCMS16LE(sampleRate int, seconds float64) []byte {
+	n := int(float64(sampleRate) * seconds)
+	buf := make([]byte, n*2)
+	for i := 0; i < n; i++ {
+		s := uint16(int16(3000 * math.Sin(2*math.Pi*220*float64(i)/float64(sampleRate)))) //nolint:gosec // int16→uint16 is the intended PCM byte reinterpretation
+		binary.LittleEndian.PutUint16(buf[i*2:], s)
+	}
+
+	return buf
+}
+
+// TestIntegration_RawInput proves spec-0024 forced formats + demuxer options: a
+// headerless raw video and raw audio, opened with an explicit demuxer + geometry
+// options, decode through the normal transcode path with their parameters intact.
+func TestIntegration_RawInput(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	if err := afero.WriteFile(fs, "frames.yuv", makeRawYUV420p(64, 48, 10), 0o644); err != nil {
+		t.Fatalf("seed yuv: %v", err)
+	}
+	if err := afero.WriteFile(fs, "tone.pcm", makeRawPCMS16LE(8000, 1.0), 0o644); err != nil {
+		t.Fatalf("seed pcm: %v", err)
+	}
+
+	// Raw video: forced "rawvideo" demuxer + geometry, transcoded to H.264/mp4.
+	vcmd := afmpeg.NewCommand(
+		afmpeg.WithInput("frames.yuv", afmpeg.InputFormat("rawvideo"),
+			afmpeg.DemuxerOption("video_size", "64x48"),
+			afmpeg.DemuxerOption("pixel_format", "yuv420p"),
+			afmpeg.DemuxerOption("framerate", "25")),
+		afmpeg.WithFilterComplex("[0:v]null[v]"),
+		afmpeg.WithOutput("v.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libopenh264")),
+	)
+	if res, err := rt.RunJob(ctx, fs, vcmd); err != nil || res.ExitCode != 0 {
+		t.Fatalf("raw video: res=%+v err=%v", res, err)
+	}
+
+	vp, err := rt.Probe(ctx, fs, "v.mp4")
+	if err != nil {
+		t.Fatalf("probe raw video out: %v", err)
+	}
+	if len(vp.Streams) != 1 || vp.Streams[0].Width != 64 || vp.Streams[0].Height != 48 {
+		t.Fatalf("raw video streams = %+v, want one 64x48 stream", vp.Streams)
+	}
+
+	// Raw audio: forced "s16le" demuxer + rate, transcoded to AAC/mp4.
+	acmd := afmpeg.NewCommand(
+		afmpeg.WithInput("tone.pcm", afmpeg.InputFormat("s16le"),
+			afmpeg.DemuxerOption("sample_rate", "8000"),
+			afmpeg.DemuxerOption("ch_layout", "mono")),
+		afmpeg.WithOutput("a.mp4", afmpeg.AudioCodec("aac")),
+	)
+	if res, err := rt.RunJob(ctx, fs, acmd); err != nil || res.ExitCode != 0 {
+		t.Fatalf("raw audio: res=%+v err=%v", res, err)
+	}
+
+	ap, err := rt.Probe(ctx, fs, "a.mp4")
+	if err != nil {
+		t.Fatalf("probe raw audio out: %v", err)
+	}
+	if ap.DurationSec < 0.8 || ap.DurationSec > 1.2 {
+		t.Fatalf("raw audio duration = %.2fs, want ~1.0s", ap.DurationSec)
+	}
+}
+
+// TestIntegration_InputOptions covers the spec-0024 diagnostics + forced format:
+// an unconsumed demuxer option is a typed error, and forcing the demuxer opens a
+// file whose extension would mislead the auto-probe.
+func TestIntegration_InputOptions(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapAVMP4(t, rt, fs, "clip.mp4")
+	mp4, err := afero.ReadFile(fs, "clip.mp4")
+	if err != nil {
+		t.Fatalf("read bootstrap: %v", err)
+	}
+	if err := afero.WriteFile(fs, "clip.bin", mp4, 0o644); err != nil { // an mp4 named .bin
+		t.Fatalf("write .bin: %v", err)
+	}
+
+	// Forced format opens it where auto-probe-by-extension might not commit.
+	forced := afmpeg.NewCommand(
+		afmpeg.WithInput("clip.bin", afmpeg.InputFormat("mp4")),
+		afmpeg.WithOutput("out.mp4", afmpeg.AudioCodec("aac")),
+	)
+	if res, err := rt.RunJob(ctx, fs, forced); err != nil || res.ExitCode != 0 {
+		t.Fatalf("forced format: res=%+v err=%v", res, err)
+	}
+
+	// A bogus demuxer option surfaces as a typed diagnostic (Q2: fail loud).
+	bad := afmpeg.NewCommand(
+		afmpeg.WithInput("clip.bin", afmpeg.InputFormat("mp4"),
+			afmpeg.DemuxerOption("this_is_not_a_real_option", "1")),
+		afmpeg.WithOutput("out2.mp4", afmpeg.AudioCodec("aac")),
+	)
+	res, err := rt.RunJob(ctx, fs, bad)
+	if err != nil {
+		t.Fatalf("bad option Run: %v", err)
+	}
+	if res.ExitCode == 0 {
+		t.Fatalf("bad demuxer option: exit 0, want a rejection\n%s", res.Stderr)
+	}
+}
+
+// TestIntegration_IndexedStreamSelection proves N:v:K selects a specific stream
+// (spec 0024 R-0024-2): a source with two differently-sized video streams is
+// re-read via 0:v:1, and the second stream's geometry comes through.
+func TestIntegration_IndexedStreamSelection(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	if err := afero.WriteFile(fs, "in.png", makePNG(64, 64), 0o644); err != nil {
+		t.Fatalf("seed png: %v", err)
+	}
+
+	// A multi-frame file with two video streams: 0:v:0 = 48x48, 0:v:1 = 32x32.
+	// Multi-frame so a re-encode of the selected stream produces probeable output.
+	twoStream := afmpeg.Command{
+		Inputs: []afmpeg.Input{{Path: "in.png"}},
+		FilterComplex: "[0:v]loop=loop=24:size=1:start=0,fps=25,split=2[a][b];" +
+			"[a]scale=48:48,format=yuv420p[v0];[b]scale=32:32,format=yuv420p[v1]",
+		Outputs: []afmpeg.Output{{
+			Path: "two.mp4", Map: []string{"[v0]", "[v1]"}, VideoCodec: "libopenh264",
+		}},
+	}
+	if res, err := rt.RunJob(ctx, fs, twoStream); err != nil || res.ExitCode != 0 {
+		t.Fatalf("two-stream bootstrap: res=%+v err=%v", res, err)
+	}
+
+	// Selecting each video stream by index yields that stream's geometry — proof
+	// the index resolves to a specific stream, not just the best.
+	for _, tc := range []struct {
+		out   string
+		spec  string
+		width int
+	}{
+		{"first.mp4", "[0:v:0]null[v]", 48},
+		{"second.mp4", "[0:v:1]null[v]", 32},
+	} {
+		sel := afmpeg.Command{
+			Inputs:        []afmpeg.Input{{Path: "two.mp4"}},
+			FilterComplex: tc.spec,
+			Outputs:       []afmpeg.Output{{Path: tc.out, Map: []string{"[v]"}, VideoCodec: "libopenh264"}},
+		}
+		if res, err := rt.RunJob(ctx, fs, sel); err != nil || res.ExitCode != 0 {
+			t.Fatalf("select %s: res=%+v err=%v", tc.spec, res, err)
+		}
+
+		p, err := rt.Probe(ctx, fs, tc.out)
+		if err != nil {
+			t.Fatalf("probe %s: %v", tc.out, err)
+		}
+		if len(p.Streams) != 1 || p.Streams[0].Width != tc.width {
+			t.Fatalf("%s selected %+v, want width %d", tc.spec, p.Streams, tc.width)
+		}
+	}
+}
+
 // TestIntegration_StreamCopy_Concat proves the concat-demuxer input mode: two
 // like-codec segments are joined into one continuous input and stream-copied out.
 //

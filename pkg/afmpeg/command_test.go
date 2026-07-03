@@ -281,6 +281,49 @@ func TestCommand_JobSpec_Validation(t *testing.T) {
 	}
 }
 
+// TestCommand_JobSpec_InputOptions renders the spec-0024 vocabulary: a forced
+// demuxer and a demuxer-options dict on an input.
+func TestCommand_JobSpec_InputOptions(t *testing.T) {
+	t.Parallel()
+
+	cmd := afmpeg.NewCommand(
+		afmpeg.WithInput("frames.yuv", afmpeg.InputFormat("rawvideo"),
+			afmpeg.DemuxerOption("video_size", "1280x720"),
+			afmpeg.DemuxerOption("framerate", "25")),
+		afmpeg.WithFilterComplex("[0:v]null[v]"),
+		afmpeg.WithOutput("out.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libopenh264")),
+	)
+
+	data, err := cmd.JobSpec()
+	if err != nil {
+		t.Fatalf("JobSpec: %v", err)
+	}
+
+	var got struct {
+		Version int `json:"version"`
+		Inputs  []struct {
+			Format  string            `json:"format"`
+			Options map[string]string `json:"options"`
+		} `json:"inputs"`
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, data)
+	}
+
+	if got.Version < 4 {
+		t.Errorf("version = %d, want >= 4 (the 0024 vocabulary)", got.Version)
+	}
+
+	in := got.Inputs[0]
+	if in.Format != "rawvideo" {
+		t.Errorf("format = %q, want rawvideo", in.Format)
+	}
+
+	if in.Options["video_size"] != "1280x720" || in.Options["framerate"] != "25" {
+		t.Errorf("options = %v", in.Options)
+	}
+}
+
 // TestSeekAndWindowOptions exercises the 0014 builder options.
 func TestSeekAndWindowOptions(t *testing.T) {
 	t.Parallel()

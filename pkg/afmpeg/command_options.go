@@ -54,6 +54,24 @@ func SeekAccurateTo(start float64) InputOption {
 	return func(in *Input) { in.Seek = &Seek{Start: start, Mode: SeekAccurate} }
 }
 
+// InputFormat forces the input's demuxer by name (e.g. "rawvideo", "s16le",
+// "mp4") instead of auto-probing — required for headerless/raw inputs (spec 0024).
+func InputFormat(name string) InputOption {
+	return func(in *Input) { in.Format = name }
+}
+
+// DemuxerOption sets one demuxer option on an input (spec 0024) — raw geometry
+// rides here, e.g. DemuxerOption("video_size", "1280x720").
+func DemuxerOption(key, value string) InputOption {
+	return func(in *Input) {
+		if in.Options == nil {
+			in.Options = make(map[string]string)
+		}
+
+		in.Options[key] = value
+	}
+}
+
 // WithFilterComplex sets the filtergraph (the engine parses it with libav's
 // avfilter_graph_parse2).
 func WithFilterComplex(graph string) CommandOption {
