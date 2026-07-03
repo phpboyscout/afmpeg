@@ -3,6 +3,8 @@ package afmpeg
 import (
 	"context"
 	"encoding/json"
+	"strconv"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/afero"
@@ -21,7 +23,7 @@ type Command struct {
 }
 
 // Input is one media input: a single Path, or a Concat playlist of like-codec
-// files joined via the concat demuxer (spec 0013).
+// files joined via the concat demuxer (spec 0013), optionally windowed by Seek.
 type Input struct {
 	Path string
 
@@ -29,7 +31,27 @@ type Input struct {
 	// concat *demuxer* (a stream-copy join, distinct from the concat filter which
 	// re-encodes). When set, Path is ignored.
 	Concat []string
+
+	// Seek starts the input at a point instead of decoding from the beginning
+	// (spec 0014) — the engine seeks the demuxer to the keyframe at-or-before
+	// Start, so the packets before it are never read.
+	Seek *Seek
 }
+
+// Seek is an input's start window (mirrors ffmpeg's -ss).
+type Seek struct {
+	Start float64 // seconds
+	Mode  string  // SeekFast (default when empty) or SeekAccurate
+}
+
+// Seek modes: fast lands on the keyframe at-or-before Start (cheap, the
+// default); accurate additionally decodes and discards up to the exact frame —
+// paying a fraction-of-a-GOP decode for frame accuracy. Accurate cannot apply to
+// a copied stream (a copy can only cut on keyframes).
+const (
+	SeekFast     = "fast"
+	SeekAccurate = "accurate"
+)
 
 // Output is one muxed output: its path, the graph output pads / stream specifiers
 // to mux, the encoders, and their options.
@@ -44,6 +66,17 @@ type Output struct {
 	// by its Map entry (e.g. {"0:v": "h264_mp4toannexb"}); "none" force-disables.
 	// Absent → the muxer auto-inserts any container-required filter (spec 0013).
 	BitstreamFilters map[string]string
+
+	// Duration stops the output after this many seconds (-t); End stops it at a
+	// position (-to). Mutually exclusive (spec 0014). On the default zero-based
+	// timeline the two coincide; under CopyTS, End is an absolute source position.
+	Duration float64
+	End      float64
+
+	// CopyTS preserves the source timestamps instead of zero-basing the output —
+	// a clip starting at t=0 is the default; set CopyTS when timelines must stay
+	// aligned across outputs (spec 0014).
+	CopyTS bool
 }
 
 // jobSpec is the JSON the ffmpeg-wasi engine consumes (the process / probe ops).
@@ -60,6 +93,12 @@ type jobSpec struct {
 type jobInput struct {
 	Path   string   `json:"path,omitempty"`
 	Concat []string `json:"concat,omitempty"`
+	Seek   *jobSeek `json:"seek,omitempty"`
+}
+
+type jobSeek struct {
+	Start float64 `json:"start"`
+	Mode  string  `json:"mode,omitempty"`
 }
 
 type jobOutput struct {
@@ -69,6 +108,9 @@ type jobOutput struct {
 	AudioCodec       string            `json:"audio_codec,omitempty"`
 	Options          map[string]string `json:"options,omitempty"`
 	BitstreamFilters map[string]string `json:"bitstream_filters,omitempty"`
+	Duration         float64           `json:"duration,omitempty"`
+	End              float64           `json:"end,omitempty"`
+	CopyTS           bool              `json:"copy_ts,omitempty"`
 }
 
 // CodecCopy is the codec sentinel that remuxes a mapped stream — passed through
@@ -78,13 +120,23 @@ type jobOutput struct {
 const CodecCopy = "copy"
 
 // JobSpec renders the command to the ffmpeg-wasi engine's "process" job spec —
-// inputs, the filtergraph, and each output's codecs / maps / encoder options. It
-// is pure — no I/O, safe to inspect or log.
+// inputs, the filtergraph, and each output's codecs / maps / windows / encoder
+// options — after validating the seek/window contract (spec 0014). It is pure —
+// no I/O, safe to inspect or log.
 func (c Command) JobSpec() ([]byte, error) {
+	if err := c.validate(); err != nil {
+		return nil, err
+	}
+
 	spec := jobSpec{Op: "process", Version: vocabVersion, Filter: c.FilterComplex}
 
 	for _, in := range c.Inputs {
-		spec.Inputs = append(spec.Inputs, jobInput(in))
+		ji := jobInput{Path: in.Path, Concat: in.Concat}
+		if in.Seek != nil {
+			ji.Seek = &jobSeek{Start: in.Seek.Start, Mode: in.Seek.Mode}
+		}
+
+		spec.Inputs = append(spec.Inputs, ji)
 	}
 
 	for _, out := range c.Outputs {
@@ -94,6 +146,53 @@ func (c Command) JobSpec() ([]byte, error) {
 	data, err := json.Marshal(spec)
 
 	return data, errors.Wrap(err, "afmpeg: marshal job spec")
+}
+
+// validate enforces the spec-0014 contract before the engine sees it: duration
+// and end are mutually exclusive, and an accurate seek cannot feed a copied
+// stream (a copy can only cut on keyframes; the engine enforces this too, but
+// failing here is cheaper and clearer).
+func (c Command) validate() error {
+	for _, out := range c.Outputs {
+		if out.Duration > 0 && out.End > 0 {
+			return errors.Newf("afmpeg: output %q: Duration and End are mutually exclusive", out.Path)
+		}
+
+		for _, m := range out.Map {
+			if err := c.validateCopyEntry(out.Path, m); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateCopyEntry rejects a copied map entry ("0:v") whose input carries an
+// accurate seek; graph pads and entries the engine will report itself pass.
+func (c Command) validateCopyEntry(outPath, m string) error {
+	if strings.HasPrefix(m, "[") {
+		return nil // graph pad (encoded), not a copy
+	}
+
+	// An unparseable or out-of-range entry is left for the engine to report.
+	idx, _, ok := strings.Cut(m, ":")
+	if !ok {
+		return nil
+	}
+
+	in, convErr := strconv.Atoi(idx)
+	if convErr != nil || in < 0 || in >= len(c.Inputs) {
+		return nil //nolint:nilerr // not this check's concern — the engine rejects bad map entries
+	}
+
+	if s := c.Inputs[in].Seek; s != nil && s.Mode == SeekAccurate {
+		return errors.Newf(
+			"afmpeg: output %q maps copied stream %q from an accurate-seek input (copy cuts on keyframes; use SeekFast)",
+			outPath, m)
+	}
+
+	return nil
 }
 
 // RunJob renders c as a job spec and runs it over the fs bridge — sugar for Run

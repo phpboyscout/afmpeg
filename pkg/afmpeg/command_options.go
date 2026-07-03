@@ -3,6 +3,9 @@ package afmpeg
 // CommandOption configures a Command during NewCommand.
 type CommandOption func(*Command)
 
+// InputOption configures an Input added via WithInput / WithConcatInput.
+type InputOption func(*Input)
+
 // OutputOption configures an Output added via WithOutput.
 type OutputOption func(*Output)
 
@@ -18,9 +21,16 @@ func NewCommand(opts ...CommandOption) Command {
 	return c
 }
 
-// WithInput adds an input at path.
-func WithInput(path string) CommandOption {
-	return func(c *Command) { c.Inputs = append(c.Inputs, Input{Path: path}) }
+// WithInput adds an input at path, configured by the given input options.
+func WithInput(path string, opts ...InputOption) CommandOption {
+	return func(c *Command) {
+		in := Input{Path: path}
+		for _, opt := range opts {
+			opt(&in)
+		}
+
+		c.Inputs = append(c.Inputs, in)
+	}
 }
 
 // WithConcatInput adds an input that joins like-codec segments into one
@@ -28,6 +38,20 @@ func WithInput(path string) CommandOption {
 // distinct from the concat filter, which decodes and re-encodes.
 func WithConcatInput(paths ...string) CommandOption {
 	return func(c *Command) { c.Inputs = append(c.Inputs, Input{Concat: paths}) }
+}
+
+// SeekTo starts the input at start seconds via a fast (keyframe) seek — the
+// demuxer jumps to the keyframe at-or-before start, so nothing before it is
+// read or decoded (spec 0014).
+func SeekTo(start float64) InputOption {
+	return func(in *Input) { in.Seek = &Seek{Start: start, Mode: SeekFast} }
+}
+
+// SeekAccurateTo starts the input at exactly start seconds: a fast seek plus
+// decode-and-discard up to the precise frame. Costs a fraction-of-a-GOP decode;
+// cannot feed a copied stream (a copy can only cut on keyframes).
+func SeekAccurateTo(start float64) InputOption {
+	return func(in *Input) { in.Seek = &Seek{Start: start, Mode: SeekAccurate} }
 }
 
 // WithFilterComplex sets the filtergraph (the engine parses it with libav's
@@ -86,4 +110,21 @@ func BitstreamFilter(mapKey, filter string) OutputOption {
 
 		out.BitstreamFilters[mapKey] = filter
 	}
+}
+
+// Duration stops the output after sec seconds (-t). Mutually exclusive with End.
+func Duration(sec float64) OutputOption {
+	return func(out *Output) { out.Duration = sec }
+}
+
+// End stops the output at position sec (-to). Mutually exclusive with Duration;
+// an absolute source position under CopyTS, an output position otherwise.
+func End(sec float64) OutputOption {
+	return func(out *Output) { out.End = sec }
+}
+
+// CopyTS preserves source timestamps instead of zero-basing the output
+// (spec 0014) — for when timelines must stay aligned across outputs.
+func CopyTS() OutputOption {
+	return func(out *Output) { out.CopyTS = true }
 }

@@ -15,11 +15,13 @@ import (
 //	1 — baseline + the version gate; no process/probe field changes
 //	2 — stream copy / bitstream filters (spec 0013): the "copy" codec sentinel,
 //	    "in:type[:idx]" map specifiers, and Output.BitstreamFilters
+//	3 — seeking & time ranges (spec 0014): Input.Seek {Start, Mode},
+//	    Output.Duration | End (mutually exclusive), Output.CopyTS
 //
 // Every process/probe spec is stamped with it; the engine rejects a spec whose
 // version exceeds what it supports, so a new field can never be silently dropped
 // by an older engine (it fails the whole spec instead).
-const vocabVersion = 2
+const vocabVersion = 3
 
 // engineVocab is the engine's reply to the op:"version" query — its highest
 // supported vocabulary version and the FFmpeg build it links.

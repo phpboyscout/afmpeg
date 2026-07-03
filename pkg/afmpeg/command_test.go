@@ -163,6 +163,143 @@ func TestCommand_JobSpec_Copy(t *testing.T) {
 	}
 }
 
+// TestCommand_JobSpec_Seek renders the spec-0014 vocabulary: input seek
+// (fast/accurate), the output window (duration/end), and copy_ts.
+func TestCommand_JobSpec_Seek(t *testing.T) {
+	t.Parallel()
+
+	cmd := afmpeg.NewCommand(
+		afmpeg.WithInput("in.mp4", afmpeg.SeekAccurateTo(12.5)),
+		afmpeg.WithFilterComplex("[0:v]null[v]"),
+		afmpeg.WithOutput("clip.mp4",
+			afmpeg.Map("[v]"), afmpeg.VideoCodec("libopenh264"),
+			afmpeg.Duration(5), afmpeg.CopyTS()),
+	)
+
+	data, err := cmd.JobSpec()
+	if err != nil {
+		t.Fatalf("JobSpec: %v", err)
+	}
+
+	var got struct {
+		Version int `json:"version"`
+		Inputs  []struct {
+			Seek *struct {
+				Start float64 `json:"start"`
+				Mode  string  `json:"mode"`
+			} `json:"seek"`
+		} `json:"inputs"`
+		Outputs []struct {
+			Duration float64 `json:"duration"`
+			End      float64 `json:"end"`
+			CopyTS   bool    `json:"copy_ts"`
+		} `json:"outputs"`
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, data)
+	}
+
+	if got.Version < 3 {
+		t.Errorf("version = %d, want >= 3 (the 0014 vocabulary)", got.Version)
+	}
+
+	if s := got.Inputs[0].Seek; s == nil || s.Start != 12.5 || s.Mode != "accurate" {
+		t.Errorf("seek = %+v, want start 12.5 mode accurate", got.Inputs[0].Seek)
+	}
+
+	o := got.Outputs[0]
+	if o.Duration != 5 || o.End != 0 || !o.CopyTS {
+		t.Errorf("window = %+v, want duration 5 / no end / copy_ts", o)
+	}
+}
+
+// TestCommand_JobSpec_Validation covers the spec-0014 contract: the
+// duration+end conflict and accurate-seek-on-copy are rejected, while graph
+// pads, fast seeks, and entries left to the engine (unparseable / out-of-range)
+// pass afmpeg's validation.
+func TestCommand_JobSpec_Validation(t *testing.T) {
+	t.Parallel()
+
+	accurateIn := []afmpeg.Input{{Path: "in.mp4", Seek: &afmpeg.Seek{Start: 1, Mode: afmpeg.SeekAccurate}}}
+
+	tests := []struct {
+		name    string
+		cmd     afmpeg.Command
+		wantErr bool
+	}{
+		{
+			"duration and end are mutually exclusive",
+			afmpeg.Command{
+				Inputs:  []afmpeg.Input{{Path: "in.mp4"}},
+				Outputs: []afmpeg.Output{{Path: "o.mp4", AudioCodec: "aac", Duration: 5, End: 7}},
+			},
+			true,
+		},
+		{
+			"accurate seek cannot feed a copied stream",
+			afmpeg.Command{
+				Inputs:  accurateIn,
+				Outputs: []afmpeg.Output{{Path: "o.mp4", Map: []string{"0:v"}, VideoCodec: afmpeg.CodecCopy}},
+			},
+			true,
+		},
+		{
+			"accurate seek into the graph is fine",
+			afmpeg.Command{
+				Inputs:  accurateIn,
+				Outputs: []afmpeg.Output{{Path: "o.mp4", Map: []string{"[v]"}, VideoCodec: "libopenh264"}},
+			},
+			false,
+		},
+		{
+			"fast seek may feed a copy",
+			afmpeg.Command{
+				Inputs:  []afmpeg.Input{{Path: "in.mp4", Seek: &afmpeg.Seek{Start: 1}}},
+				Outputs: []afmpeg.Output{{Path: "o.mp4", Map: []string{"0:v"}, VideoCodec: afmpeg.CodecCopy}},
+			},
+			false,
+		},
+		{
+			"unparseable and out-of-range map entries are the engine's to reject",
+			afmpeg.Command{
+				Inputs:  accurateIn,
+				Outputs: []afmpeg.Output{{Path: "o.mp4", Map: []string{"nonsense", "x:v", "9:v"}, VideoCodec: afmpeg.CodecCopy}},
+			},
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := tt.cmd.JobSpec()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("JobSpec: err = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestSeekAndWindowOptions exercises the 0014 builder options.
+func TestSeekAndWindowOptions(t *testing.T) {
+	t.Parallel()
+
+	cmd := afmpeg.NewCommand(
+		afmpeg.WithInput("in.mp4", afmpeg.SeekTo(3)),
+		afmpeg.WithOutput("o.mp4", afmpeg.AudioCodec("aac"), afmpeg.End(9), afmpeg.CopyTS()),
+	)
+
+	if s := cmd.Inputs[0].Seek; s == nil || s.Start != 3 || s.Mode != afmpeg.SeekFast {
+		t.Errorf("SeekTo: seek = %+v, want fast @3s", cmd.Inputs[0].Seek)
+	}
+
+	o := cmd.Outputs[0]
+	if o.End != 9 || o.Duration != 0 || !o.CopyTS {
+		t.Errorf("output window = %+v, want End 9 / CopyTS", o)
+	}
+}
+
 // TestNewCommand_Options exercises the functional-options builder.
 func TestNewCommand_Options(t *testing.T) {
 	t.Parallel()

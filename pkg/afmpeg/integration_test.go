@@ -501,6 +501,198 @@ func TestIntegration_StreamCopy_Remux(t *testing.T) {
 	}
 }
 
+// bootstrapClipMP4 self-produces a ~2s multi-keyframe H.264/AAC mp4 in fs: the
+// PNG still is looped to 50 frames at 25 fps with a keyframe every 8 frames
+// (gop 0.32s), so seek tests have real keyframes to land between (spec 0014 §8).
+func bootstrapClipMP4(t *testing.T, rt *afmpeg.Runtime, fs afero.Fs, path string) {
+	t.Helper()
+
+	if err := afero.WriteFile(fs, "boot.png", makePNG(32, 32), 0o644); err != nil {
+		t.Fatalf("seed png: %v", err)
+	}
+	if err := afero.WriteFile(fs, "boot.wav", makeWAVMono(8000, 2.0), 0o644); err != nil {
+		t.Fatalf("seed wav: %v", err)
+	}
+
+	boot := afmpeg.Command{
+		Inputs:        []afmpeg.Input{{Path: "boot.png"}, {Path: "boot.wav"}},
+		FilterComplex: "[0:v]loop=loop=49:size=1:start=0,fps=25,format=yuv420p[v];[1:a]anull[a]",
+		Outputs: []afmpeg.Output{{
+			Path: path, Map: []string{"[v]", "[a]"},
+			VideoCodec: "libopenh264", AudioCodec: "aac",
+			Options: map[string]string{"g": "8"},
+		}},
+	}
+
+	res, err := rt.RunJob(context.Background(), fs, boot)
+	if err != nil || res.ExitCode != 0 {
+		t.Fatalf("bootstrap clip mp4: res=%+v err=%v", res, err)
+	}
+}
+
+// TestIntegration_Seek drives the spec-0014 windows end-to-end against a real
+// multi-keyframe clip: fast vs accurate seek, duration and end cutoffs, PTS
+// rebasing vs copy_ts, keyframe-snapped copy-trim, and the accurate-on-copy
+// rejection.
+func TestIntegration_Seek(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4")
+
+	// encodeClip runs one seek/window job re-encoding the video and returns the
+	// probed output.
+	encodeClip := func(name string, in afmpeg.Input, out afmpeg.Output) afmpeg.Probe {
+		t.Helper()
+
+		out.Map = []string{"[v]"}
+		out.VideoCodec = "libopenh264"
+
+		cmd := afmpeg.Command{
+			Inputs:        []afmpeg.Input{in},
+			FilterComplex: "[0:v]null[v]",
+			Outputs:       []afmpeg.Output{out},
+		}
+
+		res, err := rt.RunJob(ctx, fs, cmd)
+		if err != nil || res.ExitCode != 0 {
+			t.Fatalf("%s: res=%+v err=%v", name, res, err)
+		}
+
+		p, err := rt.Probe(ctx, fs, out.Path)
+		if err != nil {
+			t.Fatalf("%s probe: %v", name, err)
+		}
+
+		return p
+	}
+
+	src := afmpeg.Input{Path: "src.mp4"}
+
+	// (a) Fast seek to 1.0s: lands on the keyframe at-or-before 1.0 (gop 0.32s),
+	// so the clip covers [~0.68..1.0, 2.0] — duration in (1.0, 1.4].
+	fast := encodeClip("fast seek",
+		afmpeg.Input{Path: src.Path, Seek: &afmpeg.Seek{Start: 1.0}},
+		afmpeg.Output{Path: "fast.mp4"})
+	if fast.DurationSec < 0.95 || fast.DurationSec > 1.45 {
+		t.Errorf("fast-seek duration = %.2fs, want ~(1.0, 1.4] (keyframe snap)", fast.DurationSec)
+	}
+
+	// (b) Accurate seek to 1.0s: decode-and-discard to the exact frame — ~1.0s.
+	acc := encodeClip("accurate seek",
+		afmpeg.Input{Path: src.Path, Seek: &afmpeg.Seek{Start: 1.0, Mode: afmpeg.SeekAccurate}},
+		afmpeg.Output{Path: "acc.mp4"})
+	if acc.DurationSec < 0.85 || acc.DurationSec > 1.15 {
+		t.Errorf("accurate-seek duration = %.2fs, want ~1.0s", acc.DurationSec)
+	}
+
+	// (c) Duration cutoff: 0.5s from an accurate 1.0s start.
+	dur := encodeClip("duration cutoff",
+		afmpeg.Input{Path: src.Path, Seek: &afmpeg.Seek{Start: 1.0, Mode: afmpeg.SeekAccurate}},
+		afmpeg.Output{Path: "dur.mp4", Duration: 0.5})
+	if dur.DurationSec < 0.35 || dur.DurationSec > 0.7 {
+		t.Errorf("duration-cutoff duration = %.2fs, want ~0.5s", dur.DurationSec)
+	}
+
+	// End on the zero-based output timeline behaves like duration.
+	end := encodeClip("end cutoff",
+		afmpeg.Input{Path: src.Path, Seek: &afmpeg.Seek{Start: 1.0, Mode: afmpeg.SeekAccurate}},
+		afmpeg.Output{Path: "end.mp4", End: 0.5})
+	if end.DurationSec < 0.35 || end.DurationSec > 0.7 {
+		t.Errorf("end-cutoff duration = %.2fs, want ~0.5s", end.DurationSec)
+	}
+
+	// (d) Default rebase → output starts at ~0; copy_ts preserves the source PTS.
+	if acc.StartSec > 0.3 {
+		t.Errorf("rebased output starts at %.2fs, want ~0", acc.StartSec)
+	}
+
+	cts := encodeClip("copy_ts",
+		afmpeg.Input{Path: src.Path, Seek: &afmpeg.Seek{Start: 1.0, Mode: afmpeg.SeekAccurate}},
+		afmpeg.Output{Path: "cts.mp4", CopyTS: true})
+	if cts.StartSec < 0.7 {
+		t.Errorf("copy_ts output starts at %.2fs, want ~1.0 (source timeline preserved)", cts.StartSec)
+	}
+}
+
+// TestIntegration_Seek_CopyTrim is 0013's deferred keyframe-accurate copy-trim,
+// switched on by 0014: a fast seek composed with stream copy cuts on a keyframe
+// with no re-encode.
+func TestIntegration_Seek_CopyTrim(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4")
+
+	cmd := afmpeg.Command{
+		Inputs: []afmpeg.Input{{Path: "src.mp4", Seek: &afmpeg.Seek{Start: 1.0}}},
+		Outputs: []afmpeg.Output{{
+			Path: "trim.mp4", Map: []string{"0:v"}, VideoCodec: afmpeg.CodecCopy,
+		}},
+	}
+
+	res, err := rt.RunJob(ctx, fs, cmd)
+	if err != nil || res.ExitCode != 0 {
+		t.Fatalf("copy-trim: res=%+v err=%v", res, err)
+	}
+
+	p, err := rt.Probe(ctx, fs, "trim.mp4")
+	if err != nil {
+		t.Fatalf("probe copy-trim: %v", err)
+	}
+
+	// Keyframe-snapped: covers [keyframe ≤ 1.0, 2.0] with no re-encode.
+	if p.DurationSec < 0.95 || p.DurationSec > 1.45 {
+		t.Errorf("copy-trim duration = %.2fs, want ~(1.0, 1.4]", p.DurationSec)
+	}
+
+	if len(p.Streams) != 1 || p.Streams[0].Codec != "h264" {
+		t.Errorf("copy-trim streams = %+v, want one copied h264 stream", p.Streams)
+	}
+
+	// The engine enforces D-0014-F: accurate seek on a copied stream is an error
+	// (bypass afmpeg's own validation by sending the raw spec).
+	raw := `{"op":"process","version":3,"inputs":[{"path":"src.mp4","seek":{"start":1.0,"mode":"accurate"}}],` +
+		`"outputs":[{"path":"x.mp4","map":["0:v"],"video_codec":"copy"}]}`
+
+	rej, err := rt.Run(ctx, fs, raw)
+	if err != nil {
+		t.Fatalf("accurate-on-copy Run: %v", err)
+	}
+
+	if rej.ExitCode == 0 || !strings.Contains(rej.Stderr, "accurate") {
+		t.Errorf("accurate-on-copy: exit=%d stderr=%q, want a rejection naming accurate", rej.ExitCode, rej.Stderr)
+	}
+}
+
 // TestIntegration_StreamCopy_Concat proves the concat-demuxer input mode: two
 // like-codec segments are joined into one continuous input and stream-copied out.
 //

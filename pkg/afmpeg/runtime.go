@@ -74,10 +74,12 @@ type Result struct {
 	Stderr   string
 }
 
-// Probe describes a media input: its container format, duration, and streams.
+// Probe describes a media input: its container format, duration, start offset,
+// and streams.
 type Probe struct {
 	Format      string
 	DurationSec float64
+	StartSec    float64 // the container's start time (nonzero e.g. after a copy_ts trim)
 	Streams     []ProbeStream
 }
 
@@ -326,6 +328,7 @@ func (r *Runtime) Probe(ctx context.Context, fs afero.Fs, path string) (Probe, e
 			Error       string        `json:"error"`
 			Format      string        `json:"format"`
 			DurationSec float64       `json:"duration_sec"`
+			StartSec    float64       `json:"start_sec"`
 			Streams     []ProbeStream `json:"streams"`
 		} `json:"inputs"`
 	}
@@ -343,7 +346,7 @@ func (r *Runtime) Probe(ctx context.Context, fs afero.Fs, path string) (Probe, e
 		return Probe{}, errors.Newf("afmpeg: probe %q: %s", path, in.Error)
 	}
 
-	return Probe{Format: in.Format, DurationSec: in.DurationSec, Streams: in.Streams}, nil
+	return Probe{Format: in.Format, DurationSec: in.DurationSec, StartSec: in.StartSec, Streams: in.Streams}, nil
 }
 
 // invocation is the internal outcome of running the module once.
