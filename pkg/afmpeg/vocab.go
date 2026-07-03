@@ -19,11 +19,13 @@ import (
 //	    Output.Duration | End (mutually exclusive), Output.CopyTS
 //	4 — input options & formats (spec 0024): Input.Format (forced demuxer),
 //	    Input.Options (demuxer dict, incl. raw geometry), N:v:K graph selection
+//	5 — container coverage (spec 0015): Output.Format (forced muxer),
+//	    Output.FormatOptions (muxer dict — segmenting/fragmentation)
 //
 // Every process/probe spec is stamped with it; the engine rejects a spec whose
 // version exceeds what it supports, so a new field can never be silently dropped
 // by an older engine (it fails the whole spec instead).
-const vocabVersion = 4
+const vocabVersion = 5
 
 // engineVocab is the engine's reply to the op:"version" query — its highest
 // supported vocabulary version and the FFmpeg build it links.

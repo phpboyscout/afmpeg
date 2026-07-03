@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -916,6 +917,329 @@ func TestIntegration_IndexedStreamSelection(t *testing.T) {
 		if len(p.Streams) != 1 || p.Streams[0].Width != tc.width {
 			t.Fatalf("%s selected %+v, want width %d", tc.spec, p.Streams, tc.width)
 		}
+	}
+}
+
+// TestIntegration_Containers round-trips the spec-0015 native container batch:
+// transcode a clip into each new muxer, then probe it back and assert the format
+// and stream codecs survived. Needs the intermediate-profile module.
+func TestIntegration_Containers(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4")
+
+	cases := []struct {
+		out, filter, vcodec, acodec, wantFormat, wantVideo string
+	}{
+		{"o.ts", "[0:v]null[v];[0:a]anull[a]", "libopenh264", "aac", "mpegts", "h264"},
+		{"o.flv", "[0:v]null[v];[0:a]anull[a]", "libopenh264", "aac", "flv", "h264"},
+		{"o.avi", "[0:v]null[v];[0:a]anull[a]", "mjpeg", "pcm_s16le", "avi", "mjpeg"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.wantFormat, func(t *testing.T) {
+			cmd := afmpeg.Command{
+				Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+				FilterComplex: tc.filter,
+				Outputs: []afmpeg.Output{{
+					Path: tc.out, Map: []string{"[v]", "[a]"},
+					VideoCodec: tc.vcodec, AudioCodec: tc.acodec,
+				}},
+			}
+			if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+				t.Fatalf("transcode → %s: res=%+v err=%v", tc.wantFormat, res, err)
+			}
+
+			p, err := rt.Probe(ctx, fs, tc.out)
+			if err != nil {
+				t.Fatalf("probe %s: %v", tc.out, err)
+			}
+			if !strings.Contains(p.Format, tc.wantFormat) {
+				t.Errorf("%s format = %q, want %q", tc.out, p.Format, tc.wantFormat)
+			}
+
+			var haveVideo bool
+			for _, s := range p.Streams {
+				haveVideo = haveVideo || s.Codec == tc.wantVideo
+			}
+			if !haveVideo {
+				t.Errorf("%s streams = %+v, want a %s video stream", tc.out, p.Streams, tc.wantVideo)
+			}
+		})
+	}
+
+	// Animated GIF: the gif container rides with its codec (spec 0015 §9).
+	gif := afmpeg.Command{
+		Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+		FilterComplex: "[0:v]scale=48:48[v]",
+		Outputs:       []afmpeg.Output{{Path: "o.gif", Map: []string{"[v]"}, VideoCodec: "gif"}},
+	}
+	if res, err := rt.RunJob(ctx, fs, gif); err != nil || res.ExitCode != 0 {
+		t.Fatalf("transcode → gif: res=%+v err=%v", res, err)
+	}
+	if p, err := rt.Probe(ctx, fs, "o.gif"); err != nil || !strings.Contains(p.Format, "gif") {
+		t.Fatalf("gif probe = %+v err=%v, want gif", p, err)
+	}
+}
+
+// TestIntegration_MuxerSelection proves outputs[].format forces the muxer where
+// the path extension wouldn't (spec 0015 D-0015-C).
+func TestIntegration_MuxerSelection(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapAVMP4(t, rt, fs, "src.mp4")
+
+	// A ".bin" path the extension can't guess — forced to mpegts.
+	cmd := afmpeg.NewCommand(
+		afmpeg.WithInput("src.mp4"),
+		afmpeg.WithOutput("stream.bin", afmpeg.OutputFormat("mpegts"),
+			afmpeg.AudioCodec("aac")),
+	)
+	if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+		t.Fatalf("forced mpegts: res=%+v err=%v", res, err)
+	}
+	if p, err := rt.Probe(ctx, fs, "stream.bin"); err != nil || !strings.Contains(p.Format, "mpegts") {
+		t.Fatalf("forced-mpegts probe = %+v err=%v, want mpegts", p, err)
+	}
+}
+
+// TestIntegration_Segmenting_HLS proves R-0015-1: one outputs[] entry with
+// format:"hls" writes a set of .ts segment files + an .m3u8 playlist to the
+// mounted fs (no network), driven by format_options.
+func TestIntegration_Segmenting_HLS(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4") // ~2s, so hls_time=1 → ≥2 segments
+
+	cmd := afmpeg.NewCommand(
+		afmpeg.WithInput("src.mp4"),
+		afmpeg.WithFilterComplex("[0:v]null[v]"),
+		afmpeg.WithOutput("stream.m3u8", afmpeg.Map("[v]"),
+			afmpeg.OutputFormat("hls"), afmpeg.VideoCodec("libopenh264"),
+			afmpeg.FormatOption("hls_time", "1"),
+			afmpeg.FormatOption("hls_segment_filename", "seg_%03d.ts"),
+			afmpeg.FormatOption("hls_list_size", "0")),
+	)
+
+	res, err := rt.RunJob(ctx, fs, cmd)
+	if err != nil || res.ExitCode != 0 {
+		t.Fatalf("hls segmenting: res=%+v err=%v", res, err)
+	}
+
+	if !strings.Contains(res.Stdout, `"segmented":true`) {
+		t.Errorf("result did not mark the output segmented:\n%s", res.Stdout)
+	}
+
+	// The playlist and at least two segment files must exist on the fs.
+	if pl, err := afero.ReadFile(fs, "stream.m3u8"); err != nil || !strings.Contains(string(pl), "seg_000.ts") {
+		t.Fatalf("playlist stream.m3u8 missing or doesn't reference the segments: err=%v", err)
+	}
+
+	segs := 0
+	for i := 0; i < 10; i++ {
+		if ok, _ := afero.Exists(fs, fmt.Sprintf("seg_%03d.ts", i)); ok {
+			segs++
+		}
+	}
+	if segs < 2 {
+		t.Fatalf("hls produced %d segment files, want >= 2", segs)
+	}
+}
+
+// TestIntegration_FragmentedMP4 proves R-0015-2: fragmented MP4 via movflags
+// through format_options (the CMAF/low-latency shape).
+func TestIntegration_FragmentedMP4(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4")
+
+	cmd := afmpeg.NewCommand(
+		afmpeg.WithInput("src.mp4"),
+		afmpeg.WithFilterComplex("[0:v]null[v]"),
+		afmpeg.WithOutput("frag.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libopenh264"),
+			afmpeg.FormatOption("movflags", "+frag_keyframe+empty_moov+default_base_moof")),
+	)
+	if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+		t.Fatalf("fragmented mp4: res=%+v err=%v", res, err)
+	}
+
+	// A fragmented mp4 carries an 'moof' box (media fragments) — absent in a plain
+	// mp4 (which has a single 'moov').
+	out, err := afero.ReadFile(fs, "frag.mp4")
+	if err != nil || !bytes.Contains(out, []byte("moof")) {
+		t.Fatalf("fragmented mp4 has no moof box: err=%v len=%d", err, len(out))
+	}
+}
+
+// TestIntegration_TS_CopyRemux is 0013's deferred mp4→ts copy remux, switched on
+// by 0015's mpegts muxer: cross-container copy needs the auto-inserted
+// h264_mp4toannexb bitstream filter.
+func TestIntegration_TS_CopyRemux(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapAVMP4(t, rt, fs, "src.mp4")
+
+	cmd := afmpeg.Command{
+		Inputs: []afmpeg.Input{{Path: "src.mp4"}},
+		Outputs: []afmpeg.Output{{
+			Path: "out.ts", Map: []string{"0:v", "0:a"},
+			VideoCodec: afmpeg.CodecCopy, AudioCodec: afmpeg.CodecCopy,
+		}},
+	}
+	if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+		t.Fatalf("mp4→ts copy: res=%+v err=%v", res, err)
+	}
+
+	p, err := rt.Probe(ctx, fs, "out.ts")
+	if err != nil || !strings.Contains(p.Format, "mpegts") {
+		t.Fatalf("ts probe = %+v err=%v, want mpegts", p, err)
+	}
+
+	var haveH264, haveAAC bool
+	for _, s := range p.Streams {
+		haveH264 = haveH264 || s.Codec == "h264"
+		haveAAC = haveAAC || s.Codec == "aac"
+	}
+	if !haveH264 || !haveAAC {
+		t.Fatalf("ts streams = %+v, want h264 + aac copied", p.Streams)
+	}
+}
+
+// TestIntegration_TS_ConcatCopy is the full A/V concat-copy 0013 deferred: MPEG-TS
+// segments carry continuous timestamps, so joining two of them with copy (which
+// mp4's audio priming made impossible) works.
+func TestIntegration_TS_ConcatCopy(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+
+	// Two like-codec TS segments (transcode the clip to ts twice).
+	for _, seg := range []string{"a.ts", "b.ts"} {
+		bootstrapClipMP4(t, rt, fs, "src.mp4")
+		cmd := afmpeg.Command{
+			Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+			FilterComplex: "[0:v]null[v];[0:a]anull[a]",
+			Outputs: []afmpeg.Output{{
+				Path: seg, Map: []string{"[v]", "[a]"}, VideoCodec: "libopenh264", AudioCodec: "aac",
+			}},
+		}
+		if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+			t.Fatalf("make %s: res=%+v err=%v", seg, res, err)
+		}
+	}
+
+	// Join both segments, copying every stream — the mp4-impossible case.
+	join := afmpeg.Command{
+		Inputs: []afmpeg.Input{{Concat: []string{"a.ts", "b.ts"}}},
+		Outputs: []afmpeg.Output{{
+			Path: "joined.ts", Map: []string{"0:v", "0:a"},
+			VideoCodec: afmpeg.CodecCopy, AudioCodec: afmpeg.CodecCopy,
+		}},
+	}
+	res, err := rt.RunJob(ctx, fs, join)
+	if err != nil || res.ExitCode != 0 {
+		t.Fatalf("ts concat-copy (full A/V): res=%+v err=%v", res, err)
+	}
+
+	seg, err := rt.Probe(ctx, fs, "a.ts")
+	if err != nil {
+		t.Fatalf("probe segment: %v", err)
+	}
+	joined, err := rt.Probe(ctx, fs, "joined.ts")
+	if err != nil {
+		t.Fatalf("probe joined: %v", err)
+	}
+	if joined.DurationSec < seg.DurationSec*1.5 {
+		t.Fatalf("joined %.2fs, want ~2x a segment's %.2fs", joined.DurationSec, seg.DurationSec)
 	}
 }
 

@@ -146,3 +146,22 @@ func End(sec float64) OutputOption {
 func CopyTS() OutputOption {
 	return func(out *Output) { out.CopyTS = true }
 }
+
+// OutputFormat forces the muxer by name (e.g. "hls", "dash", "segment",
+// "mpegts") when the path extension doesn't imply it (spec 0015).
+func OutputFormat(name string) OutputOption {
+	return func(out *Output) { out.Format = name }
+}
+
+// FormatOption sets one muxer option on an output (spec 0015) — segment timing/
+// naming, fragmentation flags, etc.; e.g. FormatOption("hls_time", "4"). Distinct
+// from WithOption, which sets an encoder option.
+func FormatOption(key, value string) OutputOption {
+	return func(out *Output) {
+		if out.FormatOptions == nil {
+			out.FormatOptions = make(map[string]string)
+		}
+
+		out.FormatOptions[key] = value
+	}
+}

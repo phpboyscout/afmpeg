@@ -87,6 +87,16 @@ type Output struct {
 	// a clip starting at t=0 is the default; set CopyTS when timelines must stay
 	// aligned across outputs (spec 0014).
 	CopyTS bool
+
+	// Format forces the muxer by name (e.g. "hls", "dash", "segment", "mpegts")
+	// instead of guessing from the path extension — needed where the extension
+	// doesn't imply the muxer (spec 0015).
+	Format string
+
+	// FormatOptions are muxer options passed to write_header (spec 0015) — segment
+	// timing/naming (hls_time, hls_segment_filename, …), fragmentation flags
+	// (movflags), etc. Distinct from Options, which reach the encoder.
+	FormatOptions map[string]string
 }
 
 // jobSpec is the JSON the ffmpeg-wasi engine consumes (the process / probe ops).
@@ -123,6 +133,8 @@ type jobOutput struct {
 	Duration         float64           `json:"duration,omitempty"`
 	End              float64           `json:"end,omitempty"`
 	CopyTS           bool              `json:"copy_ts,omitempty"`
+	Format           string            `json:"format,omitempty"`
+	FormatOptions    map[string]string `json:"format_options,omitempty"`
 }
 
 // CodecCopy is the codec sentinel that remuxes a mapped stream — passed through

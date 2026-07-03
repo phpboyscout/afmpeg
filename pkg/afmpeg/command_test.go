@@ -324,6 +324,50 @@ func TestCommand_JobSpec_InputOptions(t *testing.T) {
 	}
 }
 
+// TestCommand_JobSpec_OutputFormat renders the spec-0015 muxer vocabulary: a
+// forced muxer and its format-options dict.
+func TestCommand_JobSpec_OutputFormat(t *testing.T) {
+	t.Parallel()
+
+	cmd := afmpeg.NewCommand(
+		afmpeg.WithInput("in.mp4"),
+		afmpeg.WithFilterComplex("[0:v]null[v]"),
+		afmpeg.WithOutput("stream.m3u8", afmpeg.Map("[v]"), afmpeg.VideoCodec("libopenh264"),
+			afmpeg.OutputFormat("hls"),
+			afmpeg.FormatOption("hls_time", "4"),
+			afmpeg.FormatOption("hls_segment_filename", "seg_%03d.ts")),
+	)
+
+	data, err := cmd.JobSpec()
+	if err != nil {
+		t.Fatalf("JobSpec: %v", err)
+	}
+
+	var got struct {
+		Version int `json:"version"`
+		Outputs []struct {
+			Format        string            `json:"format"`
+			FormatOptions map[string]string `json:"format_options"`
+		} `json:"outputs"`
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, data)
+	}
+
+	if got.Version < 5 {
+		t.Errorf("version = %d, want >= 5 (the 0015 vocabulary)", got.Version)
+	}
+
+	o := got.Outputs[0]
+	if o.Format != "hls" {
+		t.Errorf("format = %q, want hls", o.Format)
+	}
+
+	if o.FormatOptions["hls_time"] != "4" || o.FormatOptions["hls_segment_filename"] != "seg_%03d.ts" {
+		t.Errorf("format_options = %v", o.FormatOptions)
+	}
+}
+
 // TestSeekAndWindowOptions exercises the 0014 builder options.
 func TestSeekAndWindowOptions(t *testing.T) {
 	t.Parallel()
