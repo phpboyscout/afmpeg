@@ -38,7 +38,8 @@ prereqs; it shipped standalone at **v1**, so each spec below bumps the version).
   Matroska output surfaced and fixed a pre-existing WASI entropy hang (`/dev/urandom` now served by
   the vfs).
 - **[0014](specs/0014-seeking-and-time-ranges.md) seeking & time ranges** (`-ss/-t/-to`) —
-  foundational for 0021; pairs with 0013's keyframe-accurate copy-trim.
+  foundational for 0021; pairs with 0013's keyframe-accurate copy-trim. **✅ SHIPPED at vocab v3**
+  (fast/accurate seek, duration/end windows, copy_ts, probe `start_sec`; copy-trim verified).
 - **[0024](specs/0024-input-options-and-formats.md) input options & formats** — activate the inert
   `inputs[].options`, forced/raw input format, input stream selection. Cheap; symmetric to 0015.
 

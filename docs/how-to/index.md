@@ -24,6 +24,9 @@ Available:
 - **[Remux without re-encoding (stream copy)](remux-without-re-encoding.md)** — change a
   container, mix copy with transcode, or join like-codec segments packet-for-packet with the
   `CodecCopy` sentinel — no decode, no encode, no quality loss.
+- **[Extract a clip (seek and time ranges)](extract-a-clip.md)** — cut a time window without
+  decoding from the file start: a cheap keyframe cut, a frame-accurate one, or a
+  no-re-encode copy-trim.
 - **[Compose a command with the builder](compose-a-command.md)** — assemble any
   invocation (inputs / filtergraph / outputs) as typed data and run it with `RunJob`
   (`JobSpec()`).

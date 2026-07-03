@@ -1,7 +1,17 @@
 # 0014 — seeking & time ranges
 
-Status: **DRAFT / SCOPING** (one of the 0013–0023 batch promoting [0012](0012-feature-parity-roadmap.md)
-§7's Tier-1 gaps to specs. Design only — not yet built. Review before building.)
+Status: **IMPLEMENTED** (Phase 1 of the [implementation roadmap](../implementation-roadmap.md);
+shipped at **vocabulary version 3**: `inputs[].seek {start, mode}` (fast default / accurate
+opt-in), `outputs[].duration | end` (mutually exclusive), `outputs[].copy_ts` (zero-base default).
+Fast seek lands on the keyframe at-or-before start and the output zero-bases on it; accurate seek
+decode-and-discards to the exact frame; the window is enforced on both the encode and copy paths,
+with early input-EOF once every consuming output's window has passed. D-0014-F enforced both
+Go-side (`Command` validation) and engine-side (typed error). Probe gained `start_sec` so a
+preserved (`copy_ts`) timeline is observable. Q1 resolved: under `copy_ts`, `end` is an absolute
+source position; otherwise the output timeline (where it coincides with `duration`, matching
+ffmpeg's `-ss` + `-to` behaviour). Q2: seek precedes the graph — `trim` operates on the rebased
+timeline. Q3: all-keyframe streams collapse fast/accurate harmlessly. Q4: per-input duration out
+of scope. Verified end-to-end incl. 0013's deferred keyframe-accurate copy-trim.)
 Date: 2026-06-30
 Parent: [0012](0012-feature-parity-roadmap.md) §4F/§7; [0007](0007-libav-direct-engine.md) (the engine this extends)
 Owns: **R-PARITY-SEEK** (input fast/accurate seek + output duration/end + PTS rebasing)
