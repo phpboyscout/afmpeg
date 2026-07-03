@@ -920,6 +920,91 @@ func TestIntegration_IndexedStreamSelection(t *testing.T) {
 	}
 }
 
+// TestIntegration_NativeCodecs round-trips the spec-0016 native codec batch that
+// has an encoder: transcode into the codec, then probe it back — proving both the
+// encoder and the decoder. The decode-only codecs (prores, dnxhd, mpeg2video,
+// vc1, wmv3, theora, dca, eac3, wmav2) are enabled in the build but can't be
+// synthesised from the dependency-free corpus (spec 0016 §8) — they await the
+// shared licence-clean media fixtures. Needs the intermediate-profile module.
+func TestIntegration_NativeCodecs(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4") // multi-frame, so image2 output has frames
+
+	// Audio encoders → Matroska (permissive), probed back to the codec. Resample
+	// to 48 kHz so ac3 (which rejects the fixture's 8 kHz) is happy; harmless to
+	// the others.
+	audio := []struct{ codec, out string }{
+		{"ac3", "a_ac3.mkv"},
+		{"alac", "a_alac.mkv"},
+		{"pcm_s24le", "a_s24.mkv"},
+		{"pcm_f32le", "a_f32.mkv"},
+	}
+	for _, tc := range audio {
+		t.Run(tc.codec, func(t *testing.T) {
+			cmd := afmpeg.Command{
+				Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+				FilterComplex: "[0:a]aresample=48000[a]",
+				Outputs:       []afmpeg.Output{{Path: tc.out, Map: []string{"[a]"}, AudioCodec: tc.codec}},
+			}
+			if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+				t.Fatalf("encode %s: res=%+v err=%v", tc.codec, res, err)
+			}
+
+			p, err := rt.Probe(ctx, fs, tc.out)
+			if err != nil {
+				t.Fatalf("probe %s: %v", tc.out, err)
+			}
+			if len(p.Streams) != 1 || p.Streams[0].Codec != tc.codec {
+				t.Fatalf("%s round-trip streams = %+v, want codec %s", tc.codec, p.Streams, tc.codec)
+			}
+		})
+	}
+
+	// Image encoders: an image2 sequence (a %d pattern is its natural mode) whose
+	// first frame carries the codec's magic bytes — proving the encoder is linked
+	// and produces valid output.
+	images := []struct {
+		codec, pattern, first string
+		magic                 []byte
+	}{
+		{"bmp", "f_%03d.bmp", "f_001.bmp", []byte("BM")},
+		{"tiff", "f_%03d.tiff", "f_001.tiff", []byte("II")},
+	}
+	for _, tc := range images {
+		t.Run(tc.codec, func(t *testing.T) {
+			enc := afmpeg.Command{
+				Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+				FilterComplex: "[0:v]null[v]",
+				Outputs:       []afmpeg.Output{{Path: tc.pattern, Map: []string{"[v]"}, VideoCodec: tc.codec}},
+			}
+			if res, err := rt.RunJob(ctx, fs, enc); err != nil || res.ExitCode != 0 {
+				t.Fatalf("encode %s: res=%+v err=%v", tc.codec, res, err)
+			}
+
+			img, err := afero.ReadFile(fs, tc.first)
+			if err != nil || !bytes.HasPrefix(img, tc.magic) {
+				t.Fatalf("%s encode: %s missing or wrong magic (err=%v)", tc.codec, tc.first, err)
+			}
+		})
+	}
+}
+
 // TestIntegration_NativeFilters proves the spec-0017 filter batch: one graph per
 // group parses and produces output (the filters are flag-only additions to the
 // filtergraph string — no vocabulary change). Needs the intermediate-profile
