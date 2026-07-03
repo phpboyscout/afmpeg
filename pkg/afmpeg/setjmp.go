@@ -10,12 +10,16 @@ import (
 )
 
 // runtimeCoreFeatures are the WebAssembly features afmpeg's runtime enables. It
-// is the stable V2 set (which the Go WASI test guest needs) plus the two
-// experimental features an FFmpeg build requires — extended-const and tail-call.
-// Without these a real ffmpeg.wasm fails to compile under wazero.
+// is the stable V2 set (which the Go WASI test guest needs) plus the experimental
+// features an FFmpeg build requires — extended-const, tail-call, and (modern,
+// exnref-based) exception-handling. The last carries the SjLj lowering that
+// libvpx's encoder uses: clang emits setjmp/longjmp as wasm EH via libsetjmp.a,
+// whose tag section wazero only loads with this feature on. Without these a real
+// ffmpeg.wasm fails to compile under wazero.
 const runtimeCoreFeatures = api.CoreFeaturesV2 |
 	experimental.CoreFeaturesExtendedConst |
-	experimental.CoreFeaturesTailCall
+	experimental.CoreFeaturesTailCall |
+	experimental.CoreFeaturesExceptionHandling
 
 // sjljKey identifies the per-invocation setjmp/longjmp store on the context.
 type sjljKey struct{}

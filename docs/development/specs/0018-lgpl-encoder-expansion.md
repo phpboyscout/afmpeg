@@ -1,8 +1,13 @@
 # 0018 — LGPL encoder expansion
 
-Status: **DRAFT / SCOPING** (one of the 0013–0023 batch promoting the [0012](0012-feature-parity-roadmap.md)
-feature-parity roadmap into buildable specs. Design only — do **not** implement. This one owns the
-external LGPL/BSD-clean encoder libs that enrich the **default** variant.)
+Status: **IMPLEMENTED** (Phase 3 of the [implementation roadmap](../implementation-roadmap.md).
+Five external LGPL/BSD-clean encoder libs cross-compiled into the **intermediate** build profile
+([0022](0022-build-size-matrix.md)) via `ffmpeg-wasi build/deps.sh` — **libopus** (Opus),
+**libmp3lame** (MP3), **libvorbis**+**libogg** (Vorbis), **libwebp** (WebP) and **libvpx**
+(VP8/VP9) — each with its `--enable-lib*`/`--enable-encoder` pair in `libav.sh`. No vocabulary
+change: the encoders are new `video_codec`/`audio_codec` name strings. libvpx's encoder uses
+setjmp/longjmp → wasm exception-handling (libsetjmp.a), so the afmpeg runtime enables the
+exnref EH feature. Round-trips proven in afmpeg's `TestIntegration_LGPLEncoders`.)
 Date: 2026-06-30
 Parent: [0012](0012-feature-parity-roadmap.md) §4B/§5 (Tier 2 encoder quartet); [0007](0007-libav-direct-engine.md) §3/§5 (the engine + the licence variants)
 Owns: **R-PARITY-LGPL-ENCODERS**

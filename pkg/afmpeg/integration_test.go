@@ -1005,6 +1005,107 @@ func TestIntegration_NativeCodecs(t *testing.T) {
 	}
 }
 
+// TestIntegration_LGPLEncoders proves the spec-0018 external encoder libs cross-
+// compiled into deps.sh (libopus/libmp3lame/libvorbis): each named encoder links
+// and produces a stream that probes back to its FFmpeg codec name. 0018 adds no
+// vocabulary — the encoder names are just newly-valid audio_codec strings — so a
+// round-trip is the whole proof. Needs the intermediate-profile module.
+func TestIntegration_LGPLEncoders(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4")
+
+	// The encoder name we pass (libopus) differs from the codec name it produces
+	// (opus) — probe checks the produced codec. Resample to 48 kHz: opus only
+	// accepts it, and it's harmless to mp3/vorbis. Matroska carries all three.
+	cases := []struct{ encoder, codec, out string }{
+		{"libopus", "opus", "a_opus.mkv"},
+		{"libmp3lame", "mp3", "a_mp3.mkv"},
+		{"libvorbis", "vorbis", "a_vorbis.mkv"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.encoder, func(t *testing.T) {
+			cmd := afmpeg.Command{
+				Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+				FilterComplex: "[0:a]aresample=48000[a]",
+				Outputs:       []afmpeg.Output{{Path: tc.out, Map: []string{"[a]"}, AudioCodec: tc.encoder}},
+			}
+			if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+				t.Fatalf("encode %s: res=%+v err=%v", tc.encoder, res, err)
+			}
+
+			p, err := rt.Probe(ctx, fs, tc.out)
+			if err != nil {
+				t.Fatalf("probe %s: %v", tc.out, err)
+			}
+			if len(p.Streams) != 1 || p.Streams[0].Codec != tc.codec {
+				t.Fatalf("%s round-trip streams = %+v, want codec %s", tc.encoder, p.Streams, tc.codec)
+			}
+		})
+	}
+
+	// libvpx: VP8/VP9 video → WebM, probed back. Tiny frame + short window keeps
+	// the notably-slow single-threaded VP9 encode fast enough for a unit run. The
+	// encoder name differs from the codec (libvpx→vp8, libvpx-vp9→vp9).
+	video := []struct{ encoder, codec, out string }{
+		{"libvpx", "vp8", "v_vp8.webm"},
+		{"libvpx-vp9", "vp9", "v_vp9.webm"},
+	}
+	for _, tc := range video {
+		t.Run(tc.encoder, func(t *testing.T) {
+			cmd := afmpeg.Command{
+				Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+				FilterComplex: "[0:v]scale=48:48,fps=5[v]",
+				Outputs:       []afmpeg.Output{{Path: tc.out, Map: []string{"[v]"}, VideoCodec: tc.encoder, Duration: 0.6}},
+			}
+			if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+				t.Fatalf("encode %s: res=%+v err=%v", tc.encoder, res, err)
+			}
+
+			p, err := rt.Probe(ctx, fs, tc.out)
+			if err != nil {
+				t.Fatalf("probe %s: %v", tc.out, err)
+			}
+			if len(p.Streams) != 1 || p.Streams[0].Codec != tc.codec {
+				t.Fatalf("%s round-trip streams = %+v, want codec %s", tc.encoder, p.Streams, tc.codec)
+			}
+		})
+	}
+
+	// libwebp: encode a frame to WebP (via the image2 muxer, like bmp/tiff) and
+	// check the RIFF/WEBP container magic — proof the encoder links and emits a
+	// valid file. (WebP demux for a probe round-trip isn't in this batch.)
+	t.Run("libwebp", func(t *testing.T) {
+		enc := afmpeg.Command{
+			Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+			FilterComplex: "[0:v]scale=64:64[v]",
+			Outputs:       []afmpeg.Output{{Path: "f_%03d.webp", Map: []string{"[v]"}, VideoCodec: "libwebp"}},
+		}
+		if res, err := rt.RunJob(ctx, fs, enc); err != nil || res.ExitCode != 0 {
+			t.Fatalf("encode libwebp: res=%+v err=%v", res, err)
+		}
+		img, err := afero.ReadFile(fs, "f_001.webp")
+		if err != nil || len(img) < 12 || !bytes.HasPrefix(img, []byte("RIFF")) || !bytes.Equal(img[8:12], []byte("WEBP")) {
+			t.Fatalf("libwebp encode: f_001.webp missing or wrong magic (len=%d err=%v)", len(img), err)
+		}
+	})
+}
+
 // TestIntegration_NativeFilters proves the spec-0017 filter batch: one graph per
 // group parses and produces output (the filters are flag-only additions to the
 // filtergraph string — no vocabulary change). Needs the intermediate-profile

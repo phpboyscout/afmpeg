@@ -67,7 +67,9 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
 
 ### Phase 3 — Codec reach + build-on capabilities
 - **[0018](specs/0018-lgpl-encoder-expansion.md) LGPL encoders** (Opus/MP3/VP8-9/WebP/Vorbis) —
-  external-lib cross-compiles → intermediate; the default-variant codec win.
+  external-lib cross-compiles → intermediate; the default-variant codec win. **DONE** — all five
+  libs (libopus/libmp3lame/libvorbis/libwebp/libvpx) build + round-trip; libvpx's setjmp rides
+  wasm exception-handling (EH feature enabled in the runtime).
 - **[0020](specs/0020-metadata-and-chapters.md) metadata & chapters** (needs 0013).
 - **[0021](specs/0021-frame-extraction-op.md) frames op** (needs 0014 + 0017's select/thumbnail).
 
