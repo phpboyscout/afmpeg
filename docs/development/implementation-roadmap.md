@@ -50,7 +50,10 @@ gate v1 → 0013 v2 → 0014 v3 → 0024 v4.**
 Codec track. Establish the profile machinery, then flood the intermediate profile with native flags.
 - **[0022](specs/0022-build-size-matrix.md) profile machinery (WASM side)** — add the `PROFILE`
   build-arg: `lean` = today's build; `intermediate` = a new target (starts == lean). Small
-  mechanism; the batches below fill it.
+  mechanism; the batches below fill it. **✅ SHIPPED** — `PROFILE=lean|intermediate` in `libav.sh`
+  + Dockerfile (lean keeps the legacy artifact name; intermediate is
+  `ffmpeg-wasi-intermediate-<variant>.wasm` with an empty `INTERMEDIATE_ENABLE` hook). Native
+  matrix + selection API remain downstream (0022 §5/§7, with 0028).
 - **[0015](specs/0015-container-coverage.md) / [0016](specs/0016-native-codec-batch.md) /
   [0017](specs/0017-native-filter-batch.md)** — native `--enable-*` batches (containers, decoders/
   native-encoders, filters) → the **intermediate** allowlist (lean stays minimal). No new libs,

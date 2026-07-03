@@ -1,9 +1,17 @@
 # 0022 — the build & distribution matrix
 
-Status: **DRAFT / SCOPING** (refined 2026-07-02 — the lean/intermediate/full profile model, the
-runtime×profile mapping, and the native platform set are RESOLVED with the user; the concrete
-codec-set-per-profile in §6 is the proposed starting policy. This spec **governs the
-codec-bundling decision every other spec defers to**.)
+Status: **POLICY AGREED; WASM PROFILE MACHINERY IMPLEMENTED** (refined 2026-07-02 — the
+lean/intermediate/full profile model, the runtime×profile mapping, and the native platform set are
+RESOLVED with the user; the concrete codec-set-per-profile in §6 is the proposed starting policy.
+This spec **governs the codec-bundling decision every other spec defers to**. **Built 2026-07-03
+(Phase 2):** the WASM-side `PROFILE` build-arg — `ffmpeg-wasi build/` now takes `PROFILE=lean`
+(default; the legacy `ffmpeg-wasi-<variant>.wasm` artifact, unchanged) or `PROFILE=intermediate`
+(a new `ffmpeg-wasi-intermediate-<variant>.wasm` that starts byte-identical to lean, with an empty
+`INTERMEDIATE_ENABLE` hook the 0015/0016/0017 batches fill additively). Verified: both profiles
+build, intermediate runs the full integration suite (≡ lean capability), a bogus profile is
+rejected. **Downstream/uncommitted:** the native runtime + platform matrix (with [0028](0028-native-subprocess-backend.md)),
+the 16-artifact release publishing, afmpeg's `(profile, licence)` selection API, and the CI
+size-budget gate.)
 Date: 2026-06-30 (refined 2026-07-02)
 Parent: [0012](0012-feature-parity-roadmap.md), [0007](0007-libav-direct-engine.md)
 Governs the bucketing for: [0015](0015-container-coverage.md) [0016](0016-native-codec-batch.md)
