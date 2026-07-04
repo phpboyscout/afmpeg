@@ -30,7 +30,7 @@ for:
 ```go
 var prov afmpeg.Provenance
 rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
-    "n8.1.2-4", afmpeg.VariantLGPL,
+    "n8.1.2-6", afmpeg.VariantLGPL,
     afmpeg.WithReleaseProvenance(&prov), // optional: what was loaded
 ))
 // prov.FFmpegVersion, prov.Variants[...] — verified, not just downloaded.
