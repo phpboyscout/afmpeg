@@ -1388,6 +1388,98 @@ func TestIntegration_BurnIn(t *testing.T) {
 	})
 }
 
+// TestIntegration_SubtitleStreams proves the spec-0019 subtitle-stream lane: a
+// subtitle track (mapped by an "N:s" specifier) is converted between codecs
+// (srt→webvtt), copied unchanged, and embedded into an mp4 as mov_text — the
+// AVMEDIA_TYPE_SUBTITLE lane beside the graph and the copy path. Needs the
+// intermediate-profile module.
+func TestIntegration_SubtitleStreams(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4")
+	srt := "1\n00:00:00,000 --> 00:00:01,500\nhello afmpeg\n\n2\n00:00:01,500 --> 00:00:02,000\nbye\n"
+	if err := afero.WriteFile(fs, "sub.srt", []byte(srt), 0o644); err != nil {
+		t.Fatalf("seed srt: %v", err)
+	}
+
+	// The engine reads the .srt as a subtitle stream via the srt demuxer.
+	if p, err := rt.Probe(ctx, fs, "sub.srt"); err != nil || len(p.Streams) != 1 || p.Streams[0].Type != "subtitle" {
+		t.Fatalf("probe sub.srt: streams=%+v err=%v", p.Streams, err)
+	}
+
+	t.Run("convert srt to webvtt", func(t *testing.T) {
+		cmd := afmpeg.Command{
+			Inputs:  []afmpeg.Input{{Path: "sub.srt"}},
+			Outputs: []afmpeg.Output{{Path: "out.vtt", Map: []string{"0:s"}, SubtitleCodec: "webvtt"}},
+		}
+		if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+			t.Fatalf("srt→vtt: res=%+v err=%v", res, err)
+		}
+		p, err := rt.Probe(ctx, fs, "out.vtt")
+		if err != nil || len(p.Streams) != 1 || p.Streams[0].Codec != "webvtt" {
+			t.Fatalf("probe out.vtt: streams=%+v err=%v", p.Streams, err)
+		}
+	})
+
+	t.Run("copy subtitle stream", func(t *testing.T) {
+		cmd := afmpeg.Command{
+			Inputs:  []afmpeg.Input{{Path: "sub.srt"}},
+			Outputs: []afmpeg.Output{{Path: "copy.srt", Map: []string{"0:s"}, SubtitleCodec: afmpeg.CodecCopy}},
+		}
+		if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+			t.Fatalf("srt copy: res=%+v err=%v", res, err)
+		}
+		b, err := afero.ReadFile(fs, "copy.srt")
+		if err != nil || !bytes.Contains(b, []byte("hello afmpeg")) {
+			t.Fatalf("copy.srt missing or wrong content (err=%v)", err)
+		}
+	})
+
+	t.Run("embed mov_text into mp4", func(t *testing.T) {
+		cmd := afmpeg.Command{
+			Inputs: []afmpeg.Input{{Path: "src.mp4"}, {Path: "sub.srt"}},
+			Outputs: []afmpeg.Output{{
+				Path:          "embedded.mp4",
+				Map:           []string{"0:v", "0:a", "1:s"},
+				VideoCodec:    afmpeg.CodecCopy,
+				AudioCodec:    afmpeg.CodecCopy,
+				SubtitleCodec: "mov_text",
+			}},
+		}
+		if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+			t.Fatalf("embed mov_text: res=%+v err=%v", res, err)
+		}
+		p, err := rt.Probe(ctx, fs, "embedded.mp4")
+		if err != nil {
+			t.Fatalf("probe embedded.mp4: %v", err)
+		}
+		var sub *afmpeg.ProbeStream
+		for i := range p.Streams {
+			if p.Streams[i].Type == "subtitle" {
+				sub = &p.Streams[i]
+			}
+		}
+		if sub == nil || sub.Codec != "mov_text" {
+			t.Fatalf("embedded.mp4 streams = %+v, want a mov_text subtitle", p.Streams)
+		}
+	})
+}
+
 // TestIntegration_NativeFilters proves the spec-0017 filter batch: one graph per
 // group parses and produces output (the filters are flag-only additions to the
 // filtergraph string — no vocabulary change). Needs the intermediate-profile

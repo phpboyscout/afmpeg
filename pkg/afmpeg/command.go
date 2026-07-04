@@ -72,6 +72,12 @@ type Output struct {
 	AudioCodec string            // the audio encoder (e.g. "aac"), or CodecCopy to remux
 	Options    map[string]string // encoder options (e.g. {"crf": "23"})
 
+	// SubtitleCodec transcodes a subtitle stream named in Map by an "N:s"
+	// specifier (spec 0019) to this encoder (e.g. "srt", "webvtt", "mov_text"),
+	// or CodecCopy to remux it unchanged. An output may carry it alone (a sidecar
+	// .srt/.vtt) or alongside video/audio (an embedded track).
+	SubtitleCodec string
+
 	// BitstreamFilters overrides the bitstream filter for a copied stream, keyed
 	// by its Map entry (e.g. {"0:v": "h264_mp4toannexb"}); "none" force-disables.
 	// Absent → the muxer auto-inserts any container-required filter (spec 0013).
@@ -151,6 +157,7 @@ type jobOutput struct {
 	VideoCodec       string                `json:"video_codec,omitempty"`
 	AudioCodec       string                `json:"audio_codec,omitempty"`
 	Options          map[string]string     `json:"options,omitempty"`
+	SubtitleCodec    string                `json:"subtitle_codec,omitempty"`
 	BitstreamFilters map[string]string     `json:"bitstream_filters,omitempty"`
 	Duration         float64               `json:"duration,omitempty"`
 	End              float64               `json:"end,omitempty"`

@@ -28,11 +28,14 @@ import (
 //	    Output.Chapters ("copy"/index), Output.StreamMetadata (per-map
 //	    language/disposition/tags). Probe gains Tags/Chapters and per-stream
 //	    Tags/Disposition/Language (additive read side).
+//	8 — subtitle streams (spec 0019): Output.SubtitleCodec (an encoder name or
+//	    CodecCopy) + "N:s" subtitle map specifiers — extract/convert/copy
+//	    subtitle tracks.
 //
 // Every process/probe spec is stamped with it; the engine rejects a spec whose
 // version exceeds what it supports, so a new field can never be silently dropped
 // by an older engine (it fails the whole spec instead).
-const vocabVersion = 7
+const vocabVersion = 8
 
 // engineVocab is the engine's reply to the op:"version" query — its highest
 // supported vocabulary version and the FFmpeg build it links.

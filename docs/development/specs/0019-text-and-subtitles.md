@@ -1,15 +1,19 @@
 # 0019 — text & subtitles
 
-Status: **PARTIALLY IMPLEMENTED** (Phase 4 of the [implementation roadmap](../implementation-roadmap.md).
-**Burn-in (mechanism (a), D-0019-A) — DONE:** the `drawtext` (freetype + harfbuzz), `subtitles`
-and `ass` (libass) filters are built into the **intermediate** profile, with freetype/harfbuzz/
-fribidi/libass cross-compiled via the meson toolchain of [0029](0029-meson-cross-compile-toolchain.md).
-Fonts come from the mounted fs by path (no fontconfig, D-0019-C). No job-spec change — burn-in is
-expressed in the `filter` string. Proven by afmpeg's `TestIntegration_BurnIn` (drawtext + an SRT
-via `subtitles`, and a missing-font clean failure).
-**Subtitle streams (mechanism (b), D-0019-B) — PENDING:** the `AVMEDIA_TYPE_SUBTITLE` lane in
-`process.c` (extract/convert/copy subtitle *tracks*), `outputs[].subtitle_codec`, and `N:s`
-mapping are native (no external lib) and remain to be built — a follow-up increment.)
+Status: **IMPLEMENTED** (Phase 4 of the [implementation roadmap](../implementation-roadmap.md).
+Both mechanisms (D-0019-A) shipped.
+**Burn-in (mechanism (a)):** the `drawtext` (freetype + harfbuzz), `subtitles` and `ass` (libass)
+filters, built into the **intermediate** profile with freetype/harfbuzz/fribidi/libass
+cross-compiled via the meson toolchain of [0029](0029-meson-cross-compile-toolchain.md). Fonts
+come from the mounted fs by path (no fontconfig, D-0019-C); no job-spec change (it's a `filter`
+string). Proven by `TestIntegration_BurnIn`.
+**Subtitle streams (mechanism (b), D-0019-B):** a third `AVMEDIA_TYPE_SUBTITLE` lane in `process.c`
+beside the graph and the copy path — `outputs[].subtitle_codec` (an encoder name or `copy`) +
+`N:s` map specifiers extract / convert / copy / embed subtitle *tracks* (native subrip/ass/webvtt/
+mov_text codecs; `avcodec_decode_subtitle2` → `avcodec_encode_subtitle`). Sidecar (subtitle-only)
+outputs are allowed. Bumps vocab to **v8**; afmpeg's `Output.SubtitleCodec`. Proven by
+`TestIntegration_SubtitleStreams` (srt→webvtt, copy, embed mov_text). A latent `Ctx`-on-stack
+overflow surfaced by the larger struct was fixed by an 8 MB wasm data stack.)
 Date: 2026-06-30
 Parent: [0012](0012-feature-parity-roadmap.md) (§4E / §4D rows); [0007](0007-libav-direct-engine.md) (the engine + vocabulary this extends)
 Owns: **R-PARITY-SUBTITLES**
