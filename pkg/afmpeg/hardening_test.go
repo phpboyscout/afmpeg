@@ -35,7 +35,11 @@ func newTestRuntimeWith(t *testing.T, opts ...afmpeg.Option) *afmpeg.Runtime {
 // is implicit — a wazero-capped guest can never grow past the ceiling, so this
 // test itself would not run to completion if the cap were not enforced.
 func TestMemoryLimit_OverAllocationFailsCleanly(t *testing.T) {
-	t.Parallel()
+	// Deliberately NOT parallel: this test grows the guest by 128 MB + 256 MB, and
+	// under -race those linear-memory allocations carry heavy shadow. Running the
+	// memory-ceiling tests serially (they run in the sequential phase, one at a
+	// time) keeps the suite's peak RSS under constrained CI runners; run in
+	// parallel they stack into multiple GB and OOM the runner.
 
 	const (
 		lowCeiling  = 64 << 20  // 64 MB — room for the Go guest baseline, not the alloc
@@ -60,7 +64,9 @@ func TestMemoryLimit_OverAllocationFailsCleanly(t *testing.T) {
 // TestMemoryLimit_Unbounded proves WithMemoryLimit(0) removes the cap: an
 // allocation that fails under a default runtime succeeds when the cap is off.
 func TestMemoryLimit_Unbounded(t *testing.T) {
-	t.Parallel()
+	// Not parallel — see TestMemoryLimit_OverAllocationFailsCleanly: this grows the
+	// guest by 256 MB with the cap off, so it runs serially to bound peak RSS under
+	// -race on constrained CI runners.
 
 	res, err := newTestRuntimeWith(t, afmpeg.WithMemoryLimit(0)).
 		Run(context.Background(), afero.NewMemMapFs(), "grow:256")
