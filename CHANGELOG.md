@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.7.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.7.0)
+
+### Features
+
+- certified acquisition of the intermediate profile
+
+### Bug Fixes
+
+- list all five module options in the ErrNoModule message
+
 ## [v0.6.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.6.0)
 
 ### Features
