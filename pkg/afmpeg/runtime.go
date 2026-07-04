@@ -48,7 +48,7 @@ const (
 
 // ErrNoModule is returned by New when no wasm module source is configured. The
 // module is never embedded, so a WithModule* option is mandatory (spec 0004 D-C).
-var ErrNoModule = errors.New("afmpeg: no wasm module configured (use WithModuleFile, WithModuleBytes, or WithModuleFS)")
+var ErrNoModule = errors.New("afmpeg: no wasm module configured (use WithModuleRelease, WithModuleURL, WithModuleFile, WithModuleBytes, or WithModuleFS)")
 
 // Runtime holds the compiled wazero module and runtime. Build it once with New —
 // compilation is the expensive step — and reuse it. Run serialises invocations:
