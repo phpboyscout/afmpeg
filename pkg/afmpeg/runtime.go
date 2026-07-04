@@ -56,7 +56,15 @@ var ErrNoModule = errors.New("afmpeg: no wasm module configured (use WithModuleF
 type Runtime struct {
 	rt       wazero.Runtime
 	compiled wazero.CompiledModule
-	mu       sync.Mutex
+
+	// sem is a size-1 semaphore serialising invocations. Unlike a Mutex it is
+	// acquired with a select against the caller's context, so a queued Run/Probe
+	// with a short deadline (or a cancelled one) returns promptly instead of
+	// blocking for the full in-flight job.
+	sem chan struct{}
+
+	mu     sync.Mutex // guards closed
+	closed bool
 
 	// timeout is the default per-invocation deadline imposed by Run when the
 	// caller's context carries none (spec 0027 §4B). Zero disables it.
@@ -255,7 +263,7 @@ func New(ctx context.Context, opts ...Option) (*Runtime, error) {
 		return nil, errors.Wrap(err, "afmpeg: compile module")
 	}
 
-	runtime := &Runtime{rt: rt, compiled: compiled, timeout: cfg.timeout}
+	runtime := &Runtime{rt: rt, compiled: compiled, sem: make(chan struct{}, 1), timeout: cfg.timeout}
 
 	// Fail loudly now if the module is a gated ffmpeg-wasi engine too old for the
 	// vocabulary this afmpeg emits, rather than silently dropping new fields at
@@ -286,8 +294,21 @@ func memoryLimitPages(bytes int) uint32 {
 	return uint32(pages) //nolint:gosec // clamped to maxMemoryLimitPages above
 }
 
-// Close releases the runtime's resources.
+// Close releases the runtime's resources. It waits for any in-flight invocation
+// to finish first (respecting ctx) so a running job is never yanked out from
+// under itself, then marks the runtime closed — a subsequent Run fails cleanly.
 func (r *Runtime) Close(ctx context.Context) error {
+	select {
+	case r.sem <- struct{}{}:
+		defer func() { <-r.sem }()
+	case <-ctx.Done():
+		return errors.Wrap(ctx.Err(), "afmpeg: close: cancelled waiting for an in-flight run")
+	}
+
+	r.mu.Lock()
+	r.closed = true
+	r.mu.Unlock()
+
 	return errors.Wrap(r.rt.Close(ctx), "afmpeg: close runtime")
 }
 
@@ -307,14 +328,29 @@ func (r *Runtime) withDeadline(ctx context.Context) (context.Context, context.Ca
 // exit code and captured stderr; a non-zero exit is reported in Result with a
 // nil error. Only host-side failures return a non-nil error.
 func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result, error) {
-	// Impose the default deadline before locking, but only when the caller brings
-	// none — a caller's own deadline is honoured as-is (spec 0027 §4B). This bounds
-	// how long a pathological decode can hold r.mu, keeping the Runtime usable.
-	ctx, cancel := r.withDeadline(ctx)
-	defer cancel()
+	// Acquire the invocation slot, but honour the caller's context while queued so
+	// a short-deadline (or cancelled) call doesn't block for the whole in-flight
+	// job — it returns promptly instead.
+	select {
+	case r.sem <- struct{}{}:
+		defer func() { <-r.sem }()
+	case <-ctx.Done():
+		return Result{}, errors.Wrap(ctx.Err(), "afmpeg: run: cancelled while queued")
+	}
 
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	closed := r.closed
+	r.mu.Unlock()
+
+	if closed {
+		return Result{}, errors.New("afmpeg: run on a closed runtime")
+	}
+
+	// Impose the default deadline now that we hold the slot, so the budget covers
+	// execution rather than time spent queueing (spec 0027 §4B); a caller's own
+	// deadline is honoured as-is.
+	ctx, cancel := r.withDeadline(ctx)
+	defer cancel()
 
 	inv, err := r.invoke(ctx, fs, args...)
 	if err != nil {
@@ -326,9 +362,21 @@ func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result,
 
 // Probe reports a media file's container/stream info over the fs bridge, via the
 // ffmpeg-wasi engine's probe op (`{"op":"probe"}`), reading the structured JSON it
-// returns on stdout. It needs the ffmpeg-wasi engine (the structured module).
+// returns on stdout. It needs the ffmpeg-wasi engine (the structured module). For
+// a raw/headerless input that only opens with a forced demuxer or demuxer options,
+// use ProbeInput.
 func (r *Runtime) Probe(ctx context.Context, fs afero.Fs, path string) (Probe, error) {
-	spec, err := json.Marshal(jobSpec{Op: "probe", Version: vocabVersion, Inputs: []jobInput{{Path: path}}})
+	return r.ProbeInput(ctx, fs, Input{Path: path})
+}
+
+// ProbeInput probes one Input, forwarding its Format (forced demuxer) and Options
+// (demuxer dictionary) — so a rawvideo/PCM input, probeable only with those (spec
+// 0024), works through the typed API just as it does for a process job.
+func (r *Runtime) ProbeInput(ctx context.Context, fs afero.Fs, input Input) (Probe, error) {
+	spec, err := json.Marshal(jobSpec{
+		Op: "probe", Version: vocabVersion,
+		Inputs: []jobInput{{Path: input.Path, Format: input.Format, Options: input.Options}},
+	})
 	if err != nil {
 		return Probe{}, errors.Wrap(err, "afmpeg: marshal probe spec")
 	}
@@ -339,7 +387,7 @@ func (r *Runtime) Probe(ctx context.Context, fs afero.Fs, path string) (Probe, e
 	}
 
 	if res.ExitCode != 0 {
-		return Probe{}, errors.Newf("afmpeg: probe %q: %s", path, tail(res.Stderr))
+		return Probe{}, errors.Newf("afmpeg: probe %q: %s", input.Path, tail(res.Stderr))
 	}
 
 	var out struct {
@@ -355,16 +403,16 @@ func (r *Runtime) Probe(ctx context.Context, fs afero.Fs, path string) (Probe, e
 	}
 
 	if err := json.Unmarshal([]byte(res.Stdout), &out); err != nil {
-		return Probe{}, errors.Wrapf(err, "afmpeg: probe %q: parse engine output", path)
+		return Probe{}, errors.Wrapf(err, "afmpeg: probe %q: parse engine output", input.Path)
 	}
 
 	if len(out.Inputs) == 0 {
-		return Probe{}, errors.Newf("afmpeg: probe %q: no input in engine output", path)
+		return Probe{}, errors.Newf("afmpeg: probe %q: no input in engine output", input.Path)
 	}
 
 	in := out.Inputs[0]
 	if in.Error != "" {
-		return Probe{}, errors.Newf("afmpeg: probe %q: %s", path, in.Error)
+		return Probe{}, errors.Newf("afmpeg: probe %q: %s", input.Path, in.Error)
 	}
 
 	return Probe{

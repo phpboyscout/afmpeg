@@ -210,6 +210,10 @@ func (c Command) JobSpec() ([]byte, error) {
 // failing here is cheaper and clearer).
 func (c Command) validate() error {
 	for _, out := range c.Outputs {
+		if out.Duration < 0 || out.End < 0 {
+			return errors.Newf("afmpeg: output %q: Duration and End must be non-negative", out.Path)
+		}
+
 		if out.Duration > 0 && out.End > 0 {
 			return errors.Newf("afmpeg: output %q: Duration and End are mutually exclusive", out.Path)
 		}

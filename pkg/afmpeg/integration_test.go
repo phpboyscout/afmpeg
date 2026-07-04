@@ -1480,6 +1480,44 @@ func TestIntegration_SubtitleStreams(t *testing.T) {
 	})
 }
 
+// TestIntegration_ProbeRawInput proves ProbeInput forwards Format/Options so a
+// raw/headerless input — un-probeable by auto-detection — is probeable (the
+// review fix to spec 0024's read side). Needs the built driver.
+func TestIntegration_ProbeRawInput(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	if err := afero.WriteFile(fs, "audio.raw", makeRawPCMS16LE(8000, 0.25), 0o644); err != nil {
+		t.Fatalf("seed raw pcm: %v", err)
+	}
+
+	// ProbeInput forwards Format + Options → the s16le demuxer reads the headerless
+	// bytes as pcm_s16le (which auto-detection, with no magic to go on, can't).
+	p, err := rt.ProbeInput(ctx, fs, afmpeg.Input{
+		Path: "audio.raw", Format: "s16le", Options: map[string]string{"sample_rate": "8000"},
+	})
+	if err != nil || len(p.Streams) != 1 || p.Streams[0].Type != "audio" || p.Streams[0].Codec != "pcm_s16le" {
+		t.Fatalf("ProbeInput raw: streams=%+v err=%v", p.Streams, err)
+	}
+	if p.Streams[0].SampleRate != 8000 {
+		t.Errorf("ProbeInput raw: sample_rate = %d, want 8000", p.Streams[0].SampleRate)
+	}
+}
+
 // TestIntegration_NativeFilters proves the spec-0017 filter batch: one graph per
 // group parses and produces output (the filters are flag-only additions to the
 // filtergraph string — no vocabulary change). Needs the intermediate-profile
