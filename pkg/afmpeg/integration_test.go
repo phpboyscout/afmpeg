@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/spf13/afero"
+	"golang.org/x/image/font/gofont/goregular"
 
 	"gitlab.com/phpboyscout/afmpeg/pkg/afmpeg"
 )
@@ -1298,6 +1299,93 @@ func TestIntegration_Metadata(t *testing.T) {
 	if !slices.Contains(audio.Disposition, "forced") {
 		t.Errorf("audio disposition = %v, want to contain forced", audio.Disposition)
 	}
+}
+
+// TestIntegration_BurnIn proves the spec-0019 burn-in path (freetype + harfbuzz +
+// libass, via the spec-0029 meson toolchain): the drawtext filter renders text
+// from a font mounted on the fs (no fontconfig — fonts named by path), the
+// subtitles filter burns an .srt through libass, and a missing font fails cleanly.
+// Needs the intermediate-profile module.
+func TestIntegration_BurnIn(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4")
+	if err := afero.WriteFile(fs, "font.ttf", goregular.TTF, 0o644); err != nil {
+		t.Fatalf("seed font: %v", err)
+	}
+	// A minimal ASS: one dialogue over the clip, styled in the mounted Go font.
+	// libass parses .ass directly (no subtitle demuxer needed — that's the
+	// subtitle-stream increment); .srt burn-in would need the subrip codec.
+	ass := "[Script Info]\nScriptType: v4.00+\nPlayResX: 32\nPlayResY: 32\n\n" +
+		"[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, Alignment, Encoding\n" +
+		"Style: Default,Go,10,&H00FFFFFF,2,1\n\n" +
+		"[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n" +
+		"Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,hello afmpeg\n"
+	if err := afero.WriteFile(fs, "sub.ass", []byte(ass), 0o644); err != nil {
+		t.Fatalf("seed ass: %v", err)
+	}
+
+	// probeVideo asserts a job produced a single-video-stream output.
+	probeVideo := func(t *testing.T, path string) {
+		t.Helper()
+		p, err := rt.Probe(ctx, fs, path)
+		if err != nil || len(p.Streams) != 1 || p.Streams[0].Type != "video" {
+			t.Fatalf("probe %s: streams=%+v err=%v", path, p.Streams, err)
+		}
+	}
+
+	t.Run("drawtext renders with a mounted font", func(t *testing.T) {
+		cmd := afmpeg.Command{
+			Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+			FilterComplex: "[0:v]drawtext=fontfile=font.ttf:text='afmpeg':fontsize=8:fontcolor=white:x=2:y=2[v]",
+			Outputs:       []afmpeg.Output{{Path: "text.mp4", Map: []string{"[v]"}, VideoCodec: "libopenh264"}},
+		}
+		if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+			t.Fatalf("drawtext: res=%+v err=%v", res, err)
+		}
+		probeVideo(t, "text.mp4")
+	})
+
+	t.Run("ass burns subtitles via libass", func(t *testing.T) {
+		// No fontconfig: point libass at the mounted font dir; the .ass Style names
+		// the Go font's family so it matches.
+		cmd := afmpeg.Command{
+			Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+			FilterComplex: "[0:v]ass=filename=sub.ass:fontsdir=.[v]",
+			Outputs:       []afmpeg.Output{{Path: "subbed.mp4", Map: []string{"[v]"}, VideoCodec: "libopenh264"}},
+		}
+		if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+			t.Fatalf("ass: res=%+v err=%v", res, err)
+		}
+		probeVideo(t, "subbed.mp4")
+	})
+
+	t.Run("missing font fails cleanly", func(t *testing.T) {
+		cmd := afmpeg.Command{
+			Inputs:        []afmpeg.Input{{Path: "src.mp4"}},
+			FilterComplex: "[0:v]drawtext=fontfile=nope.ttf:text='x':fontsize=8[v]",
+			Outputs:       []afmpeg.Output{{Path: "bad.mp4", Map: []string{"[v]"}, VideoCodec: "libopenh264"}},
+		}
+		res, err := rt.RunJob(ctx, fs, cmd)
+		if err == nil && res.ExitCode == 0 {
+			t.Fatalf("expected a clean failure with no font, got res=%+v", res)
+		}
+	})
 }
 
 // TestIntegration_NativeFilters proves the spec-0017 filter batch: one graph per

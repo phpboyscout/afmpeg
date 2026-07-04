@@ -79,8 +79,13 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   + `Runtime.Frames`; vocab **v6**.
 
 ### Phase 4 — Cross-cutting + measured perf
-- **[0019](specs/0019-text-and-subtitles.md) text & subtitles** — freetype + libass libs **and** a
-  new `AVMEDIA_TYPE_SUBTITLE` lane in `process.c`. The biggest cross-cutting feature.
+- **[0029](specs/0029-meson-cross-compile-toolchain.md) meson cross-compile toolchain** — **DONE**
+  (spike → spec → impl): a second cross-compile path in `deps.sh` for meson-only libs
+  (harfbuzz/fribidi), unblocking 0019 burn-in and future meson deps (dav1d).
+- **[0019](specs/0019-text-and-subtitles.md) text & subtitles** — **burn-in DONE** (drawtext +
+  subtitles/ass filters; freetype/harfbuzz/fribidi/libass via 0029; fonts from the mounted fs). The
+  **subtitle-stream lane** (`AVMEDIA_TYPE_SUBTITLE` in `process.c`, `subtitle_codec`, `N:s`) is
+  native and remains — a follow-up.
 - **[0026](specs/0026-engine-hot-path-performance.md) engine hot-path perf** — measure-first; pairs
   with 0008's measurement rig. Only land fixes with a measured win.
 

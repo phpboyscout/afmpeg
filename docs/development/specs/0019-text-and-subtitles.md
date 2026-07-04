@@ -1,9 +1,15 @@
 # 0019 — text & subtitles
 
-Status: **DRAFT / SCOPING** (a child of the [0012](0012-feature-parity-roadmap.md) parity roadmap,
-§7 row "Text & subtitles", Tier 2. Spans ffmpeg-wasi — two external libs, the subtitle codec
-pipeline, the burn-in filters — *and* afmpeg — a third stream type the job-spec doesn't model yet.
-Design only; do not implement before review.)
+Status: **PARTIALLY IMPLEMENTED** (Phase 4 of the [implementation roadmap](../implementation-roadmap.md).
+**Burn-in (mechanism (a), D-0019-A) — DONE:** the `drawtext` (freetype + harfbuzz), `subtitles`
+and `ass` (libass) filters are built into the **intermediate** profile, with freetype/harfbuzz/
+fribidi/libass cross-compiled via the meson toolchain of [0029](0029-meson-cross-compile-toolchain.md).
+Fonts come from the mounted fs by path (no fontconfig, D-0019-C). No job-spec change — burn-in is
+expressed in the `filter` string. Proven by afmpeg's `TestIntegration_BurnIn` (drawtext + an SRT
+via `subtitles`, and a missing-font clean failure).
+**Subtitle streams (mechanism (b), D-0019-B) — PENDING:** the `AVMEDIA_TYPE_SUBTITLE` lane in
+`process.c` (extract/convert/copy subtitle *tracks*), `outputs[].subtitle_codec`, and `N:s`
+mapping are native (no external lib) and remain to be built — a follow-up increment.)
 Date: 2026-06-30
 Parent: [0012](0012-feature-parity-roadmap.md) (§4E / §4D rows); [0007](0007-libav-direct-engine.md) (the engine + vocabulary this extends)
 Owns: **R-PARITY-SUBTITLES**

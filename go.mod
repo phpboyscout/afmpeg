@@ -8,6 +8,7 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/tetratelabs/wazero v1.12.0
 	gitlab.com/phpboyscout/signing v0.1.0
+	golang.org/x/image v0.43.0
 )
 
 require (
