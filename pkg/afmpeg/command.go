@@ -97,6 +97,28 @@ type Output struct {
 	// timing/naming (hls_time, hls_segment_filename, …), fragmentation flags
 	// (movflags), etc. Distinct from Options, which reach the encoder.
 	FormatOptions map[string]string
+
+	// Metadata sets container-level tags on the output (spec 0020) — e.g.
+	// {"title": "…", "artist": "…"} → the muxer's metadata.
+	Metadata map[string]string
+
+	// Chapters is a chapter passthrough directive (spec 0020): "copy" carries the
+	// first input's chapters onto the output, an input index ("1") picks another,
+	// and "" / "none" drops them. Authoring chapters inline is not supported.
+	Chapters string
+
+	// StreamMetadata sets per-stream language / disposition / tags, keyed by the
+	// Map entry the stream comes from (a graph pad "[vout]" or a copied "0:a").
+	StreamMetadata map[string]StreamMeta
+}
+
+// StreamMeta is per-output-stream metadata (spec 0020): a language tag, a set of
+// disposition flag names (e.g. "default", "forced", "attached_pic"), and
+// arbitrary tags. Applied to the output stream before the header is written.
+type StreamMeta struct {
+	Language    string            `json:"language,omitempty"`
+	Disposition []string          `json:"disposition,omitempty"`
+	Tags        map[string]string `json:"tags,omitempty"`
 }
 
 // jobSpec is the JSON the ffmpeg-wasi engine consumes (the process / probe ops).
@@ -124,17 +146,20 @@ type jobSeek struct {
 }
 
 type jobOutput struct {
-	Path             string            `json:"path"`
-	Map              []string          `json:"map,omitempty"`
-	VideoCodec       string            `json:"video_codec,omitempty"`
-	AudioCodec       string            `json:"audio_codec,omitempty"`
-	Options          map[string]string `json:"options,omitempty"`
-	BitstreamFilters map[string]string `json:"bitstream_filters,omitempty"`
-	Duration         float64           `json:"duration,omitempty"`
-	End              float64           `json:"end,omitempty"`
-	CopyTS           bool              `json:"copy_ts,omitempty"`
-	Format           string            `json:"format,omitempty"`
-	FormatOptions    map[string]string `json:"format_options,omitempty"`
+	Path             string                `json:"path"`
+	Map              []string              `json:"map,omitempty"`
+	VideoCodec       string                `json:"video_codec,omitempty"`
+	AudioCodec       string                `json:"audio_codec,omitempty"`
+	Options          map[string]string     `json:"options,omitempty"`
+	BitstreamFilters map[string]string     `json:"bitstream_filters,omitempty"`
+	Duration         float64               `json:"duration,omitempty"`
+	End              float64               `json:"end,omitempty"`
+	CopyTS           bool                  `json:"copy_ts,omitempty"`
+	Format           string                `json:"format,omitempty"`
+	FormatOptions    map[string]string     `json:"format_options,omitempty"`
+	Metadata         map[string]string     `json:"metadata,omitempty"`
+	Chapters         string                `json:"chapters,omitempty"`
+	StreamMetadata   map[string]StreamMeta `json:"stream_metadata,omitempty"`
 }
 
 // CodecCopy is the codec sentinel that remuxes a mapped stream — passed through

@@ -81,6 +81,19 @@ type Probe struct {
 	DurationSec float64
 	StartSec    float64 // the container's start time (nonzero e.g. after a copy_ts trim)
 	Streams     []ProbeStream
+
+	// Tags is the container-level metadata (spec 0020) — title/artist/…
+	Tags map[string]string
+	// Chapters is the container's chapter list (spec 0020).
+	Chapters []Chapter
+}
+
+// Chapter is one chapter of a probed input (spec 0020): its bounds in seconds and
+// its title tag.
+type Chapter struct {
+	Start float64 `json:"start"`
+	End   float64 `json:"end"`
+	Title string  `json:"title"`
 }
 
 // ProbeStream is one stream within a probed input.
@@ -92,6 +105,12 @@ type ProbeStream struct {
 	Height     int    `json:"height"`      // video
 	SampleRate int    `json:"sample_rate"` // audio
 	Channels   int    `json:"channels"`    // audio
+
+	// Metadata (spec 0020): the stream's language, its set disposition flags
+	// (default/forced/attached_pic/…), and its tags.
+	Language    string            `json:"language"`
+	Disposition []string          `json:"disposition"`
+	Tags        map[string]string `json:"tags"`
 }
 
 // config accumulates New's options. memoryLimitBytes and timeout start at their
@@ -325,11 +344,13 @@ func (r *Runtime) Probe(ctx context.Context, fs afero.Fs, path string) (Probe, e
 
 	var out struct {
 		Inputs []struct {
-			Error       string        `json:"error"`
-			Format      string        `json:"format"`
-			DurationSec float64       `json:"duration_sec"`
-			StartSec    float64       `json:"start_sec"`
-			Streams     []ProbeStream `json:"streams"`
+			Error       string            `json:"error"`
+			Format      string            `json:"format"`
+			DurationSec float64           `json:"duration_sec"`
+			StartSec    float64           `json:"start_sec"`
+			Streams     []ProbeStream     `json:"streams"`
+			Tags        map[string]string `json:"tags"`
+			Chapters    []Chapter         `json:"chapters"`
 		} `json:"inputs"`
 	}
 
@@ -346,7 +367,10 @@ func (r *Runtime) Probe(ctx context.Context, fs afero.Fs, path string) (Probe, e
 		return Probe{}, errors.Newf("afmpeg: probe %q: %s", path, in.Error)
 	}
 
-	return Probe{Format: in.Format, DurationSec: in.DurationSec, StartSec: in.StartSec, Streams: in.Streams}, nil
+	return Probe{
+		Format: in.Format, DurationSec: in.DurationSec, StartSec: in.StartSec,
+		Streams: in.Streams, Tags: in.Tags, Chapters: in.Chapters,
+	}, nil
 }
 
 // invocation is the internal outcome of running the module once.

@@ -65,12 +65,15 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   **0016 ✅ SHIPPED** (native decoders ac3/eac3/dca/prores/dnxhd/dv/mpeg2/4/vc1/wmv3/theora/alac/… +
   encoders ac3/alac/PCM/bmp/tiff; flag-only; decode-only codecs await a media corpus).
 
-### Phase 3 — Codec reach + build-on capabilities
+### Phase 3 — Codec reach + build-on capabilities — ✅ DONE
 - **[0018](specs/0018-lgpl-encoder-expansion.md) LGPL encoders** (Opus/MP3/VP8-9/WebP/Vorbis) —
   external-lib cross-compiles → intermediate; the default-variant codec win. **DONE** — all five
   libs (libopus/libmp3lame/libvorbis/libwebp/libvpx) build + round-trip; libvpx's setjmp rides
   wasm exception-handling (EH feature enabled in the runtime).
-- **[0020](specs/0020-metadata-and-chapters.md) metadata & chapters** (needs 0013).
+- **[0020](specs/0020-metadata-and-chapters.md) metadata & chapters** (needs 0013). **DONE** —
+  probe reads container/per-stream tags, chapters, disposition, language; process writes container
+  `metadata`, `chapters:"copy"`, per-stream `stream_metadata`; cover art survives the copy path;
+  shared `meta.c`; vocab **v7**.
 - **[0021](specs/0021-frame-extraction-op.md) frames op** (needs 0014 + 0017's select/thumbnail).
   **DONE** — the third engine op (`frames.c`), four selectors → templated stills; afmpeg `FrameJob`
   + `Runtime.Frames`; vocab **v6**.

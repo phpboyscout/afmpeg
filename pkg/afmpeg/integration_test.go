@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -1231,6 +1232,72 @@ func TestIntegration_Frames(t *testing.T) {
 			t.Fatalf("mjpeg frame: streams=%+v err=%v", p.Streams, err)
 		}
 	})
+}
+
+// TestIntegration_Metadata proves the spec-0020 write→read round-trip: a copy job
+// sets container tags and a per-stream language + disposition into a Matroska
+// output (which preserves arbitrary tags verbatim), and probe reads them all back.
+func TestIntegration_Metadata(t *testing.T) {
+	t.Parallel()
+
+	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
+	if module == "" {
+		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
+	}
+
+	ctx := context.Background()
+
+	rt, err := afmpeg.New(ctx, afmpeg.WithModuleFile(module))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	t.Cleanup(func() { _ = rt.Close(ctx) })
+
+	fs := afero.NewMemMapFs()
+	bootstrapClipMP4(t, rt, fs, "src.mp4")
+
+	cmd := afmpeg.Command{
+		Inputs: []afmpeg.Input{{Path: "src.mp4"}},
+		Outputs: []afmpeg.Output{{
+			Path:       "tagged.mkv",
+			Map:        []string{"0:v", "0:a"},
+			VideoCodec: afmpeg.CodecCopy,
+			AudioCodec: afmpeg.CodecCopy,
+			Metadata:   map[string]string{"title": "My Title", "comment": "made by afmpeg"},
+			StreamMetadata: map[string]afmpeg.StreamMeta{
+				"0:a": {Language: "deu", Disposition: []string{"forced"}},
+			},
+		}},
+	}
+	if res, err := rt.RunJob(ctx, fs, cmd); err != nil || res.ExitCode != 0 {
+		t.Fatalf("tag job: res=%+v err=%v", res, err)
+	}
+
+	p, err := rt.Probe(ctx, fs, "tagged.mkv")
+	if err != nil {
+		t.Fatalf("probe: %v", err)
+	}
+
+	if p.Tags["title"] != "My Title" {
+		t.Fatalf("container tags = %+v, want title=My Title", p.Tags)
+	}
+
+	var audio *afmpeg.ProbeStream
+	for i := range p.Streams {
+		if p.Streams[i].Type == "audio" {
+			audio = &p.Streams[i]
+		}
+	}
+	if audio == nil {
+		t.Fatalf("no audio stream in %+v", p.Streams)
+	}
+	if audio.Language != "deu" {
+		t.Errorf("audio language = %q, want deu", audio.Language)
+	}
+	if !slices.Contains(audio.Disposition, "forced") {
+		t.Errorf("audio disposition = %v, want to contain forced", audio.Disposition)
+	}
 }
 
 // TestIntegration_NativeFilters proves the spec-0017 filter batch: one graph per

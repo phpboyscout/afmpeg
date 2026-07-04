@@ -24,11 +24,15 @@ import (
 //	6 — frame extraction (spec 0021): the op:"frames" — FrameJob with
 //	    Select {Timestamp | Timestamps | Interval | SceneThreshold | Thumbnail},
 //	    templated Path, Codec/Scale/Count
+//	7 — metadata & chapters (spec 0020): Output.Metadata (container tags),
+//	    Output.Chapters ("copy"/index), Output.StreamMetadata (per-map
+//	    language/disposition/tags). Probe gains Tags/Chapters and per-stream
+//	    Tags/Disposition/Language (additive read side).
 //
 // Every process/probe spec is stamped with it; the engine rejects a spec whose
 // version exceeds what it supports, so a new field can never be silently dropped
 // by an older engine (it fails the whole spec instead).
-const vocabVersion = 6
+const vocabVersion = 7
 
 // engineVocab is the engine's reply to the op:"version" query — its highest
 // supported vocabulary version and the FFmpeg build it links.

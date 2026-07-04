@@ -1,7 +1,18 @@
 # 0020 — metadata & chapters
 
-Status: **DRAFT / SCOPING** (one of the 0012 parity batch — design only, not buildable work.
-Spans ffmpeg-wasi's `probe`/`process` ops + the job-spec metadata vocabulary. Review before building.)
+Status: **IMPLEMENTED** (Phase 3 of the [implementation roadmap](../implementation-roadmap.md).
+Read side: `probe` (ffmpeg-wasi `driver.c`) now reports container `tags`/`chapters` and per-stream
+`tags`/`disposition`/`language`, additively. Write side: `process` (`process.c`) accepts
+`outputs[].metadata` (container tags), `outputs[].chapters` (`"copy"`/index passthrough deep-copy),
+and `outputs[].stream_metadata` (per-map `language`/`disposition`/`tags`), threaded into the muxer
+before `write_header`; the copy path now carries source disposition + tags, so `attached_pic` cover
+art survives (D-0020-C). Shared glue in a new `src/meta.c` (disposition table, tag/disposition ↔
+JSON) used by both ops. afmpeg's `Probe`/`ProbeStream` gain `Tags`/`Chapters`/`Disposition`/
+`Language`; `Output` gains `Metadata`/`Chapters`/`StreamMetadata` (+ the `StreamMeta` type). Bumps
+vocab to **v7**. Proven by `TestIntegration_Metadata` (container tags + per-stream language/
+disposition write→read) + emitter unit tests. **Chapter authoring** (Q2) stays deferred, and the
+chapter-copy round-trip is emission-tested only — no self-bootstrappable chaptered fixture, so its
+end-to-end verification is corpus-gated like the 0016 decode-only codecs.)
 Date: 2026-06-30
 Parent: [0012](0012-feature-parity-roadmap.md) §4F (the metadata row) / §5 (Tier 1–2); [0007](0007-libav-direct-engine.md) (the engine + the job-spec contract)
 Owns: **R-PARITY-METADATA**
