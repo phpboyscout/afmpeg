@@ -88,6 +88,18 @@ linters:
         text: "G102|G112|G306"
         linters:
           - gosec
+      # Binary entry points under cmd/ are sequential orchestration/wiring and are
+      # coverage-exempt (not library surface); relax the style linters that are
+      # noise there, the same way _test.go is relaxed above.
+      - path: cmd/
+        linters:
+          - cyclop
+          - mnd
+          - err113
+          - dupl
+          - wsl_v5
+          - nlreturn
+          - whitespace
     paths:
       - third_party$
       - builtin$

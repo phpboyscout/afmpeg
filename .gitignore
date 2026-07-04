@@ -22,3 +22,6 @@ coverage.*
 *.swp
 .idea/
 .vscode/
+
+# stray bench binary from `go build ./cmd/...`
+/afmpeg-bench
