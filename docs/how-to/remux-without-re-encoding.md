@@ -93,8 +93,11 @@ afmpeg.WithOutput("out.ts",
 ## Notes
 
 - **Copy can only cut on keyframes.** Trimming a copied stream to an exact frame needs a decode
-  the copy path skips; frame-accurate seek is spec [0014](../development/specs/0014-seeking-and-time-ranges.md).
-- **Container reach.** Copy lands on mp4/mkv/webm today; the MPEG-TS/HLS segment stories arrive
-  with spec [0015](../development/specs/0015-container-coverage.md).
+  the copy path skips; for a frame-accurate cut re-encode with `SeekAccurateTo`
+  ([extract a clip](extract-a-clip.md), spec [0014](../development/specs/0014-seeking-and-time-ranges.md)).
+- **Container reach.** Copy lands on mp4/mkv/webm in the lean profile; MPEG-TS, HLS/DASH
+  segmenting, and fragmented MP4 are available in the intermediate profile (spec
+  [0015](../development/specs/0015-container-coverage.md)) — see
+  [package for streaming](package-for-streaming.md).
 - **Licensing.** Copy touches no codec library, so it stays in the LGPL default and even reaches
   codecs the engine doesn't ship a decoder or encoder for.

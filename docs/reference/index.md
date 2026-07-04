@@ -18,8 +18,7 @@ the source and published on the package registry:
 
 ➡️ **[pkg.go.dev/gitlab.com/phpboyscout/afmpeg](https://pkg.go.dev/gitlab.com/phpboyscout/afmpeg)**
 
-The intended shape (subject to the spec [§10](../development/specs/0001-afmpeg.md)
-decisions) is sketched in [`pkg/afmpeg/doc.go`](https://gitlab.com/phpboyscout/afmpeg/-/blob/main/pkg/afmpeg/doc.go).
+The API is also summarised in [`pkg/afmpeg/doc.go`](https://gitlab.com/phpboyscout/afmpeg/-/blob/main/pkg/afmpeg/doc.go).
 
 ## Non-code surfaces
 

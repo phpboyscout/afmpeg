@@ -1,9 +1,11 @@
 # Implementation roadmap — build order & prerequisites
 
-**Entry point for picking up implementation.** Every spec (0013–0028) is currently **design-only —
-nothing is built**. This document sequences them into phases with dependencies, and lists what's
-needed before/during each. It supersedes 0012 §7's parity-only ordering by folding in the
-review-driven specs (0024–0028) and the 0022 bundling policy.
+**Entry point for picking up implementation.** Phases 0–4 are **shipped** (v0.4.0–v0.6.0); the
+remaining **Phase 5** work (0028 native backend, 0022 native matrix, 0023 HEVC/AV1, 0008 perf,
+0025 A/V sync) is design-only and trigger-gated. This document sequences the specs into phases
+with dependencies, and lists what's needed before/during each — see the per-spec status inline
+below. It supersedes 0012 §7's parity-only ordering by folding in the review-driven specs
+(0024–0028) and the 0022 bundling policy.
 
 ## The two tracks
 
@@ -129,7 +131,9 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
 
 ## Start-here summary
 
-~~`0027` (memory limit) → the `0013/0014/0024` engine batch~~ **← done (Phase 0 + Phase 1, vocab
-v1–v4).** Next: `0022` profile machinery + the `0015/0016/0017` native batches → `0018` +
-`0020/0021` → `0019` + `0026`. Everything in Phase 5 is gated on an external trigger (a HW-accel
-consumer, a perf target) and can wait.
+~~`0027` (memory limit) → `0013/0014/0024` → `0022` profiles + `0015/0016/0017` native batches →
+`0018` + `0020/0021` → `0019`~~ **← all done (Phases 0–4, through vocab v8, shipped in v0.6.0 +
+ffmpeg-wasi n8.1.2-6).** What remains is **Phase 5**, every item gated on an external trigger (a
+HW-accel consumer, a measured perf target): `0026` micro-opts and `0008` perf spike (measure
+first), `0025` A/V sync, `0023` HEVC/AV1, and the `0028` native backend + its `0022` native
+matrix. All can wait.

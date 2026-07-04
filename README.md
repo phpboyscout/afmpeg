@@ -1,17 +1,20 @@
 # afmpeg
 
 **A pure-Go FFmpeg binding that runs on a virtual / in-memory filesystem.** No CGO,
-no host FFmpeg install, no temp files: FFmpeg is embedded as a WebAssembly module and
-executed via [wazero](https://wazero.io/) (a zero-dependency, pure-Go WASM runtime),
-with its I/O bridged to an [`afero.Fs`](https://github.com/spf13/afero) — so inputs
-and outputs can live entirely in memory (or any afero backend), and the whole thing
-cross-compiles to a single static binary.
+no host FFmpeg install, no temp files: FFmpeg is supplied as a separate WebAssembly
+module and executed via [wazero](https://wazero.io/) (a zero-dependency, pure-Go WASM
+runtime), with its I/O bridged to an [`afero.Fs`](https://github.com/spf13/afero) — so
+inputs and outputs can live entirely in memory (or any afero backend), and the whole
+thing cross-compiles to a single static binary.
 
-> **Status: design approved, implementation not started.** This repo holds the
-> design + requirements. The thesis is
-> [`docs/development/specs/0001-afmpeg.md`](docs/development/specs/0001-afmpeg.md) (the
-> source of truth); the five gating decisions in its §10 are resolved, and the work is
-> decomposed into component specs **0002–0006**. Read those before implementing.
+> **Status: released (v0.6.0).** The runtime (`New` / `Run` / `RunJob` / `Probe` /
+> `Close`), the `Command` builder, and certified module acquisition
+> (`WithModuleRelease`) are all shipped and stable. It drives the companion
+> [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine over the structured job spec:
+> transcode, remux/stream-copy, seeking & clips, multi-input `filter_complex`,
+> subtitles & burn-in, metadata/chapters, and frame extraction. The design record lives
+> in [`docs/development/specs/`](docs/development/specs/0001-afmpeg.md); the current build
+> order is the [implementation roadmap](docs/development/implementation-roadmap.md).
 
 ## Why this exists
 
@@ -34,16 +37,17 @@ with the codecs/filters we need, a first-class **afero virtual-filesystem** I/O 
 and a clean Go API — so a consumer (keryx, or anyone) can transcode / filter / mux
 **entirely in memory, pure Go**.
 
-Until `afmpeg` is usable, keryx renders **local-filesystem-only** (in-memory render
-locked out). `afmpeg` reaching usable status is what lifts that lock-out.
+afmpeg now supplies that binding, and keryx renders reels through it — **in-memory,
+pure Go**, no local checkout required.
 
 ## How it works
 
 Three layers — the middle one is the novel engineering:
 
-1. **Embedded FFmpeg-WASM module** — FFmpeg + x264 compiled to `wasm32-wasi`, configured
-   down to only the codecs/filters real workflows need. Shipped as a **separate
-   downloadable artifact, never `//go:embed`-ed** (see *Licensing* below).
+1. **The FFmpeg-WASM module** — current FFmpeg compiled to `wasm32-wasi` (H.264 encode via
+   openh264 on the LGPL default, or libx264 on the GPL variant), configured down to the
+   codecs/filters real workflows need. Shipped as a **separate downloadable artifact, never
+   `//go:embed`-ed** (see *Licensing* below).
 2. **The afero ↔ wazero vfs bridge** (the heart) — the guest ffmpeg's WASI filesystem
    syscalls are routed to a mounted `experimental/sys.FS` that afmpeg implements **backed
    by an `afero.Fs`**. The guest's reads and writes hit the caller's filesystem (e.g. an
@@ -53,16 +57,19 @@ Three layers — the middle one is the novel engineering:
    use-case-agnostic command builder layers on top (spec 0005).
 
 ```go
-rt, _ := afmpeg.New(ctx, afmpeg.WithModuleFile("ffmpeg.wasm")) // compile once, reuse
+rt, _ := afmpeg.New(ctx, afmpeg.WithModuleRelease("n8.1.2-6", afmpeg.VariantLGPL)) // compile once, reuse
 defer rt.Close(ctx)
 
 fs := afero.NewMemMapFs()            // or the caller's in-memory worktree
 // ... write inputs into fs ...
-res, _ := rt.Run(ctx, fs, "-i", "in/clip.mp4", /* … */, "out/reel.mp4")
+cmd := afmpeg.NewCommand(
+    afmpeg.WithInput("in/clip.mp4"),
+    afmpeg.WithFilterComplex("[0:v]scale=1280:-2[v]"),
+    afmpeg.WithOutput("out/reel.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264")),
+)
+res, _ := rt.RunJob(ctx, fs, cmd)
 out, _ := afero.ReadFile(fs, "out/reel.mp4")   // the result, in memory
 ```
-
-> The signatures above are the intended shape (spec 0004), not yet implemented.
 
 ## Licensing
 
@@ -75,18 +82,24 @@ audio filters are all already LGPL-clean. See spec 0001 §10 (D-C).
 
 ## Roadmap
 
+The foundations (specs 0001–0007) shipped, and the feature-parity roadmap (0013–0021,
+0024, 0027) landed across v0.4.0–v0.6.0. The **[implementation roadmap](docs/development/implementation-roadmap.md)**
+tracks per-spec status and the current build order; the design records live in
+[`docs/development/specs/`](docs/development/specs/0001-afmpeg.md).
+
 | Spec | Scope |
 |------|-------|
 | [0001](docs/development/specs/0001-afmpeg.md) | The thesis: design, requirements, the resolved decision record (§10) |
-| [0002](docs/development/specs/0002-wasm-build-pipeline.md) | The reproducible FFmpeg → `wasm32-wasi` build pipeline + licence variants |
 | [0003](docs/development/specs/0003-vfs-bridge.md) | The afero.Fs → wazero `sys.FS` adapter (the core) |
-| [0004](docs/development/specs/0004-runtime-and-api.md) | `New` / `Run` / `Probe` / `Close` — the public API |
-| [0005](docs/development/specs/0005-render-helper-and-keyrx-backend.md) | General, use-case-agnostic ffmpeg command builder (a consumer's reel is built on it) |
-| [0006](docs/development/specs/0006-hardening-roadmap.md) | Deferred: LGPL build-out, perf (wasm-threads), native backend, CLI |
+| [0004](docs/development/specs/0004-runtime-and-api.md) | `New` / `Run` / `RunJob` / `Probe` / `Close` — the public API |
+| [0007](docs/development/specs/0007-libav-direct-engine.md) | The libav-direct engine + structured job spec (supersedes the CLI-string design) |
+| [0010](docs/development/specs/0010-signed-release-acquisition.md) | Signature-verified module acquisition (`WithModuleRelease`) |
+
+What remains is trigger-gated (perf work, HEVC/AV1, the native backend) — see the roadmap.
 
 ## Quick links
 
 - Documentation: [`docs/`](docs/index.md) (Diátaxis — tutorials / how-to / reference / explanation)
 - Design + decision record: [`docs/development/specs/0001-afmpeg.md`](docs/development/specs/0001-afmpeg.md)
-- Intended API: [`pkg/afmpeg/doc.go`](pkg/afmpeg/doc.go) · published reference: [pkg.go.dev](https://pkg.go.dev/gitlab.com/phpboyscout/afmpeg)
+- API overview: [`pkg/afmpeg/doc.go`](pkg/afmpeg/doc.go) · published reference: [pkg.go.dev](https://pkg.go.dev/gitlab.com/phpboyscout/afmpeg)
 - Local dev: `just` (build) · `just test` · `just ci` · `just docs-serve`

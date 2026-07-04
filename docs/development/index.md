@@ -14,7 +14,8 @@ them.
 
 > **Picking up implementation?** Start at the
 > [implementation roadmap](implementation-roadmap.md) — the phased build order across all
-> specs (0013–0028) with dependencies and prerequisites. Every spec is currently design-only.
+> specs (0013–0028) with dependencies and prerequisites. Phases 0–4 are shipped
+> (v0.4.0–v0.6.0); the remaining Phase 5 work is design-only and trigger-gated.
 
 ## Specs
 

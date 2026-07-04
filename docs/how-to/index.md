@@ -32,6 +32,14 @@ Available:
 - **[Package for streaming (MPEG-TS, HLS, fragmented MP4)](package-for-streaming.md)** — write
   broadcast/adaptive-streaming containers and HLS segment sets to the in-memory fs, no network
   (needs the intermediate-profile module).
+- **[Work with subtitle tracks](work-with-subtitles.md)** — extract, convert, copy, or burn in
+  subtitle streams: sidecar `.srt`/`.vtt`, embedded tracks (`SubtitleCodec`), and hard-subs via
+  the `subtitles`/`drawtext` filters (needs the intermediate-profile module).
+- **[Read & write metadata and chapters](edit-metadata-and-chapters.md)** — read container/stream
+  tags and chapters with `Probe`, and set `Metadata`/`StreamMetadata`/`Chapters` on an output
+  (rides the mux, so it pairs with a copy).
+- **[Extract frames and thumbnails](extract-frames.md)** — pull stills with the `frames` op
+  (`FrameJob`/`Runtime.Frames`): a single frame, an interval, scene changes, or thumbnails.
 - **[Compose a command with the builder](compose-a-command.md)** — assemble any
   invocation (inputs / filtergraph / outputs) as typed data and run it with `RunJob`
   (`JobSpec()`).

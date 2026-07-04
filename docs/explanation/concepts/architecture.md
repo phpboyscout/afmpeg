@@ -17,17 +17,17 @@ wiring around it.
           │                                   │
           ▼                                   ▼
    internal/vfs  ──────────────►  internal/wasm  ──────────────►  ffmpeg.wasm
-   afero.Fs → wazero                module wiring                  (FFmpeg + x264,
-   experimental/sys.FS              over wazero                     wasm32-wasi)
+   afero.Fs → wazero                module wiring                  (FFmpeg + openh264
+   experimental/sys.FS              over wazero                     /x264, wasm32-wasi)
           ▲                                                              │
           └──────────────── WASI fs syscalls (path_open, fd_read, ──────┘
                             fd_write, fd_seek, …) routed to the afero.Fs
 ```
 
-## 1. The embedded FFmpeg-WASM module
+## 1. The FFmpeg-WASM module
 
-FFmpeg and its dependencies (x264, …) compiled to `wasm32-wasi`, configured down to only
-the codecs/filters real workflows need. It is produced by a reproducible build pipeline
+FFmpeg and its dependencies (openh264/x264, …) compiled to `wasm32-wasi`, configured down to
+only the codecs/filters real workflows need. It is produced by a reproducible build pipeline
 and — per the licensing decision — shipped as a **separate downloadable artifact, not
 `//go:embed`-ed**, so the GPL obligation stays at arm's length from the permissively
 licensed Go package. See spec

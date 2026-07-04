@@ -87,8 +87,10 @@ cmd := afmpeg.NewCommand(
 
 ## Notes
 
-- Pixel/sample format, output framerate, and duration live in the **filtergraph** (e.g.
-  `format=yuv420p`, `fps=30`, `trim`) — the engine derives the container from the output
-  path and the pixel/sample format from the graph + encoder.
+- Output **duration and start** are first-class options — `Duration`, `End`, and input-side
+  `SeekTo`/`SeekAccurateTo` ([extract a clip](extract-a-clip.md)) — not a filtergraph `trim`.
+  Pixel/sample format and output framerate live in the **filtergraph** (e.g. `format=yuv420p`,
+  `fps=30`); the engine derives the container from the output path and the pixel/sample format
+  from the graph + encoder.
 - A higher-level workflow (a "reel", a thumbnail sheet, …) is *your* code composed on this
   builder — afmpeg ships no opinionated workflow types.

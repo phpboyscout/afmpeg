@@ -9,20 +9,22 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 # afmpeg
 
 **A pure-Go FFmpeg binding that runs on a virtual / in-memory filesystem.** No CGO,
-no host FFmpeg install, no temp files: FFmpeg is embedded as a WebAssembly module and
-executed via [wazero](https://wazero.io/) (a zero-dependency, pure-Go WASM runtime),
-with its I/O bridged to an [`afero.Fs`](https://github.com/spf13/afero) — so inputs and
-outputs can live entirely in memory (or any afero backend), and the whole thing
-cross-compiles to a single static binary.
+no host FFmpeg install, no temp files: FFmpeg is supplied as a separate WebAssembly
+module and executed via [wazero](https://wazero.io/) (a zero-dependency, pure-Go WASM
+runtime), with its I/O bridged to an [`afero.Fs`](https://github.com/spf13/afero) — so
+inputs and outputs can live entirely in memory (or any afero backend), and the whole
+thing cross-compiles to a single static binary.
 
 !!! success "Status: released"
     afmpeg runs real FFmpeg over a virtual filesystem today: the
     [vfs bridge](explanation/components/vfs-bridge.md), the runtime
-    (`New`/`Run`/`Probe`/`Close`), the `Command` builder (`JobSpec()`/`RunJob` for the
-    [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine), and `WithModuleURL` module
-    fetching. Pair it with a released
-    [ffmpeg-wasi](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases) module to transcode
-    entirely in memory. See the [latest afmpeg release](https://gitlab.com/phpboyscout/afmpeg/-/releases);
+    (`New`/`Run`/`RunJob`/`Probe`/`Close`), the `Command` builder (`JobSpec()`/`RunJob` for
+    the [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine), and both
+    signature-verified [`WithModuleRelease`](how-to/obtain-a-module.md) and bring-your-own
+    `WithModuleURL` module acquisition. Pair it with a released
+    [ffmpeg-wasi](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases) module to transcode,
+    remux, clip, filter, burn in subtitles, edit metadata, and extract frames — entirely in
+    memory. See the [latest afmpeg release](https://gitlab.com/phpboyscout/afmpeg/-/releases);
     design rationale is in the specs under [Development](development/index.md) (start with
     [0001](development/specs/0001-afmpeg.md)).
 
@@ -35,15 +37,15 @@ rejected: purego bindings are immature and still need host libav; CGO bindings b
 clean static cross-compile; and the existing wazero/WASM binding lacks the filters and
 codecs real workflows need. afmpeg is the **"wazero + WASM done right"** synthesis — a
 maintained FFmpeg-WASM build with the codecs/filters we need, a first-class afero
-virtual-filesystem I/O layer, and a clean Go API. Until afmpeg is usable, keryx renders
-local-filesystem-only; afmpeg reaching usable status is what lifts that lock-out.
+virtual-filesystem I/O layer, and a clean Go API. keryx now renders its reels through
+afmpeg — in-memory, pure Go, with no local checkout.
 
 ## How it works
 
 Three layers — the middle one is the novel engineering:
 
-1. **Embedded FFmpeg-WASM module** — FFmpeg + x264 compiled to `wasm32-wasi`, configured
-   to only the codecs/filters needed; shipped as a separate artifact, not embedded.
+1. **The FFmpeg-WASM module** — current FFmpeg compiled to `wasm32-wasi`, configured to
+   only the codecs/filters needed; shipped as a separate artifact, never embedded.
 2. **The afero ↔ wazero vfs bridge** (the heart) — routes the guest ffmpeg's WASI
    filesystem syscalls to a `sys.FS` backed by the caller's `afero.Fs`, so reads and
    writes hit an in-memory filesystem with no host disk touched.

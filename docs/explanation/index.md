@@ -20,7 +20,7 @@ alternatives that were weighed.
   error-handling convention.
 - **[Verifying a release](concepts/release-verification.md)** — how `WithModuleRelease`
   certifies a published module: the KMS-signed checksums, the pinned key, what each layer
-  defends, and the gap the WKD second layer will close.
+  defends, and the WKD second anchor that cross-checks the pinned key.
 
 For the full design thesis, requirements, and the decision record, see the
 [specs](../development/specs/0001-afmpeg.md) — the source of truth.

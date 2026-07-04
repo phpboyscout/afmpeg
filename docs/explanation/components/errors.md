@@ -19,15 +19,24 @@ fails if a sentinel in `pkg/` is missing from this page.
 ### `ErrNoModule`
 
 Returned by `afmpeg.New` when no wasm module source is configured. The GPL
-`ffmpeg.wasm` is never embedded (spec 0004 D-C), so one of `WithModuleFile`,
-`WithModuleBytes`, `WithModuleFS`, or `WithModuleURL` is mandatory. Callers match
-with `errors.Is(err, afmpeg.ErrNoModule)`.
+`ffmpeg.wasm` is never embedded (spec 0004 D-C), so one of `WithModuleRelease`,
+`WithModuleURL`, `WithModuleFile`, `WithModuleBytes`, or `WithModuleFS` is
+mandatory. Callers match with `errors.Is(err, afmpeg.ErrNoModule)`.
 
 ### `ErrChecksumMismatch`
 
-Returned when a module obtained via `WithModuleURL` + `WithSHA256` does not match
-the expected SHA-256 — the download is rejected rather than executed. Callers
-match with `errors.Is(err, afmpeg.ErrChecksumMismatch)`.
+Returned when a module's bytes do not match the expected SHA-256 — either a
+`WithModuleURL` + `WithSHA256` download, or a `WithModuleRelease` module or
+`provenance.json` whose digest disagrees with the signed `checksums.txt`. The bytes
+are rejected rather than executed. Callers match with
+`errors.Is(err, afmpeg.ErrChecksumMismatch)`.
+
+### `ErrProvenanceMismatch`
+
+Returned by `WithModuleRelease` when a verified release's `provenance.json` does not
+name the requested variant/profile — its signature and checksums are valid, but the
+`variants` entry is absent or points at a different module file. The module is not
+run. Callers match with `errors.Is(err, afmpeg.ErrProvenanceMismatch)`.
 
 ## Convention
 
