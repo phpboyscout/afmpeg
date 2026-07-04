@@ -1,7 +1,6 @@
 package afmpeg
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -10,12 +9,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/afero"
-	"github.com/tetratelabs/wazero"
-	"github.com/tetratelabs/wazero/experimental/sysfs"
-	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
-	wsys "github.com/tetratelabs/wazero/sys"
-
-	"gitlab.com/phpboyscout/afmpeg/internal/vfs"
 )
 
 const (
@@ -50,12 +43,14 @@ const (
 // module is never embedded, so a WithModule* option is mandatory (spec 0004 D-C).
 var ErrNoModule = errors.New("afmpeg: no wasm module configured (use WithModuleRelease, WithModuleURL, WithModuleFile, WithModuleBytes, or WithModuleFS)")
 
-// Runtime holds the compiled wazero module and runtime. Build it once with New —
-// compilation is the expensive step — and reuse it. Run serialises invocations:
-// one at a time per Runtime (spec 0004 D-0004-B).
+// Runtime drives an engine backend behind a stable API. Build it once with New —
+// compiling the wasm module (the default backend) is the expensive step — and
+// reuse it. Run serialises invocations: one at a time per Runtime (spec 0004
+// D-0004-B).
 type Runtime struct {
-	rt       wazero.Runtime
-	compiled wazero.CompiledModule
+	// backend runs each invocation. The wasm backend (wazero) is the default; an
+	// opt-in native backend (spec 0028) is swapped in here without touching Run.
+	backend backend
 
 	// sem is a size-1 semaphore serialising invocations. Unlike a Mutex it is
 	// acquired with a select against the caller's context, so a queued Run/Probe
@@ -238,32 +233,12 @@ func New(ctx context.Context, opts ...Option) (*Runtime, error) {
 		return nil, err
 	}
 
-	rtCfg := wazero.NewRuntimeConfig().
-		WithCoreFeatures(runtimeCoreFeatures).
-		WithCloseOnContextDone(true)
-
-	if pages := memoryLimitPages(cfg.memoryLimitBytes); pages > 0 {
-		rtCfg = rtCfg.WithMemoryLimitPages(pages)
-	}
-
-	rt := wazero.NewRuntimeWithConfig(ctx, rtCfg)
-
-	if err := instantiateEnv(ctx, rt); err != nil {
-		_ = rt.Close(ctx)
-
+	wb, err := newWASMBackend(ctx, cfg)
+	if err != nil {
 		return nil, err
 	}
 
-	wasi_snapshot_preview1.MustInstantiate(ctx, rt)
-
-	compiled, err := rt.CompileModule(ctx, cfg.module)
-	if err != nil {
-		_ = rt.Close(ctx)
-
-		return nil, errors.Wrap(err, "afmpeg: compile module")
-	}
-
-	runtime := &Runtime{rt: rt, compiled: compiled, sem: make(chan struct{}, 1), timeout: cfg.timeout}
+	runtime := &Runtime{backend: wb, sem: make(chan struct{}, 1), timeout: cfg.timeout}
 
 	// Fail loudly now if the module is a gated ffmpeg-wasi engine too old for the
 	// vocabulary this afmpeg emits, rather than silently dropping new fields at
@@ -309,7 +284,7 @@ func (r *Runtime) Close(ctx context.Context) error {
 	r.closed = true
 	r.mu.Unlock()
 
-	return errors.Wrap(r.rt.Close(ctx), "afmpeg: close runtime")
+	return r.backend.close(ctx)
 }
 
 // withDeadline imposes the default invocation deadline on ctx when the caller
@@ -352,7 +327,7 @@ func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result,
 	ctx, cancel := r.withDeadline(ctx)
 	defer cancel()
 
-	inv, err := r.invoke(ctx, fs, args...)
+	inv, err := r.backend.invoke(ctx, fs, args...)
 	if err != nil {
 		return Result{}, err
 	}
@@ -419,77 +394,6 @@ func (r *Runtime) ProbeInput(ctx context.Context, fs afero.Fs, input Input) (Pro
 		Format: in.Format, DurationSec: in.DurationSec, StartSec: in.StartSec,
 		Streams: in.Streams, Tags: in.Tags, Chapters: in.Chapters,
 	}, nil
-}
-
-// invocation is the internal outcome of running the module once.
-type invocation struct {
-	exitCode int
-	stdout   string
-	stderr   string
-}
-
-// invoke instantiates the module once with fs mounted and args applied, capturing
-// stdout and stderr. The module name is cleared so the compiled module can be
-// instantiated repeatedly across calls.
-func (r *Runtime) invoke(ctx context.Context, fs afero.Fs, args ...string) (invocation, error) {
-	mount, err := mountConfig(fs)
-	if err != nil {
-		return invocation{}, err
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	cfg := wazero.NewModuleConfig().
-		WithName("").
-		WithArgs(append([]string{guestName}, args...)...).
-		WithStdout(&stdout).
-		WithStderr(&stderr).
-		WithFSConfig(mount)
-
-	// withSetjmp enables the setjmp/longjmp snapshotter for this invocation; the
-	// guest ffmpeg's setjmp/longjmp lower to the env host module (setjmp.go).
-	mod, instErr := r.rt.InstantiateModule(withSetjmp(ctx), r.compiled, cfg)
-	if mod != nil {
-		_ = mod.Close(ctx)
-	}
-
-	exitCode, err := exitCodeFrom(ctx, instErr)
-	if err != nil {
-		return invocation{}, err
-	}
-
-	return invocation{exitCode: exitCode, stdout: stdout.String(), stderr: stderr.String()}, nil
-}
-
-// mountConfig builds a wazero FSConfig that mounts the vfs bridge over fs at the
-// guest root.
-func mountConfig(fs afero.Fs) (wazero.FSConfig, error) {
-	sysCfg, ok := wazero.NewFSConfig().(sysfs.FSConfig)
-	if !ok {
-		return nil, errors.New("afmpeg: wazero FSConfig does not support sys.FS mounts")
-	}
-
-	return sysCfg.WithSysFSMount(vfs.New(fs), "/"), nil
-}
-
-// exitCodeFrom interprets an InstantiateModule error: a cancelled context is a
-// host-side abort, a wazero ExitError carries the guest exit code, and anything
-// else is a real failure.
-func exitCodeFrom(ctx context.Context, err error) (int, error) {
-	if err == nil {
-		return 0, nil
-	}
-
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		return 0, errors.Wrap(ctxErr, "afmpeg: invocation aborted")
-	}
-
-	var exitErr *wsys.ExitError
-	if errors.As(err, &exitErr) {
-		return int(exitErr.ExitCode()), nil
-	}
-
-	return 0, errors.Wrap(err, "afmpeg: invocation failed")
 }
 
 // tail returns the last stderrTailBytes of s, for surfacing an error tail.

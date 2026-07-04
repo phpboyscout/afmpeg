@@ -75,7 +75,7 @@ func (r *Runtime) preflightVocab(ctx context.Context) error {
 		return errors.Wrap(err, "afmpeg: marshal version query")
 	}
 
-	inv, err := r.invoke(ctx, afero.NewMemMapFs(), string(spec))
+	inv, err := r.backend.invoke(ctx, afero.NewMemMapFs(), string(spec))
 	if err != nil {
 		return err
 	}
