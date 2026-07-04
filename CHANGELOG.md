@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.6.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.6.0)
+
+### Features
+
+- **0019**: subtitle streams — Output.SubtitleCodec + round-trips
+- **0019**: text/subtitle burn-in tests + meson toolchain spec (0029)
+- **0020**: metadata & chapters — Probe/Output model + round-trip
+- **0021**: frames op — typed FrameJob emitter + Runtime.Frames
+
+### Bug Fixes
+
+- review hardening — context-aware Run, safe Close, ProbeInput, validation
+
 ## [v0.5.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.5.0)
 
 ### Features
