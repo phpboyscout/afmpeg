@@ -66,6 +66,33 @@ func (w *releaseWorld) writeRelease(variant string, wrongProvFile bool) error {
 		},
 	}
 
+	return w.signAndWrite(moduleFile, prov)
+}
+
+// writeIntermediateRelease assembles a signed intermediate-profile release: the
+// module is ffmpeg-wasi-intermediate-<variant>.wasm and provenance carries both
+// the lean and the intermediate-<variant> entries, as a real release does.
+func (w *releaseWorld) writeIntermediateRelease(variant string) error {
+	moduleFile := "ffmpeg-wasi-intermediate-" + variant + ".wasm"
+	w.module = []byte("\x00asm bdd intermediate " + variant)
+
+	prov := Provenance{
+		FFmpegVersion:  "n8.1.2",
+		BuildTag:       w.tag,
+		ToolingLicense: "MIT",
+		Variants: map[string]ProvenanceVariant{
+			"lgpl":                    {File: "ffmpeg-wasi-lgpl.wasm", License: "LGPL-2.1-or-later", H264Encode: "openh264", Profile: "lean"},
+			"intermediate-" + variant: {File: moduleFile, License: "LGPL-2.1-or-later", H264Encode: "openh264", Profile: "intermediate"},
+		},
+	}
+
+	return w.signAndWrite(moduleFile, prov)
+}
+
+// signAndWrite signs prov + the module into a checksums manifest and writes the
+// full bundle (module, checksums.txt, checksums.txt.sig, provenance.json) to the
+// scenario dir.
+func (w *releaseWorld) signAndWrite(moduleFile string, prov Provenance) error {
 	provBytes, err := json.Marshal(prov)
 	if err != nil {
 		return err
@@ -98,6 +125,12 @@ func (w *releaseWorld) aSignedRelease(variant, tag string) error {
 	return w.writeRelease(variant, false)
 }
 
+func (w *releaseWorld) aSignedIntermediateRelease(variant, tag string) error {
+	w.tag = tag
+
+	return w.writeIntermediateRelease(variant)
+}
+
 func (w *releaseWorld) alterModule() error {
 	return os.WriteFile(filepath.Join(w.dir, "ffmpeg-wasi-lgpl.wasm"), append(w.module, 'x'), 0o644)
 }
@@ -128,6 +161,26 @@ func (w *releaseWorld) loadRelease(variant string) error {
 	opt := WithModuleRelease(w.tag, Variant(variant),
 		WithReleaseBundleDir(w.dir),
 		withReleaseKeys(w.trusted...),
+		WithReleaseProvenance(&w.prov),
+	)
+	if err := opt(cfg); err != nil {
+		w.err = err // captured for the "Then loading fails" assertion
+
+		return nil //nolint:nilerr // the step succeeds; the option error is the subject under test
+	}
+
+	w.gotMod, w.err = cfg.fetch(context.Background())
+
+	return nil
+}
+
+func (w *releaseWorld) loadIntermediateRelease(variant string) error {
+	cfg := &config{}
+
+	opt := WithModuleRelease(w.tag, Variant(variant),
+		WithReleaseBundleDir(w.dir),
+		withReleaseKeys(w.trusted...),
+		WithReleaseProfile(ProfileIntermediate),
 		WithReleaseProvenance(&w.prov),
 	)
 	if err := opt(cfg); err != nil {
@@ -200,10 +253,12 @@ func TestReleaseVerificationFeatures(t *testing.T) {
 
 			sc.Step(`^a trusted release-signing key$`, w.aTrustedKey)
 			sc.Step(`^a signed "([^"]*)" release tagged "([^"]*)"$`, w.aSignedRelease)
+			sc.Step(`^a signed "([^"]*)" intermediate release tagged "([^"]*)"$`, w.aSignedIntermediateRelease)
 			sc.Step(`^the release module has been altered after signing$`, w.alterModule)
 			sc.Step(`^the signing key is not in the trusted set$`, w.untrustKey)
 			sc.Step(`^the provenance names the wrong file for the variant$`, w.wrongProvenance)
 			sc.Step(`^I load the "([^"]*)" release$`, w.loadRelease)
+			sc.Step(`^I load the "([^"]*)" intermediate release$`, w.loadIntermediateRelease)
 			sc.Step(`^the verified module is returned$`, w.moduleReturned)
 			sc.Step(`^the reported ffmpeg version is "([^"]*)"$`, w.ffmpegVersionIs)
 			sc.Step(`^loading fails with a checksum error$`, w.failsChecksum)

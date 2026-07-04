@@ -21,6 +21,44 @@ const (
 	VariantGPL Variant = "gpl"
 )
 
+// Profile selects a release's capability profile (spec 0022): lean (the default,
+// web-delivery essentials) or intermediate (lean + every practical software
+// codec/filter). A profile is a distinct, separately-signed asset published in
+// the same release; the trust chain is identical.
+type Profile string
+
+const (
+	// ProfileLean is the default: web-delivery essentials at the smallest size,
+	// published as ffmpeg-wasi-<variant>.wasm.
+	ProfileLean Profile = "lean"
+	// ProfileIntermediate is lean + every practical software codec/format/filter
+	// (no hardware, no heavy encoders), published as
+	// ffmpeg-wasi-intermediate-<variant>.wasm.
+	ProfileIntermediate Profile = "intermediate"
+)
+
+// moduleFileFor is the canonical asset name for a (variant, profile): lean keeps
+// the legacy ffmpeg-wasi-<variant>.wasm; a non-lean profile carries the profile
+// in the name, matching ffmpeg-wasi's release layout (spec 0022).
+func moduleFileFor(variant Variant, profile Profile) string {
+	if profile == ProfileIntermediate {
+		return "ffmpeg-wasi-intermediate-" + string(variant) + ".wasm"
+	}
+
+	return "ffmpeg-wasi-" + string(variant) + ".wasm"
+}
+
+// variantKeyFor is the provenance `variants` map key for a (variant, profile):
+// lean is keyed by the bare variant ("lgpl"), intermediate by "intermediate-<variant>"
+// — mirroring ffmpeg-wasi's provenance.json.
+func variantKeyFor(variant Variant, profile Profile) string {
+	if profile == ProfileIntermediate {
+		return "intermediate-" + string(variant)
+	}
+
+	return string(variant)
+}
+
 // Provenance mirrors the subset of ffmpeg-wasi's provenance.json that afmpeg
 // surfaces and asserts on a certified release.
 type Provenance struct {
@@ -36,6 +74,9 @@ type ProvenanceVariant struct {
 	File       string `json:"file"`
 	License    string `json:"license"`
 	H264Encode string `json:"h264_encode"`
+	// Profile is the capability class ("lean"/"intermediate"); empty for pre-0022
+	// releases that predate the field.
+	Profile string `json:"profile,omitempty"`
 }
 
 // ErrProvenanceMismatch is returned when a release's provenance does not
@@ -57,10 +98,11 @@ type releaseBundle struct {
 
 // verifyRelease enforces the trust chain on a complete (in-memory) bundle —
 // the OpenPGP signature over checksums.txt by a trusted key, then the module's
-// and provenance's checksums, then the variant. Used by the offline-bundle path
-// and the unit tests; the online path uses verifyManifest + a cached module fetch.
-func verifyRelease(b releaseBundle, variant Variant, trust *verify.TrustSet) (Provenance, error) {
-	prov, moduleSHA, err := verifyManifest(trust, b.checksums, b.signature, b.provenance, variant, b.moduleFile, b.provFile)
+// and provenance's checksums, then that provenance's entry under variantKey names
+// the module file. Used by the offline-bundle path and the unit tests; the online
+// path uses verifyManifest + a cached module fetch.
+func verifyRelease(b releaseBundle, variantKey string, trust *verify.TrustSet) (Provenance, error) {
+	prov, moduleSHA, err := verifyManifest(trust, b.checksums, b.signature, b.provenance, variantKey, b.moduleFile, b.provFile)
 	if err != nil {
 		return Provenance{}, err
 	}
@@ -76,8 +118,9 @@ func verifyRelease(b releaseBundle, variant Variant, trust *verify.TrustSet) (Pr
 // OpenPGP detached signature over checksums.txt against the trust set, then
 // provenance.json's checksum and the variant. It returns the parsed provenance
 // and the module's trusted SHA-256 — so the (large) module can be fetched through
-// the content-addressed cache and checked against that SHA.
-func verifyManifest(trust *verify.TrustSet, checksums, signature, provenance []byte, variant Variant, moduleFile, provFile string) (Provenance, string, error) {
+// the content-addressed cache and checked against that SHA. variantKey is the
+// provenance `variants` map key (e.g. "lgpl" or "intermediate-lgpl").
+func verifyManifest(trust *verify.TrustSet, checksums, signature, provenance []byte, variantKey, moduleFile, provFile string) (Provenance, string, error) {
 	if err := trust.VerifyManifestSignature(checksums, signature); err != nil {
 		return Provenance{}, "", err
 	}
@@ -101,9 +144,9 @@ func verifyManifest(trust *verify.TrustSet, checksums, signature, provenance []b
 		return Provenance{}, "", errors.Wrap(err, "afmpeg: parse provenance")
 	}
 
-	if pv, ok := prov.Variants[string(variant)]; !ok || pv.File != moduleFile {
+	if pv, ok := prov.Variants[variantKey]; !ok || pv.File != moduleFile {
 		return Provenance{}, "", errors.Wrapf(ErrProvenanceMismatch,
-			"variant %q names file %q, fetched %q", variant, pv.File, moduleFile)
+			"variant %q names file %q, fetched %q", variantKey, pv.File, moduleFile)
 	}
 
 	return prov, moduleSHA, nil

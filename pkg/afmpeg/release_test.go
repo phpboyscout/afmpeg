@@ -173,6 +173,110 @@ func TestFetchRelease(t *testing.T) {
 	})
 }
 
+// intermediateAssets builds the manifest for the intermediate LGPL profile: the
+// module is ffmpeg-wasi-intermediate-lgpl.wasm and provenance carries both the
+// lean and the intermediate-lgpl entries (as a real release does).
+func intermediateAssets(t *testing.T, priv *rsa.PrivateKey, pub, module []byte) (checksums, signature, provenance []byte) {
+	t.Helper()
+
+	moduleFile := "ffmpeg-wasi-intermediate-lgpl.wasm"
+
+	prov := Provenance{
+		FFmpegVersion:  "n8.1.2",
+		BuildTag:       "n8.1.2-6",
+		Commit:         "abc123",
+		ToolingLicense: "MIT",
+		Variants: map[string]ProvenanceVariant{
+			"lgpl":              {File: "ffmpeg-wasi-lgpl.wasm", License: "LGPL-2.1-or-later", H264Encode: "openh264", Profile: "lean"},
+			"intermediate-lgpl": {File: moduleFile, License: "LGPL-2.1-or-later", H264Encode: "openh264", Profile: "intermediate"},
+		},
+	}
+
+	provenance, err := json.Marshal(prov)
+	if err != nil {
+		t.Fatalf("marshal provenance: %v", err)
+	}
+
+	checksums = buildChecksums(map[string][]byte{moduleFile: module, "provenance.json": provenance})
+	signature = detachSign(t, priv, pub, checksums)
+
+	return checksums, signature, provenance
+}
+
+func TestFetchRelease_intermediateProfile(t *testing.T) {
+	t.Parallel()
+
+	priv, pub := testSigningKey(t)
+	module := []byte("\x00asm pretend-intermediate-lgpl")
+	checksums, signature, provenance := intermediateAssets(t, priv, pub, module)
+	moduleFile := "ffmpeg-wasi-intermediate-lgpl.wasm"
+
+	assets := map[string][]byte{
+		moduleFile:          module,
+		"checksums.txt":     checksums,
+		"checksums.txt.sig": signature,
+		"provenance.json":   provenance,
+	}
+
+	t.Run("online fetch resolves the intermediate module + provenance key", func(t *testing.T) {
+		t.Parallel()
+
+		srv := serveAssets(t, assets)
+
+		var gotProv Provenance
+		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: [][]byte{pub}, cacheDir: t.TempDir(), profile: ProfileIntermediate, provOut: &gotProv}
+
+		got, err := fetchRelease(context.Background(), "n8.1.2-6", VariantLGPL, rc)
+		if err != nil {
+			t.Fatalf("fetchRelease (intermediate): %v", err)
+		}
+
+		if !bytes.Equal(got, module) {
+			t.Fatal("returned module bytes differ from served intermediate module")
+		}
+
+		if gotProv.Variants["intermediate-lgpl"].Profile != "intermediate" {
+			t.Fatalf("intermediate profile not surfaced: %+v", gotProv.Variants)
+		}
+	})
+
+	t.Run("offline bundle resolves the intermediate module", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		for name, data := range assets {
+			if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+				t.Fatalf("write bundle file: %v", err)
+			}
+		}
+
+		rc := &releaseConfig{bundleDir: dir, keys: [][]byte{pub}, profile: ProfileIntermediate}
+
+		got, err := fetchRelease(context.Background(), "n8.1.2-6", VariantLGPL, rc)
+		if err != nil {
+			t.Fatalf("offline fetchRelease (intermediate): %v", err)
+		}
+
+		if !bytes.Equal(got, module) {
+			t.Fatal("offline intermediate module bytes differ")
+		}
+	})
+
+	t.Run("default (lean) profile does not resolve the intermediate module", func(t *testing.T) {
+		t.Parallel()
+
+		// Serving only the intermediate assets, a lean fetch looks for
+		// ffmpeg-wasi-lgpl.wasm and its lean provenance entry — which name a file
+		// absent from checksums. It must not silently fall back to intermediate.
+		srv := serveAssets(t, assets)
+		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: [][]byte{pub}, cacheDir: t.TempDir()} // profile "" → lean
+
+		if _, err := fetchRelease(context.Background(), "n8.1.2-6", VariantLGPL, rc); err == nil {
+			t.Fatal("lean fetch must not resolve against an intermediate-only release")
+		}
+	})
+}
+
 func cloneAssets(in map[string][]byte) map[string][]byte {
 	out := make(map[string][]byte, len(in))
 	for k, v := range in {
@@ -328,6 +432,7 @@ func TestReleaseOptions(t *testing.T) {
 		WithReleaseBundleDir("/srv/bundle"),
 		WithReleaseCacheDir("/var/cache/afmpeg"),
 		WithReleaseHTTPClient(client),
+		WithReleaseProfile(ProfileIntermediate),
 		WithReleaseProvenance(&prov),
 		WithReleaseWKDEmail("mirror-release@example.test"),
 	} {
@@ -336,7 +441,7 @@ func TestReleaseOptions(t *testing.T) {
 
 	if rc.baseURL != "https://mirror.example/pkg" || rc.bundleDir != "/srv/bundle" ||
 		rc.cacheDir != "/var/cache/afmpeg" || rc.client != client || rc.provOut != &prov ||
-		rc.wkdEmail != "mirror-release@example.test" {
+		rc.profile != ProfileIntermediate || rc.wkdEmail != "mirror-release@example.test" {
 		t.Fatalf("release options did not apply: %+v", rc)
 	}
 }
@@ -355,5 +460,13 @@ func TestWithModuleRelease_validatesVariant(t *testing.T) {
 
 	if cfg.fetch == nil {
 		t.Fatal("WithModuleRelease did not set the deferred fetch")
+	}
+
+	if err := WithModuleRelease("n8.1.2-4", VariantLGPL, WithReleaseProfile(Profile("bogus")))(&config{}); err == nil {
+		t.Fatal("want an error for an unknown profile, got nil")
+	}
+
+	if err := WithModuleRelease("n8.1.2-4", VariantLGPL, WithReleaseProfile(ProfileIntermediate))(&config{}); err != nil {
+		t.Fatalf("valid intermediate profile: %v", err)
 	}
 }

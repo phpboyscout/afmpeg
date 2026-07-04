@@ -27,3 +27,9 @@ Feature: Certified release verification
     Given the provenance names the wrong file for the variant
     When I load the "lgpl" release
     Then loading fails with a provenance error
+
+  Scenario: the intermediate profile is loaded from its own signed asset
+    Given a signed "lgpl" intermediate release tagged "n8.1.2-6"
+    When I load the "lgpl" intermediate release
+    Then the verified module is returned
+    And the reported ffmpeg version is "n8.1.2"

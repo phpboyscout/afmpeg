@@ -141,7 +141,7 @@ func TestVerifyRelease(t *testing.T) {
 
 		b := validBundle(t, priv, pub, VariantLGPL)
 
-		prov, err := verifyRelease(b, VariantLGPL, trust)
+		prov, err := verifyRelease(b, string(VariantLGPL), trust)
 		if err != nil {
 			t.Fatalf("verifyRelease: %v", err)
 		}
@@ -157,7 +157,7 @@ func TestVerifyRelease(t *testing.T) {
 		b := validBundle(t, priv, pub, VariantLGPL)
 		b.module = append(b.module, 'x')
 
-		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, ErrChecksumMismatch) {
+		if _, err := verifyRelease(b, string(VariantLGPL), trust); !errors.Is(err, ErrChecksumMismatch) {
 			t.Fatalf("want ErrChecksumMismatch, got %v", err)
 		}
 	})
@@ -168,7 +168,7 @@ func TestVerifyRelease(t *testing.T) {
 		b := validBundle(t, priv, pub, VariantLGPL)
 		b.checksums = append(b.checksums, []byte("deadbeef  evil.wasm\n")...)
 
-		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, verify.ErrSignatureInvalid) {
+		if _, err := verifyRelease(b, string(VariantLGPL), trust); !errors.Is(err, verify.ErrSignatureInvalid) {
 			t.Fatalf("want ErrSignatureInvalid, got %v", err)
 		}
 	})
@@ -179,7 +179,7 @@ func TestVerifyRelease(t *testing.T) {
 		b := validBundle(t, priv, pub, VariantLGPL)
 		b.provenance = append(b.provenance, ' ')
 
-		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, ErrChecksumMismatch) {
+		if _, err := verifyRelease(b, string(VariantLGPL), trust); !errors.Is(err, ErrChecksumMismatch) {
 			t.Fatalf("want ErrChecksumMismatch, got %v", err)
 		}
 	})
@@ -190,7 +190,7 @@ func TestVerifyRelease(t *testing.T) {
 		other, otherPub := testSigningKey(t)
 		b := validBundle(t, other, otherPub, VariantLGPL) // signed by an untrusted key
 
-		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, verify.ErrSignatureInvalid) {
+		if _, err := verifyRelease(b, string(VariantLGPL), trust); !errors.Is(err, verify.ErrSignatureInvalid) {
 			t.Fatalf("want ErrSignatureInvalid, got %v", err)
 		}
 	})
@@ -201,7 +201,7 @@ func TestVerifyRelease(t *testing.T) {
 		b := validBundle(t, priv, pub, VariantLGPL)
 		b.signature = []byte("-----BEGIN PGP SIGNATURE-----\nnot a real sig\n-----END PGP SIGNATURE-----\n")
 
-		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, verify.ErrSignatureInvalid) {
+		if _, err := verifyRelease(b, string(VariantLGPL), trust); !errors.Is(err, verify.ErrSignatureInvalid) {
 			t.Fatalf("want ErrSignatureInvalid, got %v", err)
 		}
 	})
@@ -211,7 +211,7 @@ func TestVerifyRelease(t *testing.T) {
 
 		b := assembleBundleRaw(t, priv, pub, []byte("only-one-field\n"), []byte("\x00asm"), []byte("{}"))
 
-		if _, err := verifyRelease(b, VariantLGPL, trust); err == nil {
+		if _, err := verifyRelease(b, string(VariantLGPL), trust); err == nil {
 			t.Fatal("want an error for a malformed checksums line")
 		}
 	})
@@ -221,8 +221,44 @@ func TestVerifyRelease(t *testing.T) {
 
 		b := assembleBundle(t, priv, pub, "ffmpeg-wasi-lgpl.wasm", []byte("\x00asm"), []byte("{not valid json"))
 
-		if _, err := verifyRelease(b, VariantLGPL, trust); err == nil {
+		if _, err := verifyRelease(b, string(VariantLGPL), trust); err == nil {
 			t.Fatal("want an error for non-JSON provenance")
+		}
+	})
+
+	t.Run("intermediate profile verifies against its provenance key", func(t *testing.T) {
+		t.Parallel()
+
+		moduleFile := "ffmpeg-wasi-intermediate-lgpl.wasm"
+		module := []byte("\x00asm fake intermediate-lgpl")
+
+		prov := Provenance{
+			FFmpegVersion: "n8.1.2",
+			Variants: map[string]ProvenanceVariant{
+				"lgpl":              {File: "ffmpeg-wasi-lgpl.wasm", License: "LGPL-2.1-or-later", H264Encode: "openh264", Profile: "lean"},
+				"intermediate-lgpl": {File: moduleFile, License: "LGPL-2.1-or-later", H264Encode: "openh264", Profile: "intermediate"},
+			},
+		}
+
+		provBytes, err := json.Marshal(prov)
+		if err != nil {
+			t.Fatalf("marshal provenance: %v", err)
+		}
+
+		b := assembleBundle(t, priv, pub, moduleFile, module, provBytes)
+
+		got, err := verifyRelease(b, variantKeyFor(VariantLGPL, ProfileIntermediate), trust)
+		if err != nil {
+			t.Fatalf("verifyRelease (intermediate): %v", err)
+		}
+
+		if got.Variants["intermediate-lgpl"].Profile != "intermediate" {
+			t.Fatalf("intermediate profile not surfaced: %+v", got.Variants)
+		}
+
+		// The lean key must not satisfy the intermediate module: the keys are distinct.
+		if _, err := verifyRelease(b, variantKeyFor(VariantLGPL, ProfileLean), trust); !errors.Is(err, ErrProvenanceMismatch) {
+			t.Fatalf("lean key should not name the intermediate module; got %v", err)
 		}
 	})
 
@@ -243,7 +279,7 @@ func TestVerifyRelease(t *testing.T) {
 
 		b := assembleBundle(t, priv, pub, "ffmpeg-wasi-lgpl.wasm", []byte("\x00asm"), provBytes)
 
-		if _, err := verifyRelease(b, VariantLGPL, trust); !errors.Is(err, ErrProvenanceMismatch) {
+		if _, err := verifyRelease(b, string(VariantLGPL), trust); !errors.Is(err, ErrProvenanceMismatch) {
 			t.Fatalf("want ErrProvenanceMismatch, got %v", err)
 		}
 	})

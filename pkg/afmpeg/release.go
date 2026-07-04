@@ -30,6 +30,7 @@ type releaseConfig struct {
 	bundleDir string // offline mode: a local dir of pre-fetched assets
 	cacheDir  string
 	client    *http.Client
+	profile   Profile // capability profile; "" defaults to ProfileLean
 	provOut   *Provenance
 
 	// keys are armored OpenPGP public keys; nil → afmpeg's embedded set (tests
@@ -62,6 +63,16 @@ func WithReleaseBundleDir(dir string) ReleaseOption {
 // WithReleaseCacheDir overrides where the verified module is cached.
 func WithReleaseCacheDir(dir string) ReleaseOption {
 	return func(c *releaseConfig) { c.cacheDir = dir }
+}
+
+// WithReleaseProfile selects the capability profile to load: ProfileLean (the
+// default — web-delivery essentials) or ProfileIntermediate (lean + every
+// practical software codec/filter, spec 0022). The intermediate module is a
+// distinct, separately-signed asset (ffmpeg-wasi-intermediate-<variant>.wasm)
+// verified through the same trust chain — this is the certified equivalent of
+// reaching for the intermediate build with WithModuleURL.
+func WithReleaseProfile(profile Profile) ReleaseOption {
+	return func(c *releaseConfig) { c.profile = profile }
 }
 
 // WithReleaseHTTPClient overrides the HTTP client used to fetch the release (and,
@@ -103,15 +114,23 @@ func withReleaseKeys(armoredKeys ...[]byte) ReleaseOption {
 //
 // Unlike WithModuleURL (bring-your-own, uncertified), this path is for the
 // project's own published releases — there is no way to skip verification.
+//
+// The default profile is ProfileLean; pass WithReleaseProfile(ProfileIntermediate)
+// to load the full software-codec build. Either way the module, its provenance
+// entry, and its checksum are verified through the same trust chain.
 func WithModuleRelease(tag string, variant Variant, opts ...ReleaseOption) Option {
 	return func(c *config) error {
 		if variant != VariantLGPL && variant != VariantGPL {
 			return errors.Newf("afmpeg: unknown variant %q (want %q or %q)", variant, VariantLGPL, VariantGPL)
 		}
 
-		rc := &releaseConfig{baseURL: defaultReleaseBaseURL, client: http.DefaultClient, wkdEmail: defaultWKDEmail}
+		rc := &releaseConfig{baseURL: defaultReleaseBaseURL, client: http.DefaultClient, profile: ProfileLean, wkdEmail: defaultWKDEmail}
 		for _, opt := range opts {
 			opt(rc)
+		}
+
+		if rc.profile != ProfileLean && rc.profile != ProfileIntermediate {
+			return errors.Newf("afmpeg: unknown profile %q (want %q or %q)", rc.profile, ProfileLean, ProfileIntermediate)
 		}
 
 		c.fetch = func(ctx context.Context) ([]byte, error) {
@@ -157,7 +176,13 @@ func (rc *releaseConfig) resolveTrust(ctx context.Context, useWKD bool) (*verify
 }
 
 func fetchRelease(ctx context.Context, tag string, variant Variant, rc *releaseConfig) ([]byte, error) {
-	moduleFile := "ffmpeg-wasi-" + string(variant) + ".wasm"
+	profile := rc.profile
+	if profile == "" {
+		profile = ProfileLean
+	}
+
+	moduleFile := moduleFileFor(variant, profile)
+	variantKey := variantKeyFor(variant, profile)
 
 	if rc.bundleDir != "" {
 		trust, err := rc.resolveTrust(ctx, false) // offline: embedded only, no network
@@ -165,7 +190,7 @@ func fetchRelease(ctx context.Context, tag string, variant Variant, rc *releaseC
 			return nil, err
 		}
 
-		return fetchReleaseOffline(rc, variant, moduleFile, trust)
+		return fetchReleaseOffline(rc, variantKey, moduleFile, trust)
 	}
 
 	trust, err := rc.resolveTrust(ctx, true) // online: embedded↔WKD cross-check
@@ -173,13 +198,13 @@ func fetchRelease(ctx context.Context, tag string, variant Variant, rc *releaseC
 		return nil, err
 	}
 
-	return fetchReleaseOnline(ctx, tag, variant, moduleFile, rc, trust)
+	return fetchReleaseOnline(ctx, tag, variantKey, moduleFile, rc, trust)
 }
 
 // fetchReleaseOffline verifies a complete bundle read from a local directory
 // (D-0010-G air-gap): everything is in memory, so the whole bundle goes through
 // verifyRelease.
-func fetchReleaseOffline(rc *releaseConfig, variant Variant, moduleFile string, trust *verify.TrustSet) ([]byte, error) {
+func fetchReleaseOffline(rc *releaseConfig, variantKey, moduleFile string, trust *verify.TrustSet) ([]byte, error) {
 	module, err := readBundleFile(rc.bundleDir, moduleFile)
 	if err != nil {
 		return nil, err
@@ -209,7 +234,7 @@ func fetchReleaseOffline(rc *releaseConfig, variant Variant, moduleFile string, 
 		provFile:   provenanceFile,
 	}
 
-	prov, err := verifyRelease(bundle, variant, trust)
+	prov, err := verifyRelease(bundle, variantKey, trust)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +250,7 @@ func fetchReleaseOffline(rc *releaseConfig, variant Variant, moduleFile string, 
 // module's trusted SHA before any module byte is trusted — then fetches the
 // module through the content-addressed cache (a repeat load skips the download;
 // a corrupt cache entry self-heals on its checksum).
-func fetchReleaseOnline(ctx context.Context, tag string, variant Variant, moduleFile string, rc *releaseConfig, trust *verify.TrustSet) ([]byte, error) {
+func fetchReleaseOnline(ctx context.Context, tag, variantKey, moduleFile string, rc *releaseConfig, trust *verify.TrustSet) ([]byte, error) {
 	checksums, err := downloadAsset(ctx, rc, tag, "checksums.txt")
 	if err != nil {
 		return nil, err
@@ -241,7 +266,7 @@ func fetchReleaseOnline(ctx context.Context, tag string, variant Variant, module
 		return nil, err
 	}
 
-	prov, moduleSHA, err := verifyManifest(trust, checksums, signature, provenance, variant, moduleFile, provenanceFile)
+	prov, moduleSHA, err := verifyManifest(trust, checksums, signature, provenance, variantKey, moduleFile, provenanceFile)
 	if err != nil {
 		return nil, err
 	}

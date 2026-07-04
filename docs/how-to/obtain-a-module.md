@@ -43,17 +43,39 @@ a WKD outage falls back to the pinned key. Any tamper fails with a typed error:
 `ErrSignatureInvalid`, `ErrChecksumMismatch`, or `ErrProvenanceMismatch`. The verified
 module is cached, so later runs skip the download.
 
-Options: `WithReleaseProvenance` (capture the verified provenance), `WithReleaseBaseURL`
-(fetch from a mirror / internal store — still verified against the pinned key),
-`WithReleaseBundleDir` (air-gapped: verify a local directory of pre-downloaded assets;
-skips WKD), `WithReleaseWKDEmail` (override the WKD identity, or `""` to disable the
-cross-check), `WithReleaseCacheDir`, `WithReleaseHTTPClient`. See the trust model in
+Options: `WithReleaseProvenance` (capture the verified provenance), `WithReleaseProfile`
+(select the capability profile — see below), `WithReleaseBaseURL` (fetch from a mirror /
+internal store — still verified against the pinned key), `WithReleaseBundleDir` (air-gapped:
+verify a local directory of pre-downloaded assets; skips WKD), `WithReleaseWKDEmail`
+(override the WKD identity, or `""` to disable the cross-check), `WithReleaseCacheDir`,
+`WithReleaseHTTPClient`. See the trust model in
 [verifying a release](../explanation/concepts/release-verification.md), or check a release
 yourself with [verify a release by hand](verify-a-release-by-hand.md).
 
 `VariantLGPL` is the default, proprietary-compatible build (H.264 via openh264);
 `VariantGPL` adds libx264. This path is for **our** releases — we can only certify
 what we publish; for your own builds use `WithModuleURL` or a file below.
+
+### Profiles: lean (default) or intermediate
+
+Each variant ships in two [capability profiles](https://ffmpeg-wasi.phpboyscout.uk/reference/variants/)
+(ffmpeg-wasi spec 0022): **lean** — web-delivery essentials at the smallest size (the
+default) — and **intermediate** — lean plus every practical software codec, format, and
+filter (the LGPL encoders, the native codec/container batches, and text/subtitle burn-in).
+The intermediate build is a distinct, separately-signed asset
+(`ffmpeg-wasi-intermediate-<variant>.wasm`); `WithReleaseProfile` fetches and verifies it
+through the identical trust chain:
+
+```go
+rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
+    "n8.1.2-6", afmpeg.VariantLGPL,
+    afmpeg.WithReleaseProfile(afmpeg.ProfileIntermediate),
+))
+```
+
+Omit the option (or pass `afmpeg.ProfileLean`) for the lean module. This is the certified
+equivalent of reaching for the intermediate build via `WithModuleURL` — same bytes, but
+verified against the pinned key rather than a checksum you supply.
 
 ## From a file or bytes
 
