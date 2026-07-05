@@ -75,6 +75,25 @@ func WithReleaseProfile(profile Profile) ReleaseOption {
 	return func(c *releaseConfig) { c.profile = profile }
 }
 
+// ResolveReleaseProfile applies the given release options and reports the selected
+// capability profile, defaulting to ProfileLean. It lets a caller that must build a
+// profile-dependent asset name outside this package — the native backend's driver
+// filename (spec 0028) — honour WithReleaseProfile exactly as WithModuleRelease
+// does, instead of re-implementing the option plumbing. An unknown profile is a
+// typed error, matching WithModuleRelease's validation.
+func ResolveReleaseProfile(opts ...ReleaseOption) (Profile, error) {
+	rc := &releaseConfig{profile: ProfileLean}
+	for _, opt := range opts {
+		opt(rc)
+	}
+
+	if rc.profile != ProfileLean && rc.profile != ProfileIntermediate {
+		return "", errors.Newf("afmpeg: unknown profile %q (want %q or %q)", rc.profile, ProfileLean, ProfileIntermediate)
+	}
+
+	return rc.profile, nil
+}
+
 // WithReleaseHTTPClient overrides the HTTP client used to fetch the release (and,
 // when the WKD cross-check is enabled, to fetch the WKD key).
 func WithReleaseHTTPClient(client *http.Client) ReleaseOption {

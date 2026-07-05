@@ -33,18 +33,27 @@ const (
 // are verified against the KMS/OpenPGP-signed checksums (afmpeg's pinned trust
 // keys, with the WKD cross-check) before it is written or run, so a consumer never
 // executes an unverified binary. The afmpeg ReleaseOptions apply (mirror base URL,
-// air-gapped bundle dir, cache dir, HTTP client, WKD identity).
+// air-gapped bundle dir, cache dir, HTTP client, WKD identity) — including
+// WithReleaseProfile to select the intermediate driver (the full software-codec
+// batch: Opus/MP3/Vorbis/WebP/VP8-9 + subtitles, at native speed), just as it
+// selects the intermediate module on the wasm path. Defaults to ProfileLean.
 //
 //	rt, err := afmpeg.New(ctx, afmpeg.WithBackend(
-//	    must(native.NewFromRelease(ctx, "n8.1.2-7", afmpeg.VariantLGPL))))
+//	    must(native.NewFromRelease(ctx, "n8.1.2-7", afmpeg.VariantLGPL,
+//	        afmpeg.WithReleaseProfile(afmpeg.ProfileIntermediate)))))
 func NewFromRelease(ctx context.Context, tag string, variant afmpeg.Variant, opts ...afmpeg.ReleaseOption) (*Backend, error) {
 	if variant != afmpeg.VariantLGPL && variant != afmpeg.VariantGPL {
 		return nil, errors.Newf("native: unknown variant %q (want %q or %q)", variant, afmpeg.VariantLGPL, afmpeg.VariantGPL)
 	}
 
-	asset := driverAsset(variant)
+	profile, err := afmpeg.ResolveReleaseProfile(opts...)
+	if err != nil {
+		return nil, err
+	}
 
-	data, _, err := fetchReleaseAsset(ctx, tag, asset, driverProvKey(variant), opts...)
+	asset := driverAsset(variant, profile)
+
+	data, _, err := fetchReleaseAsset(ctx, tag, asset, driverProvKey(variant, profile), opts...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "native: acquire driver %s", asset)
 	}
@@ -57,15 +66,29 @@ func NewFromRelease(ctx context.Context, tag string, variant afmpeg.Variant, opt
 	return New(WithNativeBinary(path)), nil
 }
 
-// driverAsset is the release filename of the native driver for the host platform,
-// mirroring ffmpeg-wasi's build/sign-release.sh (e.g. ffmpeg-wasi-driver-linux-amd64-lgpl).
-func driverAsset(variant afmpeg.Variant) string {
-	return fmt.Sprintf("ffmpeg-wasi-driver-%s-%s-%s", runtime.GOOS, runtime.GOARCH, variant)
+// profileInfix is the naming segment a non-lean profile carries in the driver
+// asset name / provenance key ("intermediate-"); lean carries nothing, keeping the
+// legacy platform-only names. Mirrors ffmpeg-wasi's build/sign-release.sh and the
+// wasm-side ffmpeg-wasi-intermediate-<variant>.wasm convention (spec 0022 parity).
+func profileInfix(profile afmpeg.Profile) string {
+	if profile == afmpeg.ProfileIntermediate {
+		return string(afmpeg.ProfileIntermediate) + "-"
+	}
+
+	return ""
+}
+
+// driverAsset is the release filename of the native driver for the host platform +
+// profile, mirroring ffmpeg-wasi's build/sign-release.sh (lean:
+// ffmpeg-wasi-driver-linux-amd64-lgpl; intermediate:
+// ffmpeg-wasi-driver-linux-amd64-intermediate-lgpl).
+func driverAsset(variant afmpeg.Variant, profile afmpeg.Profile) string {
+	return fmt.Sprintf("ffmpeg-wasi-driver-%s-%s-%s%s", runtime.GOOS, runtime.GOARCH, profileInfix(profile), variant)
 }
 
 // driverProvKey is the provenance `variants` key for that driver.
-func driverProvKey(variant afmpeg.Variant) string {
-	return fmt.Sprintf("driver-%s-%s-%s", runtime.GOOS, runtime.GOARCH, variant)
+func driverProvKey(variant afmpeg.Variant, profile afmpeg.Profile) string {
+	return fmt.Sprintf("driver-%s-%s-%s%s", runtime.GOOS, runtime.GOARCH, profileInfix(profile), variant)
 }
 
 // cacheDriver writes the already-verified driver bytes to a content-addressed

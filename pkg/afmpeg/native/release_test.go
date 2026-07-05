@@ -14,14 +14,33 @@ import (
 func TestDriverAssetAndProvKey(t *testing.T) {
 	t.Parallel()
 
-	wantAsset := "ffmpeg-wasi-driver-" + runtime.GOOS + "-" + runtime.GOARCH + "-lgpl"
-	if got := driverAsset(afmpeg.VariantLGPL); got != wantAsset {
-		t.Fatalf("driverAsset = %q, want %q", got, wantAsset)
+	plat := runtime.GOOS + "-" + runtime.GOARCH
+
+	// Lean carries the platform-only name (unchanged legacy convention).
+	wantAsset := "ffmpeg-wasi-driver-" + plat + "-lgpl"
+	if got := driverAsset(afmpeg.VariantLGPL, afmpeg.ProfileLean); got != wantAsset {
+		t.Fatalf("driverAsset(lean) = %q, want %q", got, wantAsset)
 	}
 
-	wantKey := "driver-" + runtime.GOOS + "-" + runtime.GOARCH + "-gpl"
-	if got := driverProvKey(afmpeg.VariantGPL); got != wantKey {
-		t.Fatalf("driverProvKey = %q, want %q", got, wantKey)
+	wantKey := "driver-" + plat + "-gpl"
+	if got := driverProvKey(afmpeg.VariantGPL, afmpeg.ProfileLean); got != wantKey {
+		t.Fatalf("driverProvKey(lean) = %q, want %q", got, wantKey)
+	}
+
+	// The empty profile is treated as lean (NewFromRelease resolves "" → lean).
+	if got := driverAsset(afmpeg.VariantLGPL, ""); got != wantAsset {
+		t.Fatalf("driverAsset(\"\") = %q, want %q", got, wantAsset)
+	}
+
+	// Intermediate slots the profile before the variant, mirroring the wasm module.
+	wantIntAsset := "ffmpeg-wasi-driver-" + plat + "-intermediate-lgpl"
+	if got := driverAsset(afmpeg.VariantLGPL, afmpeg.ProfileIntermediate); got != wantIntAsset {
+		t.Fatalf("driverAsset(intermediate) = %q, want %q", got, wantIntAsset)
+	}
+
+	wantIntKey := "driver-" + plat + "-intermediate-gpl"
+	if got := driverProvKey(afmpeg.VariantGPL, afmpeg.ProfileIntermediate); got != wantIntKey {
+		t.Fatalf("driverProvKey(intermediate) = %q, want %q", got, wantIntKey)
 	}
 }
 
@@ -89,12 +108,51 @@ func TestNewFromRelease_fetchesAndCaches(t *testing.T) {
 		t.Fatal("no backend / empty driver path")
 	}
 
-	if gotTag != "n8.1.2-7" || gotAsset != driverAsset(afmpeg.VariantLGPL) || gotKey != driverProvKey(afmpeg.VariantLGPL) {
+	if gotTag != "n8.1.2-7" || gotAsset != driverAsset(afmpeg.VariantLGPL, afmpeg.ProfileLean) || gotKey != driverProvKey(afmpeg.VariantLGPL, afmpeg.ProfileLean) {
 		t.Fatalf("fetch called with tag=%q asset=%q key=%q", gotTag, gotAsset, gotKey)
 	}
 
 	if info, err := os.Stat(b.binary); err != nil || info.Mode().Perm()&0o100 == 0 {
 		t.Fatalf("driver not cached executable: %v (%v)", info, err)
+	}
+}
+
+// WithReleaseProfile(intermediate) resolves the intermediate driver asset + key.
+func TestNewFromRelease_intermediateProfile(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	orig := fetchReleaseAsset
+	t.Cleanup(func() { fetchReleaseAsset = orig })
+
+	var gotAsset, gotKey string
+
+	fetchReleaseAsset = func(_ context.Context, _, asset, key string, _ ...afmpeg.ReleaseOption) ([]byte, afmpeg.Provenance, error) {
+		gotAsset, gotKey = asset, key
+
+		return []byte("\x7fELF fake driver"), afmpeg.Provenance{}, nil
+	}
+
+	if _, err := NewFromRelease(context.Background(), "n8.1.2-7", afmpeg.VariantLGPL,
+		afmpeg.WithReleaseProfile(afmpeg.ProfileIntermediate)); err != nil {
+		t.Fatalf("NewFromRelease: %v", err)
+	}
+
+	if want := driverAsset(afmpeg.VariantLGPL, afmpeg.ProfileIntermediate); gotAsset != want {
+		t.Fatalf("asset = %q, want %q", gotAsset, want)
+	}
+
+	if want := driverProvKey(afmpeg.VariantLGPL, afmpeg.ProfileIntermediate); gotKey != want {
+		t.Fatalf("provKey = %q, want %q", gotKey, want)
+	}
+}
+
+// An unknown profile is rejected before any fetch.
+func TestNewFromRelease_unknownProfile(t *testing.T) {
+	t.Parallel()
+
+	if _, err := NewFromRelease(context.Background(), "n8.1.2-7", afmpeg.VariantLGPL,
+		afmpeg.WithReleaseProfile(afmpeg.Profile("bogus"))); err == nil {
+		t.Fatal("want an error for an unknown profile")
 	}
 }
 
