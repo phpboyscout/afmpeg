@@ -6,7 +6,15 @@ tags: [overview, introduction]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
 ---
 
+<div class="hero" markdown>
+
+![afmpeg logo](images/branding/logo_transparent.svg)
+
 # afmpeg
+
+<p class="hero-tagline">Pure-Go FFmpeg on a virtual filesystem — no CGO, no host FFmpeg, no temp files.</p>
+
+</div>
 
 **A pure-Go FFmpeg binding that runs on a virtual / in-memory filesystem.** No CGO,
 no host FFmpeg install, no temp files: FFmpeg is supplied as a separate WebAssembly

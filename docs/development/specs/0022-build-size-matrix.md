@@ -1,6 +1,6 @@
 # 0022 — the build & distribution matrix
 
-Status: **POLICY AGREED; WASM PROFILE MACHINERY IMPLEMENTED** (refined 2026-07-02 — the
+Status: **POLICY AGREED; WASM + NATIVE PROFILE MACHINERY IMPLEMENTED (linux/amd64)** (refined 2026-07-02 — the
 lean/intermediate/full profile model, the runtime×profile mapping, and the native platform set are
 RESOLVED with the user; the concrete codec-set-per-profile in §6 is the proposed starting policy.
 This spec **governs the codec-bundling decision every other spec defers to**. **Built 2026-07-03

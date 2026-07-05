@@ -1,10 +1,13 @@
 # 0028 — native backends (the hardware-acceleration escape hatch)
 
-Status: **PROPOSED — spike-validated** (a strategic architecture spec; the direction is decided and
-the I/O model is proven end-to-end by the 2026-07-02 spikes (§5), but implementation is not yet
-committed. The primary path (Backend B) is a firm MUST for the design; the third path (Backend C)
-is an explicit MAY, deferred.)
-Date: 2026-07-02
+Status: **IMPLEMENTED (Backend B)** (a strategic architecture spec; the I/O model was proven by the
+2026-07-02 spikes (§5), and Backend B then built end-to-end (2026-07-05): the native `driver.c` ELF
+(`TARGET=native`), the `O/R/W/S/Z/C` seekable-AVIO-over-IPC bridge, the `pkg/afmpeg/native` host, and
+`native.NewFromRelease` + `WithBackend` — lean/intermediate/full profiles, linux/amd64, signed, with
+**48–58× faster software encode** and HEVC/AV1 in the full profile. The third path (Backend C, stock
+host ffmpeg over HTTP) remains an explicit MAY, deferred; HW-accel encoders and the arm64/darwin
+native platforms are the remaining follow-ups.)
+Date: 2026-07-02 (Backend B implemented 2026-07-05)
 Parent: [0001](0001-afmpeg.md) (architecture); [0007](0007-libav-direct-engine.md) (the engine we extend)
 Source: external review `docs/development/external-review/ARCHITECTURE_REVIEW.md` §6–§12, refined by
 the **2026-07-02 bridge spike** (§5) and the decision to prioritise our own native interface.

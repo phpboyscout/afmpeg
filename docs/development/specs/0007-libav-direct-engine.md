@@ -1,9 +1,10 @@
 # 0007 — the libav-direct engine + the ffmpeg-wasi project
 
-Status: **DRAFT / SCOPING** (the design for the WASM media engine afmpeg drives. Pivots
-away from "compile the ffmpeg CLI to wasm" — see §1. **Supersedes spec 0002.** Review
-before building.)
-Date: 2026-06-28
+Status: **IMPLEMENTED** (the design for the media engine afmpeg drives. Pivoted away from
+"compile the ffmpeg CLI to wasm" — see §1. **Supersedes spec 0002.** Built and shipping: the
+ffmpeg-wasi engine — `probe`/`process`/`frames`/`version` ops, job-spec vocab v8 — is published
+as signed WASM modules and native drivers; the parity specs 0013–0024 extended it additively.)
+Date: 2026-06-28 (implemented; shipping)
 Parent: [0001-afmpeg.md](0001-afmpeg.md); supersedes [0002-wasm-build-pipeline.md](0002-wasm-build-pipeline.md)
 Owns: R-AF-3 (the codec/filter set, reframed), R-AF-6 (reproducible build), R-AF-10 (licence variants)
 

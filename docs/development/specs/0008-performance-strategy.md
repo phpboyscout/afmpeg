@@ -1,9 +1,11 @@
 # 0008 — performance strategy (spike)
 
-Status: **DRAFT / SPIKE** (an investigation, not committed work. Its job is to *measure* the
-Wasm-encode performance question and decide whether anything needs addressing — and if so,
-which lever. No implementation until the spike reports.)
-Date: 2026-06-29
+Status: **SPIKE COMPLETE** (the investigation ran: `cmd/afmpeg-bench` *measured* the Wasm-encode
+question. Finding — the penalty is an *encoder* penalty (decode+scale ≈ 2.4× native; single-threaded
+H.264 encode 13–63×). The WASM levers are preset + encoder choice + the RuntimePool for throughput;
+the native backend (0028) is the escape for genuinely encode-bound consumers. **Go/no-go: no dedicated
+optimisation spec warranted** (R-AF-12 closes). Results in `docs/development/spikes/0008-perf/`.)
+Date: 2026-06-29 (spike complete 2026-07-04)
 Parent: [0001-afmpeg.md](0001-afmpeg.md) §9 (the performance risk)
 Supersedes: [0006-hardening-roadmap.md](0006-hardening-roadmap.md) §2B (R-AF-12) and §2E (RuntimePool)
 Owns: **R-AF-12** (performance)
