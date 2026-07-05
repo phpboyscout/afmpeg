@@ -49,8 +49,9 @@ var ErrNoModule = errors.New("afmpeg: no wasm module configured (use WithModuleR
 // D-0004-B).
 type Runtime struct {
 	// backend runs each invocation. The wasm backend (wazero) is the default; an
-	// opt-in native backend (spec 0028) is swapped in here without touching Run.
-	backend backend
+	// opt-in native backend (spec 0028), injected via WithBackend, is swapped in
+	// here without touching Run.
+	backend Backend
 
 	// sem is a size-1 semaphore serialising invocations. Unlike a Mutex it is
 	// acquired with a select against the caller's context, so a queued Run/Probe
@@ -122,6 +123,7 @@ type ProbeStream struct {
 type config struct {
 	module           []byte
 	fetch            func(context.Context) ([]byte, error)
+	backend          Backend // non-nil → a WithBackend override replaces the wasm default
 	memoryLimitBytes int
 	timeout          time.Duration
 }
@@ -161,6 +163,22 @@ func WithModuleFS(fs afero.Fs, path string) Option {
 		}
 
 		c.module = module
+
+		return nil
+	}
+}
+
+// WithBackend replaces the default sandboxed wasm backend with a custom one — the
+// opt-in native subprocess backend (spec 0028), constructed in a separate package
+// (pkg/afmpeg/native) and passed here. When set, the WithModule* options are
+// ignored: no wasm module is compiled, and the Runtime drives the provided backend
+// behind the unchanged RunJob/Probe/Frames API. WASM stays the default — a Runtime
+// built without this option is fully sandboxed (spec 0028 D-0028-C). New still
+// preflights the vocabulary against the backend, so an outdated native engine is
+// rejected just as an outdated module is.
+func WithBackend(b Backend) Option {
+	return func(c *config) error {
+		c.backend = b
 
 		return nil
 	}
@@ -207,6 +225,12 @@ func resolveConfig(ctx context.Context, opts []Option) (*config, error) {
 		}
 	}
 
+	// A custom backend (WithBackend) supplies the engine itself, so no wasm module
+	// is needed or resolved — the module options are inert in that mode.
+	if cfg.backend != nil {
+		return cfg, nil
+	}
+
 	// A deferred source (e.g. WithModuleURL) is resolved here, with New's context,
 	// unless module bytes were supplied directly.
 	if len(cfg.module) == 0 && cfg.fetch != nil {
@@ -225,20 +249,23 @@ func resolveConfig(ctx context.Context, opts []Option) (*config, error) {
 	return cfg, nil
 }
 
-// New compiles the configured wasm module once and returns a reusable Runtime.
-// Exactly one WithModule* option is required.
+// New returns a reusable Runtime. By default it compiles the configured wasm
+// module once (exactly one WithModule* option is required); with WithBackend it
+// drives the supplied backend instead and compiles nothing.
 func New(ctx context.Context, opts ...Option) (*Runtime, error) {
 	cfg, err := resolveConfig(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	wb, err := newWASMBackend(ctx, cfg)
-	if err != nil {
-		return nil, err
+	be := cfg.backend
+	if be == nil {
+		if be, err = newWASMBackend(ctx, cfg); err != nil {
+			return nil, err
+		}
 	}
 
-	runtime := &Runtime{backend: wb, sem: make(chan struct{}, 1), timeout: cfg.timeout}
+	runtime := &Runtime{backend: be, sem: make(chan struct{}, 1), timeout: cfg.timeout}
 
 	// Fail loudly now if the module is a gated ffmpeg-wasi engine too old for the
 	// vocabulary this afmpeg emits, rather than silently dropping new fields at
@@ -284,7 +311,7 @@ func (r *Runtime) Close(ctx context.Context) error {
 	r.closed = true
 	r.mu.Unlock()
 
-	return r.backend.close(ctx)
+	return r.backend.Close(ctx)
 }
 
 // withDeadline imposes the default invocation deadline on ctx when the caller
@@ -327,12 +354,7 @@ func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result,
 	ctx, cancel := r.withDeadline(ctx)
 	defer cancel()
 
-	inv, err := r.backend.invoke(ctx, fs, args...)
-	if err != nil {
-		return Result{}, err
-	}
-
-	return Result{ExitCode: inv.exitCode, Stdout: inv.stdout, Stderr: inv.stderr}, nil
+	return r.backend.Invoke(ctx, fs, args...)
 }
 
 // Probe reports a media file's container/stream info over the fs bridge, via the

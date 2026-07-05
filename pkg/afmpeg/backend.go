@@ -6,23 +6,19 @@ import (
 	"github.com/spf13/afero"
 )
 
-// backend runs a single engine invocation behind the Runtime's public API. The
+// Backend runs a single engine invocation behind Runtime's stable API. The
 // sandboxed wasm backend (wazero) is the default and the only one core afmpeg
-// imports; an opt-in native subprocess backend (spec 0028) implements the same
-// two methods in a separate package, so RunJob/Probe/Frames never change.
+// depends on; an opt-in native subprocess backend (spec 0028), constructed in a
+// separate package (pkg/afmpeg/native) and injected with WithBackend, implements
+// the same two methods — so RunJob/Probe/Frames and all result parsing never
+// change with the backend.
 //
-// invoke consumes the same job-spec argv and the same afero.Fs the wasm path
-// does and returns the engine's outcome; close releases the backend's resources.
-type backend interface {
-	invoke(ctx context.Context, fs afero.Fs, args ...string) (invocation, error)
-	close(ctx context.Context) error
-}
-
-// invocation is the backend-neutral outcome of running the engine once: the exit
-// code and the captured stdout/stderr. Both backends produce it, so Result and all
-// stdout-JSON parsing (Probe/Frames) are identical regardless of backend.
-type invocation struct {
-	exitCode int
-	stdout   string
-	stderr   string
+// Invoke consumes the engine argv (the job-spec JSON is args[0]) and the afero.Fs
+// to serve, and returns the engine's Result — the same {ExitCode, Stdout, Stderr}
+// Run surfaces. A non-zero engine exit is a Result with a nil error; only
+// host-side failures (spawn, the fs bridge, cancellation) return an error. Close
+// releases the backend's resources and is called by Runtime.Close.
+type Backend interface {
+	Invoke(ctx context.Context, fs afero.Fs, args ...string) (Result, error)
+	Close(ctx context.Context) error
 }

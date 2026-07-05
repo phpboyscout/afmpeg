@@ -75,12 +75,12 @@ func (r *Runtime) preflightVocab(ctx context.Context) error {
 		return errors.Wrap(err, "afmpeg: marshal version query")
 	}
 
-	inv, err := r.backend.invoke(ctx, afero.NewMemMapFs(), string(spec))
+	res, err := r.backend.Invoke(ctx, afero.NewMemMapFs(), string(spec))
 	if err != nil {
 		return err
 	}
 
-	return interpretVocabReply(inv.stdout, inv.exitCode)
+	return interpretVocabReply(res.Stdout, res.ExitCode)
 }
 
 // interpretVocabReply turns an engine's op:"version" reply into a gate decision.

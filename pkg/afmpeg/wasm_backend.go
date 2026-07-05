@@ -23,7 +23,7 @@ type wasmBackend struct {
 }
 
 // wasmBackend is the default backend implementation.
-var _ backend = (*wasmBackend)(nil)
+var _ Backend = (*wasmBackend)(nil)
 
 // newWASMBackend builds the wazero runtime — the memory cap (spec 0027 §4A), the
 // setjmp/longjmp env module, and WASI — and compiles cfg.module. The compile is
@@ -57,18 +57,18 @@ func newWASMBackend(ctx context.Context, cfg *config) (*wasmBackend, error) {
 	return &wasmBackend{rt: rt, compiled: compiled}, nil
 }
 
-// close releases the wazero runtime (and with it the compiled module).
-func (b *wasmBackend) close(ctx context.Context) error {
+// Close releases the wazero runtime (and with it the compiled module).
+func (b *wasmBackend) Close(ctx context.Context) error {
 	return errors.Wrap(b.rt.Close(ctx), "afmpeg: close runtime")
 }
 
-// invoke instantiates the module once with fs mounted and args applied, capturing
-// stdout and stderr. The module name is cleared so the compiled module can be
-// instantiated repeatedly across calls.
-func (b *wasmBackend) invoke(ctx context.Context, fs afero.Fs, args ...string) (invocation, error) {
+// Invoke instantiates the module once with fs mounted and args applied, capturing
+// stdout and stderr into a Result. The module name is cleared so the compiled
+// module can be instantiated repeatedly across calls.
+func (b *wasmBackend) Invoke(ctx context.Context, fs afero.Fs, args ...string) (Result, error) {
 	mount, err := mountConfig(fs)
 	if err != nil {
-		return invocation{}, err
+		return Result{}, err
 	}
 
 	var stdout, stderr bytes.Buffer
@@ -89,10 +89,10 @@ func (b *wasmBackend) invoke(ctx context.Context, fs afero.Fs, args ...string) (
 
 	exitCode, err := exitCodeFrom(ctx, instErr)
 	if err != nil {
-		return invocation{}, err
+		return Result{}, err
 	}
 
-	return invocation{exitCode: exitCode, stdout: stdout.String(), stderr: stderr.String()}, nil
+	return Result{ExitCode: exitCode, Stdout: stdout.String(), Stderr: stderr.String()}, nil
 }
 
 // mountConfig builds a wazero FSConfig that mounts the vfs bridge over fs at the
