@@ -91,14 +91,18 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
 - **[0026](specs/0026-engine-hot-path-performance.md) engine hot-path perf** — measure-first; pairs
   with 0008's measurement rig. Only land fixes with a measured win.
 
-### Phase 5 — Strategic / gated (separate future efforts)
-- **[0028](specs/0028-native-subprocess-backend.md) native backend (Backend B)** — spike-validated,
-  but **gated on a real HW-accel consumer need**. Depends on 0022's native matrix + the native
-  cross-build toolchains. Large surface (native driver build + IPC bridge + selection API).
-- **[0022](specs/0022-build-size-matrix.md) native matrix** — the per-platform native builds; lands
-  *with* 0028.
-- **[0023](specs/0023-hevc-and-av1.md) HEVC/AV1** — mostly full-native; depends on 0028 + 0008.
-- **[0008](specs/0008-performance-strategy.md) perf spike** — gated on a consumer perf target.
+### Phase 5 — Strategic / native (largely SHIPPED, 2026-07-05)
+- **[0028](specs/0028-native-subprocess-backend.md) native backend (Backend B)** — **SHIPPED**. The
+  native `driver.c` ELF + seekable AVIO-over-IPC, wired via `WithBackend` / `native.NewFromRelease`;
+  48–58× faster software encode than WASM. WASM stays default; CGO-free.
+- **[0022](specs/0022-build-size-matrix.md) native matrix** — **linux/amd64 SHIPPED** (lean/
+  intermediate/full × lgpl/gpl, signed). `linux/arm64` + `darwin/arm64` remain (the cross-build cost).
+- **[0023](specs/0023-hevc-and-av1.md) HEVC/AV1** — **native encode SHIPPED**: x265 (HEVC, gpl/full)
+  + SVT-AV1 (AV1, both/full). dav1d AV1 decode is a follow-up.
+- **[0008](specs/0008-performance-strategy.md) perf spike** — **DONE** (`cmd/afmpeg-bench`; the
+  encode gap quantified, and answered by the native backend).
+- **Still gated:** HW-accel encoders (NVENC/VAAPI/… — the full profile's remaining members, need a
+  device); native `linux/arm64` + `darwin/arm64`; concat-over-IPC.
 - **[0025](specs/0025-av-sync-and-framerate.md) A/V sync** — deferred; the `fps` filter covers it
   today. Build only on a real VFR complaint.
 
@@ -119,9 +123,10 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   `darwin/arm64` (cross-SDKs / per-platform runners). This is the real cost of the native tier, not
   the artifact count.
 - **0027 memory-limit default** — decide the value (512 MB–1 GB is the open question in 0027).
-- **0028 implementation prerequisite** — the [spike](spikes/0028-custom-avio-bridge/) proved the
-  I/O model; implementation needs the real `driver.c` native build + the IPC framing protocol + the
-  Go-side afero bridge + the `(profile, licence, platform)` selection API.
+- **0028 implementation** — **done** (2026-07-05): the [spike](spikes/0028-custom-avio-bridge/)
+  proved the I/O model; the real `driver.c` native build (`TARGET=native`, all three profiles), the
+  `O/R/W/S/Z/C` IPC framing, the Go-side afero bridge (`pkg/afmpeg/native`), and the `(profile,
+  licence)` selection (`native.NewFromRelease` + `WithReleaseProfile`) all shipped for linux/amd64.
 - **Signing scales for free** — one `checksums.txt` + one OpenPGP signature per release covers all
   16 artifacts (0010/0011 unchanged); no per-artifact work.
 - **Build/tooling reality** — ffmpeg-wasi builds via Docker (`deps.sh`→`libav.sh`→`driver.sh`,

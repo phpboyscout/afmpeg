@@ -70,7 +70,9 @@ func WithReleaseCacheDir(dir string) ReleaseOption {
 // practical software codec/filter, spec 0022). The intermediate module is a
 // distinct, separately-signed asset (ffmpeg-wasi-intermediate-<variant>.wasm)
 // verified through the same trust chain — this is the certified equivalent of
-// reaching for the intermediate build with WithModuleURL.
+// reaching for the intermediate build with WithModuleURL. ProfileFull is
+// native-only (the heavy HEVC/AV1 encoders); WithModuleRelease rejects it — load it
+// with native.NewFromRelease instead.
 func WithReleaseProfile(profile Profile) ReleaseOption {
 	return func(c *releaseConfig) { c.profile = profile }
 }

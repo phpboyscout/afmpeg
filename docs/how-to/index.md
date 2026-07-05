@@ -46,6 +46,9 @@ Available:
 - **[Reuse a Runtime across many invocations](reuse-a-runtime.md)** — compile the module once
   at startup, share one `Runtime` for the process lifetime, and parallelise with a fleet
   (invocations serialise one-at-a-time per `Runtime`).
+- **[Use the native backend](use-the-native-backend.md)** — swap the sandboxed WASM module for
+  the signed **native driver** (`native.NewFromRelease` + `WithBackend`): native-speed software
+  encode (48–58×) and the **full** profile's HEVC/AV1 encoders. linux/amd64, opt-in, CGO-free.
 
 The WASM engine itself — current FFmpeg compiled to `wasm32-wasi`, with its `process`/`probe`
 job spec — is the companion [**ffmpeg-wasi**](https://ffmpeg-wasi.phpboyscout.uk) project;

@@ -24,8 +24,11 @@ thing cross-compiles to a single static binary.
     `WithModuleURL` module acquisition. Pair it with a released
     [ffmpeg-wasi](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases) module to transcode,
     remux, clip, filter, burn in subtitles, edit metadata, and extract frames — entirely in
-    memory. See the [latest afmpeg release](https://gitlab.com/phpboyscout/afmpeg/-/releases);
-    design rationale is in the specs under [Development](development/index.md) (start with
+    memory. For encode- or throughput-bound work there is also an opt-in
+    [native backend](how-to/use-the-native-backend.md) — the same engine as a signed native
+    subprocess, for native-speed encode and the full profile's HEVC/AV1. See the
+    [latest afmpeg release](https://gitlab.com/phpboyscout/afmpeg/-/releases); design rationale
+    is in the specs under [Development](development/index.md) (start with
     [0001](development/specs/0001-afmpeg.md)).
 
 ## Why it exists
@@ -51,6 +54,10 @@ Three layers — the middle one is the novel engineering:
    writes hit an in-memory filesystem with no host disk touched.
 3. **The Go API** — compile the module once into a reusable `Runtime`, then `Run` an
    ffmpeg invocation over a supplied `afero.Fs`; a general command builder layers on top.
+
+The runtime sits behind a **backend seam** (spec 0028): the WASM module is the default, and
+an opt-in [native backend](how-to/use-the-native-backend.md) runs the same engine as a native
+subprocess for native-speed encode and HEVC/AV1 — same API, same afero I/O, no CGO.
 
 See the [architecture explainer](explanation/concepts/architecture.md) for the full flow,
 and the [roadmap](development/index.md) for how the specs decompose the build.

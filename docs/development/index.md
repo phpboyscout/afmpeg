@@ -28,7 +28,7 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0003 — vfs-bridge](specs/0003-vfs-bridge.md) | The afero.Fs → wazero `sys.FS` adapter (the core) |
 | [0004 — runtime-and-api](specs/0004-runtime-and-api.md) | `New`/`Run`/`Probe`/`Close`, the public surface |
 | [0005 — command-builder](specs/0005-render-helper-and-keyrx-backend.md) | General ffmpeg command builder (use-case-agnostic; a consumer's reel is built on it) |
-| [0006 — hardening-roadmap](specs/0006-hardening-roadmap.md) | **Dispatched**: LGPL build-out + download-cache done; perf → 0008; CLI → 0009; native backend dropped |
+| [0006 — hardening-roadmap](specs/0006-hardening-roadmap.md) | **Dispatched**: LGPL build-out + download-cache done; perf → 0008; CLI → 0009; the native backend was later delivered out-of-process (CGO-free) via 0028 |
 | [0007 — libav-direct-engine](specs/0007-libav-direct-engine.md) | The pivot: the `ffmpeg-wasi` libav-direct engine (current FFmpeg, CGO-free) + the job-spec vocabulary |
 | [0008 — performance-strategy](specs/0008-performance-strategy.md) | Spike: measure Wasm-encode perf vs native; decide if/which non-threaded lever (RuntimePool, build tuning) is worth it |
 | [0009 — afmpeg-cli](specs/0009-afmpeg-cli.md) | Deferred (value-unproven): a job-spec-native `cmd/afmpeg` CLI — never `ffmpeg`-arg-compatible |
@@ -44,13 +44,13 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0019 — text & subtitles](specs/0019-text-and-subtitles.md) | drawtext (freetype) + subtitle burn-in/streams (libass) + a subtitle stream type — child of 0012 |
 | [0020 — metadata & chapters](specs/0020-metadata-and-chapters.md) | Probe-read + output-set tags, chapters, disposition, language, cover art — child of 0012 |
 | [0021 — frame extraction op](specs/0021-frame-extraction-op.md) | A first-class `frames` op (thumbnails / frames at timestamps / scene-select) — child of 0012 |
-| [0022 — build & distribution matrix](specs/0022-build-size-matrix.md) | The governing bundling policy: **lean/intermediate/full** profiles × runtime (WASM/Native) × LGPL/GPL × platform; the codec-set-per-profile every codec spec defers to (R-AF-3) |
-| [0023 — HEVC & AV1](specs/0023-hevc-and-av1.md) | Tier-3 heavy codecs: x265 (GPL/full), dav1d AV1 decode (default); AV1 encode deferred — child of 0012 |
-| [0024 — input options & formats](specs/0024-input-options-and-formats.md) | **PROPOSED** (external review): activate `inputs[].options`, forced/raw input format, input stream selection |
+| [0022 — build & distribution matrix](specs/0022-build-size-matrix.md) | The governing bundling policy: **lean/intermediate/full** profiles × runtime (WASM/Native) × LGPL/GPL × platform. **Native profiles (linux/amd64) implemented** — the codec-set-per-profile every codec spec defers to (R-AF-3) |
+| [0023 — HEVC & AV1](specs/0023-hevc-and-av1.md) | Tier-3 heavy codecs. **Native encode SHIPPED**: HEVC via x265 (GPL/full) + AV1 via SVT-AV1 (both variants/full) in the native driver; dav1d AV1 decode remains a follow-up — child of 0012 |
+| [0024 — input options & formats](specs/0024-input-options-and-formats.md) | **SHIPPED** (vocab v4): `inputs[].options`, forced/raw input format, indexed input stream selection |
 | [0025 — A/V sync & frame-rate](specs/0025-av-sync-and-framerate.md) | **PROPOSED** (external review, low severity): CFR / vsync policy vs the `fps`-filter workaround |
 | [0026 — engine hot-path performance](specs/0026-engine-hot-path-performance.md) | **PROPOSED** (external review): reuse AVFrame, lowest-PTS demux, larger AVIO buffer — code-level companion to 0008 |
-| [0027 — runtime security hardening](specs/0027-runtime-security-hardening.md) | **PROPOSED** (external review): wazero memory ceiling (OOM), hard timeout, cJSON guards — protects the untrusted-media thesis |
-| [0028 — native backends](specs/0028-native-subprocess-backend.md) | **PROPOSED** (strategic): HW-accel escape hatch — **our native `driver.c` + seekable AVIO/IPC (MUST)** + a deferred local-ffmpeg-via-HTTP path (MAY); WASM stays default; CGO-free/MIT |
+| [0027 — runtime security hardening](specs/0027-runtime-security-hardening.md) | **SHIPPED**: wazero memory ceiling (`WithMemoryLimit`, default 512 MB), hard timeout (`WithTimeout`, default 1h), cJSON guards — protects the untrusted-media thesis |
+| [0028 — native backends](specs/0028-native-subprocess-backend.md) | **SHIPPED** (Backend B): the native `driver.c` compiled to an ELF + seekable AVIO-over-IPC, wired via `WithBackend` / `native.NewFromRelease` (lean/intermediate/full, linux/amd64). WASM stays default; CGO-free. HW-accel (NVENC/VAAPI) + the local-ffmpeg-via-HTTP path (MAY) remain deferred |
 | [external review — validation & disposition](external-review/README.md) | The commissioned external review + our per-finding validation verdicts and spec mapping |
 
 ## Method

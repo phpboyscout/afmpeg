@@ -49,5 +49,16 @@
 // 0 removes a bound; a caller-supplied context deadline is always honoured over
 // the default (spec 0027).
 //
+// The WASM module is the default and sole sandboxed runtime. For consumers who are
+// encode- or throughput-bound, an opt-in native backend runs the same engine as a
+// native subprocess (spec 0028): the [gitlab.com/phpboyscout/afmpeg/pkg/afmpeg/native]
+// package's native.NewFromRelease fetches and signature-verifies the native driver
+// the same way WithModuleRelease does the .wasm, and WithBackend wires it in — the
+// Command/Probe/Frames API is unchanged. It gives native-speed software encode
+// (threads + SIMD) and, in the full profile, the HEVC/AV1 encoders that are
+// impractical in WASM. It is CGO-free (a subprocess, not a linked library) and all
+// I/O still crosses the caller's afero.Fs over an in-memory bridge.
+//
 // [ffmpeg-wasi]: https://ffmpeg-wasi.phpboyscout.uk
+// [gitlab.com/phpboyscout/afmpeg/pkg/afmpeg/native]: https://pkg.go.dev/gitlab.com/phpboyscout/afmpeg/pkg/afmpeg/native
 package afmpeg

@@ -23,8 +23,12 @@ The API is also summarised in [`pkg/afmpeg/doc.go`](https://gitlab.com/phpboysco
 ## Non-code surfaces
 
 - **WASM engine artifacts** — the [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) `lgpl`/`gpl`
-  modules afmpeg runs, with their checksums and provenance (see
-  [obtain a module](../how-to/obtain-a-module.md)).
+  modules afmpeg runs, in the **lean** and **intermediate** profiles, with their checksums and
+  provenance (see [obtain a module](../how-to/obtain-a-module.md)).
+- **Native driver artifacts** — the signed native drivers
+  (`ffmpeg-wasi-driver-linux-amd64-[<profile>-]<variant>`, profiles lean/intermediate/**full**)
+  the opt-in [native backend](../how-to/use-the-native-backend.md) fetches and verifies via
+  `native.NewFromRelease`; the **full** profile carries the HEVC/AV1 encoders.
 - **Errors** — the sentinel-error catalogue lives under
   [Explanation › Components › Errors](../explanation/components/errors.md).
 - **CLI** — `cmd/afmpeg` flags and subcommands, *if/when* it ships (spec

@@ -56,15 +56,21 @@ yourself with [verify a release by hand](verify-a-release-by-hand.md).
 `VariantGPL` adds libx264. This path is for **our** releases — we can only certify
 what we publish; for your own builds use `WithModuleURL` or a file below.
 
-### Profiles: lean (default) or intermediate
+### Profiles: lean (default), intermediate, or full
 
-Each variant ships in two [capability profiles](https://ffmpeg-wasi.phpboyscout.uk/reference/variants/)
-(ffmpeg-wasi spec 0022): **lean** — web-delivery essentials at the smallest size (the
-default) — and **intermediate** — lean plus every practical software codec, format, and
-filter (the LGPL encoders, the native codec/container batches, and text/subtitle burn-in).
-The intermediate build is a distinct, separately-signed asset
-(`ffmpeg-wasi-intermediate-<variant>.wasm`); `WithReleaseProfile` fetches and verifies it
-through the identical trust chain:
+The build comes in three [capability profiles](https://ffmpeg-wasi.phpboyscout.uk/reference/variants/)
+(ffmpeg-wasi spec 0022):
+
+- **lean** — web-delivery essentials at the smallest size (the default).
+- **intermediate** — lean plus every practical software codec, format, and filter (the LGPL
+  encoders, the native codec/container batches, and text/subtitle burn-in).
+- **full** — intermediate plus the heavy encoders **AV1** (SVT-AV1, both variants) and
+  **HEVC/H.265** (x265, GPL variant only). These need threads and SIMD, so full is
+  **native-only** — there is no WASM full module.
+
+Over the WASM path, `WithReleaseProfile` selects `ProfileLean` (default) or `ProfileIntermediate`
+— the intermediate build is a distinct, separately-signed asset
+(`ffmpeg-wasi-intermediate-<variant>.wasm`), fetched and verified through the identical trust chain:
 
 ```go
 rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
@@ -76,6 +82,12 @@ rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
 Omit the option (or pass `afmpeg.ProfileLean`) for the lean module. This is the certified
 equivalent of reaching for the intermediate build via `WithModuleURL` — same bytes, but
 verified against the pinned key rather than a checksum you supply.
+
+`ProfileFull` is **native-only** — `WithModuleRelease` refuses it (there is no WASM full
+module) and points you at the native driver. To run HEVC/AV1 encode or get native-speed
+software encode, load the signed native driver instead with
+[`native.NewFromRelease`](use-the-native-backend.md) — the native equivalent of this whole
+page, verified through the same trust chain.
 
 ## From a file or bytes
 

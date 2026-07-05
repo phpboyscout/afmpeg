@@ -33,9 +33,11 @@ var _ afmpeg.Backend = (*Backend)(nil)
 // Option configures a native Backend.
 type Option func(*Backend)
 
-// WithNativeBinary sets the path to the native ffmpeg-wasi driver binary. A future
-// WithNativeRelease will instead fetch and signature-verify the driver artifact
-// the same way afmpeg.WithModuleRelease does the .wasm (spec 0028 D-0028-D).
+// WithNativeBinary sets the path to a native ffmpeg-wasi driver binary you already
+// have (the bring-your-own path — you supply the bytes, unverified). To fetch and
+// signature-verify the driver from a published release the same way
+// afmpeg.WithModuleRelease does the .wasm, use [NewFromRelease] instead (spec 0028
+// D-0028-D).
 func WithNativeBinary(path string) Option {
 	return func(b *Backend) { b.binary = path }
 }

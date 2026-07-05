@@ -54,10 +54,28 @@ builder layers on top (a consumer's reel/timeline is built on it, in the consume
 See specs [0004](../../development/specs/0004-runtime-and-api.md) and
 [0005](../../development/specs/0005-render-helper-and-keyrx-backend.md).
 
+## 4. The backend seam (WASM default · native opt-in)
+
+`Run`/`Probe`/`Frames` sit behind a small **backend** interface (spec
+[0028](../../development/specs/0028-native-subprocess-backend.md)). The default backend is the
+WASM path above (wazero + the vfs bridge). An opt-in **native backend** (`pkg/afmpeg/native`,
+wired with `WithBackend`) satisfies the same seam differently: it spawns the *same* libav-direct
+engine compiled to a **native ELF** as a subprocess and serves the caller's `afero.Fs` to it over
+a Unix-socket IPC bridge — a framed read/write/**seek** protocol that carries even the muxer's
+backward seeks, so I/O still never touches host disk. It is **CGO-free** (a subprocess, not a
+linked library, so the licensing arm's-length holds) and gives threads + SIMD: native-speed
+software encode, and the full profile's HEVC/AV1 encoders that are impractical in WASM. The Go
+API, the job spec, and the results are identical — only the runtime underneath changes. The
+signed driver is acquired and verified with `native.NewFromRelease`, exactly as `WithModuleRelease`
+verifies a `.wasm`. See the [native backend how-to](../../how-to/use-the-native-backend.md).
+
 ## Why this shape
 
 The alternatives — purego/dlopen bindings (immature, still need host libav), CGO libav
 bindings (break a clean static cross-compile), and the stock wazero binding (missing
 filters/AAC, not filesystem-virtualised) — each failed at least one of *pure-Go*,
 *in-memory*, or *has-the-codecs-we-need*. afmpeg is the synthesis that holds all three.
-The full reasoning is in spec [0001](../../development/specs/0001-afmpeg.md) §11.
+When native speed or HW-class codecs (HEVC/AV1) *are* required, the **native subprocess
+backend** (§4) is the sanctioned escape hatch — the same engine, out-of-process and signed,
+rather than reaching for the CGO libav binding this design set out to avoid. The full reasoning
+is in spec [0001](../../development/specs/0001-afmpeg.md) §11.
