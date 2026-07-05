@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.9.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.9.0)
+
+### Features
+
+- ProcessResult.Analysis — structured analysis-filter output
+
 ## [v0.8.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.8.0)
 
 ### Features
