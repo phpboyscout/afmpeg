@@ -34,12 +34,13 @@ func main() {
 
 // options are the harness knobs.
 type options struct {
-	lgplModule string // openh264 (LGPL) module
-	gplModule  string // libx264 (GPL) module
-	nativeBin  string // native ffmpeg on PATH (or an explicit path)
-	runs       int    // timed repetitions per measurement (median reported)
-	batch      int    // jobs in the fleet-throughput experiment
-	out        string // report path ("" → stdout only)
+	lgplModule   string // openh264 (LGPL) module
+	gplModule    string // libx264 (GPL) module
+	nativeBin    string // native ffmpeg on PATH (or an explicit path)
+	nativeDriver string // native ffmpeg-wasi driver (spec 0028 Backend B)
+	runs         int    // timed repetitions per measurement (median reported)
+	batch        int    // jobs in the fleet-throughput experiment
+	out          string // report path ("" → stdout only)
 }
 
 func parseFlags() options {
@@ -48,6 +49,7 @@ func parseFlags() options {
 	flag.StringVar(&o.lgplModule, "lgpl", "", "path to the LGPL (openh264) ffmpeg-wasi module")
 	flag.StringVar(&o.gplModule, "gpl", "", "path to the GPL (libx264) ffmpeg-wasi module")
 	flag.StringVar(&o.nativeBin, "native", "ffmpeg", "native ffmpeg binary (name on PATH or a path)")
+	flag.StringVar(&o.nativeDriver, "native-driver", "", "native ffmpeg-wasi driver binary — adds a Native-backend column (spec 0028)")
 	flag.IntVar(&o.runs, "runs", 3, "timed repetitions per measurement (median reported)")
 	flag.IntVar(&o.batch, "batch", 16, "number of jobs in the fleet-throughput experiment")
 	flag.StringVar(&o.out, "out", "", "write the markdown report here (default: stdout only)")

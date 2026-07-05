@@ -40,7 +40,8 @@ func renderReport(r results) string {
 	fmt.Fprintf(&b, "| Go | %s |\n", r.env.goVersion)
 	fmt.Fprintf(&b, "| Native | %s |\n", r.env.ffmpeg)
 	fmt.Fprintf(&b, "| LGPL module | %s |\n", orNone(r.lgplModule))
-	fmt.Fprintf(&b, "| GPL module | %s |\n\n", orNone(r.gplModule))
+	fmt.Fprintf(&b, "| GPL module | %s |\n", orNone(r.gplModule))
+	fmt.Fprintf(&b, "| Native driver | %s |\n\n", orNone(r.nativeDriver))
 
 	// Per-workload table.
 	fmt.Fprintf(&b, "## Workloads — WASM vs native\n\n")
@@ -66,6 +67,29 @@ func renderReport(r results) string {
 	}
 
 	fmt.Fprintf(&b, "\n")
+
+	// Native backend (spec 0028): the same afmpeg engine, run natively over the
+	// afero-IPC bridge, vs the WASM path — same openh264 encoder, so the speedup is
+	// purely wasm→native (the payoff the 0008 spike predicted).
+	if hasNativeDriver(r.workloads) {
+		fmt.Fprintf(&b, "## Native backend (Backend B) — WASM vs native engine\n\n")
+		fmt.Fprintf(&b, "Same openh264 encoder, same jobs; the native driver serves afero over IPC.\n\n")
+		fmt.Fprintf(&b, "| Workload | WASM openh264 | Native driver | Speedup |\n")
+		fmt.Fprintf(&b, "|---|--:|--:|--:|\n")
+
+		for _, w := range r.workloads {
+			speedup := "—"
+			if w.haveOpenh264 && w.haveNativeDrv && w.nativeDrv.median() > 0 {
+				speedup = fmt.Sprintf("%.1f×", ratio(w.openh264.median(), w.nativeDrv.median()))
+			}
+
+			fmt.Fprintf(&b, "| %s | %s | %s | %s |\n",
+				w.name, cell(w.haveOpenh264, w.openh264), cell(w.haveNativeDrv, w.nativeDrv), speedup)
+		}
+
+		fmt.Fprintf(&b, "\nThe native driver also runs through the identical `RunJob` API — only the "+
+			"backend (WithBackend) differs; results are byte-compatible.\n\n")
+	}
 
 	// Preset sweep.
 	if len(r.presets) > 0 {
@@ -159,6 +183,16 @@ func perSec(jobs int, d time.Duration) float64 {
 	}
 
 	return float64(jobs) / d.Seconds()
+}
+
+func hasNativeDriver(ws []workloadResult) bool {
+	for _, w := range ws {
+		if w.haveNativeDrv {
+			return true
+		}
+	}
+
+	return false
 }
 
 func orNone(s string) string {

@@ -7,19 +7,21 @@ import (
 	"time"
 
 	"gitlab.com/phpboyscout/afmpeg/pkg/afmpeg"
+	"gitlab.com/phpboyscout/afmpeg/pkg/afmpeg/native"
 )
 
 // results is everything the report renders.
 type results struct {
-	env        env
-	lgplModule string
-	gplModule  string
-	runs       int
-	workloads  []workloadResult
-	presets    []presetRow
-	fleet      *fleetResult
-	frames     *framesResult
-	notes      []string // measurements that errored (recorded, not fatal)
+	env          env
+	lgplModule   string
+	gplModule    string
+	nativeDriver string
+	runs         int
+	workloads    []workloadResult
+	presets      []presetRow
+	fleet        *fleetResult
+	frames       *framesResult
+	notes        []string // measurements that errored (recorded, not fatal)
 }
 
 // note records a measurement failure without aborting the run — a measurement rig
@@ -30,8 +32,9 @@ func (r *results) note(format string, a ...any) {
 
 type workloadResult struct {
 	name, desc                         string
-	openh264, x264, native             stat
+	openh264, x264, native, nativeDrv  stat
 	haveOpenh264, haveX264, haveNative bool
+	haveNativeDrv                      bool
 }
 
 type presetRow struct {
@@ -66,7 +69,10 @@ func run(ctx context.Context, o options) error {
 		return fmt.Errorf("need at least one of -lgpl / -gpl (a built ffmpeg-wasi module)")
 	}
 
-	res := results{env: gatherEnv(ctx, o.nativeBin), lgplModule: o.lgplModule, gplModule: o.gplModule, runs: o.runs}
+	res := results{
+		env: gatherEnv(ctx, o.nativeBin), lgplModule: o.lgplModule,
+		gplModule: o.gplModule, nativeDriver: o.nativeDriver, runs: o.runs,
+	}
 
 	dir, err := os.MkdirTemp("", "afmpeg-bench-")
 	if err != nil {
@@ -100,6 +106,17 @@ func run(ctx context.Context, o options) error {
 		defer func() { _ = gpl.Close(ctx) }()
 	}
 
+	// The native backend (spec 0028): the same afmpeg API, driven by the native
+	// ffmpeg-wasi driver over the afero-IPC bridge instead of wazero.
+	var nat *afmpeg.Runtime
+
+	if o.nativeDriver != "" {
+		if nat, err = afmpeg.New(ctx, afmpeg.WithBackend(native.New(native.WithNativeBinary(o.nativeDriver)))); err != nil {
+			return fmt.Errorf("native driver backend: %w", err)
+		}
+		defer func() { _ = nat.Close(ctx) }()
+	}
+
 	// 1. Per-workload timings across the encoder axis.
 	for _, w := range workloads {
 		fmt.Fprintf(os.Stderr, "workload %-10s …\n", w.name)
@@ -128,6 +145,16 @@ func run(ctx context.Context, o options) error {
 			res.note("native %s: %v", w.name, err)
 		} else {
 			wr.native, wr.haveNative = s, true
+		}
+
+		// The native backend runs the same job over the afero-IPC bridge (openh264,
+		// matching the WASM openh264 column for an apples-to-apples wasm-vs-native).
+		if nat != nil {
+			if s, err := measureWASM(ctx, nat, fixture, w.command("libopenh264", nil), o.runs); err != nil {
+				res.note("native driver %s: %v", w.name, err)
+			} else {
+				wr.nativeDrv, wr.haveNativeDrv = s, true
+			}
 		}
 
 		res.workloads = append(res.workloads, wr)
