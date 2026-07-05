@@ -14,8 +14,9 @@ them.
 
 > **Picking up implementation?** Start at the
 > [implementation roadmap](implementation-roadmap.md) — the phased build order across all
-> specs (0013–0028) with dependencies and prerequisites. Phases 0–4 are shipped
-> (v0.4.0–v0.6.0); the remaining Phase 5 work is design-only and trigger-gated.
+> specs (0013–0030) with dependencies and prerequisites. Phases 0–4 are shipped, and Phase 5
+> (the native backend + matrix, HEVC/AV1, perf) is now **largely shipped** too — what remains is
+> HW-accel encode, the arm64/darwin native platforms, and the trigger-gated specs (0009/0025/0026/0030).
 
 ## Specs
 
@@ -45,12 +46,13 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0020 — metadata & chapters](specs/0020-metadata-and-chapters.md) | Probe-read + output-set tags, chapters, disposition, language, cover art — child of 0012 |
 | [0021 — frame extraction op](specs/0021-frame-extraction-op.md) | A first-class `frames` op (thumbnails / frames at timestamps / scene-select) — child of 0012 |
 | [0022 — build & distribution matrix](specs/0022-build-size-matrix.md) | The governing bundling policy: **lean/intermediate/full** profiles × runtime (WASM/Native) × LGPL/GPL × platform. **Native profiles (linux/amd64) implemented** — the codec-set-per-profile every codec spec defers to (R-AF-3) |
-| [0023 — HEVC & AV1](specs/0023-hevc-and-av1.md) | Tier-3 heavy codecs. **Native encode SHIPPED**: HEVC via x265 (GPL/full) + AV1 via SVT-AV1 (both variants/full) in the native driver; dav1d AV1 decode remains a follow-up — child of 0012 |
+| [0023 — HEVC & AV1](specs/0023-hevc-and-av1.md) | Tier-3 heavy codecs, **SHIPPED**: HEVC encode via x265 (GPL/full) + AV1 encode via SVT-AV1 (both/full) in the native driver; **AV1 *decode* via libdav1d on BOTH runtimes** (WASM + native intermediate, single-threaded on wasm). Only HW-accel remains — child of 0012 |
 | [0024 — input options & formats](specs/0024-input-options-and-formats.md) | **SHIPPED** (vocab v4): `inputs[].options`, forced/raw input format, indexed input stream selection |
 | [0025 — A/V sync & frame-rate](specs/0025-av-sync-and-framerate.md) | **PROPOSED** (external review, low severity): CFR / vsync policy vs the `fps`-filter workaround |
 | [0026 — engine hot-path performance](specs/0026-engine-hot-path-performance.md) | **PROPOSED** (external review): reuse AVFrame, lowest-PTS demux, larger AVIO buffer — code-level companion to 0008 |
 | [0027 — runtime security hardening](specs/0027-runtime-security-hardening.md) | **SHIPPED**: wazero memory ceiling (`WithMemoryLimit`, default 512 MB), hard timeout (`WithTimeout`, default 1h), cJSON guards — protects the untrusted-media thesis |
 | [0028 — native backends](specs/0028-native-subprocess-backend.md) | **SHIPPED** (Backend B): the native `driver.c` compiled to an ELF + seekable AVIO-over-IPC, wired via `WithBackend` / `native.NewFromRelease` (lean/intermediate/full, linux/amd64). WASM stays default; CGO-free. HW-accel (NVENC/VAAPI) + the local-ffmpeg-via-HTTP path (MAY) remain deferred |
+| [0029 — meson cross-compile toolchain](specs/0029-meson-cross-compile-toolchain.md) | **IMPLEMENTED**: the wasm32-wasi meson cross-file (`write_meson_cross`) the meson-built libs (freetype/harfbuzz/fribidi/libass, dav1d) use — the toolchain seam for spec 0019 and AV1 decode |
 | [0030 — WASM threading strategy](specs/0030-wasm-threading-strategy.md) | **DRAFT/SCOPING** (from the dav1d-WASM spike): stay single-threaded on wazero (default; the native backend is the threaded tier), fork wazero for the threads proposal (only on a concrete sandboxed-and-fast need), or reject a CGO runtime — the decision record for why the `.wasm` is single-threaded (R-AF-15) |
 | [external review — validation & disposition](external-review/README.md) | The commissioned external review + our per-finding validation verdicts and spec mapping |
 

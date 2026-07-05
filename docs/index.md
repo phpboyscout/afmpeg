@@ -31,7 +31,8 @@ thing cross-compiles to a single static binary.
     signature-verified [`WithModuleRelease`](how-to/obtain-a-module.md) and bring-your-own
     `WithModuleURL` module acquisition. Pair it with a released
     [ffmpeg-wasi](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases) module to transcode,
-    remux, clip, filter, burn in subtitles, edit metadata, and extract frames — entirely in
+    remux, clip, filter, burn in subtitles, edit metadata, extract frames, and read
+    analysis-filter measurements (`ProcessResult.Analysis`) — entirely in
     memory. For encode- or throughput-bound work there is also an opt-in
     [native backend](how-to/use-the-native-backend.md) — the same engine as a signed native
     subprocess, for native-speed encode and the full profile's HEVC/AV1. See the

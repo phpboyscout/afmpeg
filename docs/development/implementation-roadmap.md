@@ -1,8 +1,10 @@
 # Implementation roadmap — build order & prerequisites
 
-**Entry point for picking up implementation.** Phases 0–4 are **shipped** (v0.4.0–v0.6.0); the
-remaining **Phase 5** work (0028 native backend, 0022 native matrix, 0023 HEVC/AV1, 0008 perf,
-0025 A/V sync) is design-only and trigger-gated. This document sequences the specs into phases
+**Entry point for picking up implementation.** Phases 0–4 are **shipped**, and Phase 5 (the native
+backend 0028, the native matrix 0022 on linux/amd64, HEVC/AV1 encode + AV1 decode 0023, the 0008
+perf spike) is now **largely shipped** too — as of afmpeg v0.9.0 / ffmpeg-wasi n8.1.2-8. What remains
+is HW-accel encode, the arm64/darwin native platforms, and the trigger-gated 0009/0025/0026/0030.
+This document sequences the specs into phases
 with dependencies, and lists what's needed before/during each — see the per-spec status inline
 below. It supersedes 0012 §7's parity-only ordering by folding in the review-driven specs
 (0024–0028) and the 0022 bundling policy.
@@ -97,8 +99,9 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   48–58× faster software encode than WASM. WASM stays default; CGO-free.
 - **[0022](specs/0022-build-size-matrix.md) native matrix** — **linux/amd64 SHIPPED** (lean/
   intermediate/full × lgpl/gpl, signed). `linux/arm64` + `darwin/arm64` remain (the cross-build cost).
-- **[0023](specs/0023-hevc-and-av1.md) HEVC/AV1** — **native encode SHIPPED**: x265 (HEVC, gpl/full)
-  + SVT-AV1 (AV1, both/full). dav1d AV1 decode is a follow-up.
+- **[0023](specs/0023-hevc-and-av1.md) HEVC/AV1** — **SHIPPED**: encode via x265 (HEVC, gpl/full) +
+  SVT-AV1 (AV1, both/full); **AV1 decode via libdav1d on both runtimes** (WASM + native intermediate,
+  single-threaded on wasm). Only HW-accel remains.
 - **[0008](specs/0008-performance-strategy.md) perf spike** — **DONE** (`cmd/afmpeg-bench`; the
   encode gap quantified, and answered by the native backend).
 - **Still gated:** HW-accel encoders (NVENC/VAAPI/… — the full profile's remaining members, need a
@@ -137,8 +140,9 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
 ## Start-here summary
 
 ~~`0027` (memory limit) → `0013/0014/0024` → `0022` profiles + `0015/0016/0017` native batches →
-`0018` + `0020/0021` → `0019`~~ **← all done (Phases 0–4, through vocab v8, shipped in v0.6.0 +
-ffmpeg-wasi n8.1.2-6).** What remains is **Phase 5**, every item gated on an external trigger (a
-HW-accel consumer, a measured perf target): `0026` micro-opts and `0008` perf spike (measure
-first), `0025` A/V sync, `0023` HEVC/AV1, and the `0028` native backend + its `0022` native
-matrix. All can wait.
+`0018` + `0020/0021` → `0019`~~ **← all done (Phases 0–4, through vocab v8).** And **Phase 5 is
+largely done too** (afmpeg v0.9.0 / ffmpeg-wasi n8.1.2-8): the `0028` native backend + `0022` native
+matrix (linux/amd64), `0023` HEVC/AV1 encode + AV1 decode (both runtimes), the `0008` perf spike, and
+the `0017` §Q analysis output. What remains is all trigger-gated: **HW-accel encode** (needs a GPU),
+the **arm64/darwin** native platforms, `0026` micro-opts + `0025` A/V-sync (measure/complaint first),
+`0009` CLI, and `0030` (WASM threads). All can wait.

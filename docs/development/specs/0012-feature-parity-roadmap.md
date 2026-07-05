@@ -225,7 +225,7 @@ dependencies before any implementation commits):
 | **Metadata & chapters** | read/set tags, chapters, disposition, cover art | 1-2 | [0020](0020-metadata-and-chapters.md) | R-PARITY-METADATA |
 | **Frame extraction op** | a first-class `frames` op (thumbnails/frames-at-timestamps) | 2 | [0021](0021-frame-extraction-op.md) | R-PARITY-FRAMES |
 | **Build & distribution matrix** | lean/intermediate/full × WASM/Native × LGPL/GPL × platform; codec-set-per-profile (R-AF-3) | — | [0022](0022-build-size-matrix.md) | R-AF-3 (size) |
-| **HEVC / AV1** | x265 (GPL, full) + dav1d (default); AV1 encode deferred | 3 | [0023](0023-hevc-and-av1.md) | R-PARITY-HEAVY-CODECS |
+| **HEVC / AV1** | **shipped**: x265 HEVC encode (GPL/full) + SVT-AV1 AV1 encode (both/full) + dav1d AV1 decode (both runtimes) | 3 | [0023](0023-hevc-and-av1.md) | R-PARITY-HEAVY-CODECS |
 | Performance | instance pool + build tuning | — | [0008](0008-performance-strategy.md) | R-AF-12 |
 
 ### Sequencing (from the children's stated dependencies)
