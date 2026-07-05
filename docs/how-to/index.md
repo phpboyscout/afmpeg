@@ -40,6 +40,9 @@ Available:
   (rides the mux, so it pairs with a copy).
 - **[Extract frames and thumbnails](extract-frames.md)** — pull stills with the `frames` op
   (`FrameJob`/`Runtime.Frames`): a single frame, an interval, scene changes, or thumbnails.
+- **[Read analysis-filter measurements](read-analysis-measurements.md)** — get cropdetect /
+  ebur128 / silencedetect / … data back as structured `ProcessResult.Analysis` (`ParseResult`),
+  not scraped from the log.
 - **[Compose a command with the builder](compose-a-command.md)** — assemble any
   invocation (inputs / filtergraph / outputs) as typed data and run it with `RunJob`
   (`JobSpec()`).
