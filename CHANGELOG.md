@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.8.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.8.0)
+
+### Features
+
+- ProfileFull — native.NewFromRelease selects the full (HEVC/AV1) driver
+- native.NewFromRelease honours WithReleaseProfile (intermediate driver)
+- native.NewFromRelease — certified native driver acquisition (0028)
+- native backend IPC host (pkg/afmpeg/native, 0028 Unit 3)
+- export the Backend seam + WithBackend option (0028 Unit 2)
+
 ## [v0.7.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.7.0)
 
 ### Features
