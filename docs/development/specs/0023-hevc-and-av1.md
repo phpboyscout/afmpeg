@@ -8,7 +8,10 @@ HEVC encode (`libx265`, GPL/full-gpl only) and AV1 encode (`libsvtav1`, both var
 published + signed as `ffmpeg-wasi-driver-linux-amd64-full-<variant>`, selectable via
 `native.NewFromRelease(…, WithReleaseProfile(ProfileFull))`. Verified end-to-end (HEVC→mp4, AV1→mkv
 over the afero/IPC bridge). D-0023-B/D **flip to done for native** (the wasm verdicts are unchanged;
-AV1 decode via dav1d + HW-accel remain follow-ups). Originally one of the 0013–0023 batch mapping the
+HW-accel remains a follow-up. **AV1 *decode* via libdav1d is now DONE on BOTH runtimes (2026-07-05):**
+native (threaded) and — after the dav1d-WASM spike proved a single-threaded, atomics-free dav1d builds
+and decodes on wazero — the WASM module too (intermediate, both variants); see D-0023-C and
+[0030](0030-wasm-threading-strategy.md) for the single-threaded trade-off. Originally one of the 0013–0023 batch mapping the
 [0012](0012-feature-parity-roadmap.md) roadmap; the §7 "HEVC / AV1" Tier-3 row.
 Date: 2026-06-30 (native encode implemented 2026-07-05)
 Parent: [0012](0012-feature-parity-roadmap.md) §7 (the dispatch row), §4A/§4B (the AV1/HEVC

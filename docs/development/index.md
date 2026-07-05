@@ -51,6 +51,7 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0026 — engine hot-path performance](specs/0026-engine-hot-path-performance.md) | **PROPOSED** (external review): reuse AVFrame, lowest-PTS demux, larger AVIO buffer — code-level companion to 0008 |
 | [0027 — runtime security hardening](specs/0027-runtime-security-hardening.md) | **SHIPPED**: wazero memory ceiling (`WithMemoryLimit`, default 512 MB), hard timeout (`WithTimeout`, default 1h), cJSON guards — protects the untrusted-media thesis |
 | [0028 — native backends](specs/0028-native-subprocess-backend.md) | **SHIPPED** (Backend B): the native `driver.c` compiled to an ELF + seekable AVIO-over-IPC, wired via `WithBackend` / `native.NewFromRelease` (lean/intermediate/full, linux/amd64). WASM stays default; CGO-free. HW-accel (NVENC/VAAPI) + the local-ffmpeg-via-HTTP path (MAY) remain deferred |
+| [0030 — WASM threading strategy](specs/0030-wasm-threading-strategy.md) | **DRAFT/SCOPING** (from the dav1d-WASM spike): stay single-threaded on wazero (default; the native backend is the threaded tier), fork wazero for the threads proposal (only on a concrete sandboxed-and-fast need), or reject a CGO runtime — the decision record for why the `.wasm` is single-threaded (R-AF-15) |
 | [external review — validation & disposition](external-review/README.md) | The commissioned external review + our per-finding validation verdicts and spec mapping |
 
 ## Method
