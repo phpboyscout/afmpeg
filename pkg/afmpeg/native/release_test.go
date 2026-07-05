@@ -42,6 +42,17 @@ func TestDriverAssetAndProvKey(t *testing.T) {
 	if got := driverProvKey(afmpeg.VariantGPL, afmpeg.ProfileIntermediate); got != wantIntKey {
 		t.Fatalf("driverProvKey(intermediate) = %q, want %q", got, wantIntKey)
 	}
+
+	// Full (heavy native-only encoders) slots the same way as intermediate.
+	wantFullAsset := "ffmpeg-wasi-driver-" + plat + "-full-gpl"
+	if got := driverAsset(afmpeg.VariantGPL, afmpeg.ProfileFull); got != wantFullAsset {
+		t.Fatalf("driverAsset(full) = %q, want %q", got, wantFullAsset)
+	}
+
+	wantFullKey := "driver-" + plat + "-full-lgpl"
+	if got := driverProvKey(afmpeg.VariantLGPL, afmpeg.ProfileFull); got != wantFullKey {
+		t.Fatalf("driverProvKey(full) = %q, want %q", got, wantFullKey)
+	}
 }
 
 func TestCacheDriver_writesExecutableAndReuses(t *testing.T) {
@@ -142,6 +153,36 @@ func TestNewFromRelease_intermediateProfile(t *testing.T) {
 	}
 
 	if want := driverProvKey(afmpeg.VariantLGPL, afmpeg.ProfileIntermediate); gotKey != want {
+		t.Fatalf("provKey = %q, want %q", gotKey, want)
+	}
+}
+
+// WithReleaseProfile(full) resolves the full (heavy-encoder) native driver — full
+// is native-only, so this is the only way to reach it.
+func TestNewFromRelease_fullProfile(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	orig := fetchReleaseAsset
+	t.Cleanup(func() { fetchReleaseAsset = orig })
+
+	var gotAsset, gotKey string
+
+	fetchReleaseAsset = func(_ context.Context, _, asset, key string, _ ...afmpeg.ReleaseOption) ([]byte, afmpeg.Provenance, error) {
+		gotAsset, gotKey = asset, key
+
+		return []byte("\x7fELF fake driver"), afmpeg.Provenance{}, nil
+	}
+
+	if _, err := NewFromRelease(context.Background(), "n8.1.2-8", afmpeg.VariantGPL,
+		afmpeg.WithReleaseProfile(afmpeg.ProfileFull)); err != nil {
+		t.Fatalf("NewFromRelease: %v", err)
+	}
+
+	if want := driverAsset(afmpeg.VariantGPL, afmpeg.ProfileFull); gotAsset != want {
+		t.Fatalf("asset = %q, want %q", gotAsset, want)
+	}
+
+	if want := driverProvKey(afmpeg.VariantGPL, afmpeg.ProfileFull); gotKey != want {
 		t.Fatalf("provKey = %q, want %q", gotKey, want)
 	}
 }

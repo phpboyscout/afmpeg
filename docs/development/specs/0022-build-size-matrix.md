@@ -9,9 +9,14 @@ This spec **governs the codec-bundling decision every other spec defers to**. **
 (a new `ffmpeg-wasi-intermediate-<variant>.wasm` that starts byte-identical to lean, with an empty
 `INTERMEDIATE_ENABLE` hook the 0015/0016/0017 batches fill additively). Verified: both profiles
 build, intermediate runs the full integration suite (≡ lean capability), a bogus profile is
-rejected. **Downstream/uncommitted:** the native runtime + platform matrix (with [0028](0028-native-subprocess-backend.md)),
-the 16-artifact release publishing, afmpeg's `(profile, licence)` selection API, and the CI
-size-budget gate.)
+rejected. **NATIVE PROFILES IMPLEMENTED (linux/amd64, 2026-07-05, with [0028](0028-native-subprocess-backend.md)):**
+the native driver now builds all three profiles — lean, intermediate (≡ wasm intermediate, the
+load-bearing parity), and **full** (native-only: intermediate + x265/HEVC gpl + SVT-AV1 both, spec
+0023). Published + signed as `ffmpeg-wasi-driver-linux-amd64-[<profile>-]<variant>`; afmpeg selects
+via `WithReleaseProfile` (wasm: lean/intermediate through `WithModuleRelease`; native: all three
+through `native.NewFromRelease`, full rejected on the wasm path). **Downstream/uncommitted:** the
+remaining native platforms (linux/arm64, darwin/arm64 — the real cross-build cost), HW-accel members
+of full (device-gated), and the CI size-budget gate.)
 Date: 2026-06-30 (refined 2026-07-02)
 Parent: [0012](0012-feature-parity-roadmap.md), [0007](0007-libav-direct-engine.md)
 Governs the bucketing for: [0015](0015-container-coverage.md) [0016](0016-native-codec-batch.md)

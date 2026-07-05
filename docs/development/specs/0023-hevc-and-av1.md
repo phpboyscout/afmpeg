@@ -1,10 +1,16 @@
 # 0023 — HEVC & AV1 (heavy codecs)
 
-Status: **DRAFT / SCOPING** (one of the 0013–0023 sibling batch mapping the [0012](0012-feature-parity-roadmap.md)
-roadmap to specs. The Tier-3 "heavy / licence-gated" entry — the §7 "HEVC / AV1" row. **Design
-only; do not implement.** Its main value is documenting *why* these are Tier 3 and the conditions
-under which each becomes worthwhile.)
-Date: 2026-06-30
+Status: **NATIVE ENCODE IMPLEMENTED (2026-07-05)** — the WASM deferrals below stand (no-threads/
+no-asm/size make HEVC & AV1 encode impractical in `.wasm`), but the [0028](0028-native-subprocess-backend.md)
+native driver **inverts every blocker**: threads + SIMD are exactly what x265 and SVT-AV1 want. So
+HEVC encode (`libx265`, GPL/full-gpl only) and AV1 encode (`libsvtav1`, both variants) now ship in the
+**native `full` profile** (0022) — built by `ffmpeg-wasi build/deps.sh` (cmake) + `build/libav.sh`,
+published + signed as `ffmpeg-wasi-driver-linux-amd64-full-<variant>`, selectable via
+`native.NewFromRelease(…, WithReleaseProfile(ProfileFull))`. Verified end-to-end (HEVC→mp4, AV1→mkv
+over the afero/IPC bridge). D-0023-B/D **flip to done for native** (the wasm verdicts are unchanged;
+AV1 decode via dav1d + HW-accel remain follow-ups). Originally one of the 0013–0023 batch mapping the
+[0012](0012-feature-parity-roadmap.md) roadmap; the §7 "HEVC / AV1" Tier-3 row.
+Date: 2026-06-30 (native encode implemented 2026-07-05)
 Parent: [0012](0012-feature-parity-roadmap.md) §7 (the dispatch row), §4A/§4B (the AV1/HEVC
 entries), §2 (the envelope), §3 (the licensing lens), §5 (Tier 3); [0007](0007-libav-direct-engine.md)
 §5 (D-FW-C, the LGPL/GPL split)

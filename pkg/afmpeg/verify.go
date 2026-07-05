@@ -22,9 +22,12 @@ const (
 )
 
 // Profile selects a release's capability profile (spec 0022): lean (the default,
-// web-delivery essentials) or intermediate (lean + every practical software
-// codec/filter). A profile is a distinct, separately-signed asset published in
-// the same release; the trust chain is identical.
+// web-delivery essentials), intermediate (lean + every practical software
+// codec/filter), or full (intermediate + the heavy native-only encoders x265/HEVC
+// and SVT-AV1). A profile is a distinct, separately-signed asset published in the
+// same release; the trust chain is identical. lean and intermediate exist as both
+// WASM modules and native drivers; full is native-only (0022 §4 — the heavy
+// encoders need threads/SIMD), so it is selectable only via native.NewFromRelease.
 type Profile string
 
 const (
@@ -35,6 +38,10 @@ const (
 	// (no hardware, no heavy encoders), published as
 	// ffmpeg-wasi-intermediate-<variant>.wasm.
 	ProfileIntermediate Profile = "intermediate"
+	// ProfileFull is intermediate + the heavy native-only encoders (x265/HEVC in
+	// the gpl variant, SVT-AV1 in both; spec 0023). Native only — there is no WASM
+	// full module; select it through native.NewFromRelease.
+	ProfileFull Profile = "full"
 )
 
 // moduleFileFor is the canonical asset name for a (variant, profile): lean keeps

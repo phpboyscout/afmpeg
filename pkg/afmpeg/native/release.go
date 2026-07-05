@@ -34,13 +34,15 @@ const (
 // keys, with the WKD cross-check) before it is written or run, so a consumer never
 // executes an unverified binary. The afmpeg ReleaseOptions apply (mirror base URL,
 // air-gapped bundle dir, cache dir, HTTP client, WKD identity) — including
-// WithReleaseProfile to select the intermediate driver (the full software-codec
-// batch: Opus/MP3/Vorbis/WebP/VP8-9 + subtitles, at native speed), just as it
-// selects the intermediate module on the wasm path. Defaults to ProfileLean.
+// WithReleaseProfile to select a heavier driver: ProfileIntermediate (the full
+// software-codec batch — Opus/MP3/Vorbis/WebP/VP8-9 + subtitles, at native speed) or
+// ProfileFull (intermediate + the heavy native-only encoders — SVT-AV1 in both
+// variants, x265/HEVC in gpl). Full is native-only, so this is the only way to reach
+// it. Defaults to ProfileLean.
 //
 //	rt, err := afmpeg.New(ctx, afmpeg.WithBackend(
-//	    must(native.NewFromRelease(ctx, "n8.1.2-7", afmpeg.VariantLGPL,
-//	        afmpeg.WithReleaseProfile(afmpeg.ProfileIntermediate)))))
+//	    must(native.NewFromRelease(ctx, "n8.1.2-8", afmpeg.VariantGPL,
+//	        afmpeg.WithReleaseProfile(afmpeg.ProfileFull)))))
 func NewFromRelease(ctx context.Context, tag string, variant afmpeg.Variant, opts ...afmpeg.ReleaseOption) (*Backend, error) {
 	if variant != afmpeg.VariantLGPL && variant != afmpeg.VariantGPL {
 		return nil, errors.Newf("native: unknown variant %q (want %q or %q)", variant, afmpeg.VariantLGPL, afmpeg.VariantGPL)
@@ -67,15 +69,15 @@ func NewFromRelease(ctx context.Context, tag string, variant afmpeg.Variant, opt
 }
 
 // profileInfix is the naming segment a non-lean profile carries in the driver
-// asset name / provenance key ("intermediate-"); lean carries nothing, keeping the
-// legacy platform-only names. Mirrors ffmpeg-wasi's build/sign-release.sh and the
-// wasm-side ffmpeg-wasi-intermediate-<variant>.wasm convention (spec 0022 parity).
+// asset name / provenance key ("intermediate-" / "full-"); lean carries nothing,
+// keeping the legacy platform-only names. Mirrors ffmpeg-wasi's build/sign-release.sh
+// and the wasm-side ffmpeg-wasi-intermediate-<variant>.wasm convention (0022 parity).
 func profileInfix(profile afmpeg.Profile) string {
-	if profile == afmpeg.ProfileIntermediate {
-		return string(afmpeg.ProfileIntermediate) + "-"
+	if profile == afmpeg.ProfileLean || profile == "" {
+		return ""
 	}
 
-	return ""
+	return string(profile) + "-"
 }
 
 // driverAsset is the release filename of the native driver for the host platform +

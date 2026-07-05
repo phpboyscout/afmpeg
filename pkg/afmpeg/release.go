@@ -87,11 +87,12 @@ func ResolveReleaseProfile(opts ...ReleaseOption) (Profile, error) {
 		opt(rc)
 	}
 
-	if rc.profile != ProfileLean && rc.profile != ProfileIntermediate {
-		return "", errors.Newf("afmpeg: unknown profile %q (want %q or %q)", rc.profile, ProfileLean, ProfileIntermediate)
+	switch rc.profile {
+	case ProfileLean, ProfileIntermediate, ProfileFull:
+		return rc.profile, nil
+	default:
+		return "", errors.Newf("afmpeg: unknown profile %q (want %q, %q or %q)", rc.profile, ProfileLean, ProfileIntermediate, ProfileFull)
 	}
-
-	return rc.profile, nil
 }
 
 // WithReleaseHTTPClient overrides the HTTP client used to fetch the release (and,
@@ -149,6 +150,10 @@ func WithModuleRelease(tag string, variant Variant, opts ...ReleaseOption) Optio
 		}
 
 		if rc.profile != ProfileLean && rc.profile != ProfileIntermediate {
+			if rc.profile == ProfileFull {
+				return errors.Newf("afmpeg: profile %q is native-only — load it with native.NewFromRelease, not WithModuleRelease (there is no WASM full module)", ProfileFull)
+			}
+
 			return errors.Newf("afmpeg: unknown profile %q (want %q or %q)", rc.profile, ProfileLean, ProfileIntermediate)
 		}
 

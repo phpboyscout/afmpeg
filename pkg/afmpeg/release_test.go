@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/cockroachdb/errors"
@@ -541,5 +542,16 @@ func TestWithModuleRelease_validatesVariant(t *testing.T) {
 
 	if err := WithModuleRelease("n8.1.2-4", VariantLGPL, WithReleaseProfile(ProfileIntermediate))(&config{}); err != nil {
 		t.Fatalf("valid intermediate profile: %v", err)
+	}
+
+	// full is native-only — WithModuleRelease (the WASM path) must refuse it and
+	// point at native.NewFromRelease.
+	err := WithModuleRelease("n8.1.2-4", VariantLGPL, WithReleaseProfile(ProfileFull))(&config{})
+	if err == nil {
+		t.Fatal("want an error for the native-only full profile on the WASM path, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "native-only") {
+		t.Fatalf("error should explain full is native-only, got: %v", err)
 	}
 }
