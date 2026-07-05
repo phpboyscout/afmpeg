@@ -181,16 +181,21 @@ func fetchRelease(ctx context.Context, tag string, variant Variant, rc *releaseC
 		profile = ProfileLean
 	}
 
-	moduleFile := moduleFileFor(variant, profile)
-	variantKey := variantKeyFor(variant, profile)
+	return fetchAsset(ctx, tag, variantKeyFor(variant, profile), moduleFileFor(variant, profile), rc)
+}
 
+// fetchAsset verifies and returns one release asset: provKey names it in the
+// signed provenance, assetFile is its filename. It runs the full trust chain
+// (signature over checksums.txt, the asset's checksum, the provenance match) via
+// the offline-bundle or the online path, honouring rc.
+func fetchAsset(ctx context.Context, tag, provKey, assetFile string, rc *releaseConfig) ([]byte, error) {
 	if rc.bundleDir != "" {
 		trust, err := rc.resolveTrust(ctx, false) // offline: embedded only, no network
 		if err != nil {
 			return nil, err
 		}
 
-		return fetchReleaseOffline(rc, variantKey, moduleFile, trust)
+		return fetchReleaseOffline(rc, provKey, assetFile, trust)
 	}
 
 	trust, err := rc.resolveTrust(ctx, true) // online: embedded↔WKD cross-check
@@ -198,7 +203,39 @@ func fetchRelease(ctx context.Context, tag string, variant Variant, rc *releaseC
 		return nil, err
 	}
 
-	return fetchReleaseOnline(ctx, tag, variantKey, moduleFile, rc, trust)
+	return fetchReleaseOnline(ctx, tag, provKey, assetFile, rc, trust)
+}
+
+// FetchReleaseAsset fetches and verifies a single named asset from an ffmpeg-wasi
+// release — the identical trust chain as WithModuleRelease: the KMS/OpenPGP
+// signature over checksums.txt against afmpeg's pinned keys (with the WKD
+// cross-check online), the asset's checksum, and that provenance names it under
+// provKey. It returns the verified bytes and the release provenance.
+//
+// This is the general primitive behind acquiring any signed release artifact; it
+// exists so the opt-in native backend (pkg/afmpeg/native) can fetch a certified
+// native driver (spec 0028 D-0028-D) through the same trust root. Most consumers
+// use WithModuleRelease (for the .wasm) or native.NewFromRelease (for the driver)
+// rather than calling this directly. The ReleaseOptions (WithReleaseBaseURL,
+// WithReleaseBundleDir, WithReleaseCacheDir, WithReleaseHTTPClient,
+// WithReleaseWKDEmail, WithReleaseProvenance) all apply.
+func FetchReleaseAsset(ctx context.Context, tag, assetFile, provKey string, opts ...ReleaseOption) ([]byte, Provenance, error) {
+	rc := &releaseConfig{baseURL: defaultReleaseBaseURL, client: http.DefaultClient, wkdEmail: defaultWKDEmail}
+	for _, opt := range opts {
+		opt(rc)
+	}
+
+	var prov Provenance
+	if rc.provOut == nil {
+		rc.provOut = &prov
+	}
+
+	data, err := fetchAsset(ctx, tag, provKey, assetFile, rc)
+	if err != nil {
+		return nil, Provenance{}, err
+	}
+
+	return data, *rc.provOut, nil
 }
 
 // fetchReleaseOffline verifies a complete bundle read from a local directory

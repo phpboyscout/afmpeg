@@ -277,6 +277,79 @@ func TestFetchRelease_intermediateProfile(t *testing.T) {
 	})
 }
 
+func TestFetchReleaseAsset(t *testing.T) {
+	t.Parallel()
+
+	priv, pub := testSigningKey(t)
+	driver := []byte("\x7fELF fake native driver")
+	driverFile := "ffmpeg-wasi-driver-linux-amd64-lgpl"
+
+	prov := Provenance{
+		FFmpegVersion: "n8.1.2", BuildTag: "n8.1.2-7", ToolingLicense: "MIT",
+		Variants: map[string]ProvenanceVariant{
+			"lgpl":                    {File: "ffmpeg-wasi-lgpl.wasm", License: "LGPL-2.1-or-later", H264Encode: "openh264", Profile: "lean"},
+			"driver-linux-amd64-lgpl": {File: driverFile, License: "LGPL-2.1-or-later", H264Encode: "openh264", Profile: "lean"},
+		},
+	}
+
+	provBytes, err := json.Marshal(prov)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	checksums := buildChecksums(map[string][]byte{driverFile: driver, "provenance.json": provBytes})
+	assets := map[string][]byte{
+		driverFile:          driver,
+		"checksums.txt":     checksums,
+		"checksums.txt.sig": detachSign(t, priv, pub, checksums),
+		"provenance.json":   provBytes,
+	}
+
+	fetch := func(a map[string][]byte, provKey string) ([]byte, Provenance, error) {
+		srv := serveAssets(t, a)
+
+		return FetchReleaseAsset(context.Background(), "n8.1.2-7", driverFile, provKey,
+			WithReleaseBaseURL(srv.URL), WithReleaseHTTPClient(srv.Client()), withReleaseKeys(pub),
+			WithReleaseWKDEmail(""), WithReleaseCacheDir(t.TempDir())) // "" disables WKD → the test key alone
+	}
+
+	t.Run("verifies and returns a non-module asset + provenance", func(t *testing.T) {
+		t.Parallel()
+
+		data, gotProv, err := fetch(assets, "driver-linux-amd64-lgpl")
+		if err != nil {
+			t.Fatalf("FetchReleaseAsset: %v", err)
+		}
+
+		if !bytes.Equal(data, driver) {
+			t.Fatal("returned driver bytes differ")
+		}
+
+		if gotProv.BuildTag != "n8.1.2-7" {
+			t.Fatalf("provenance not surfaced: %+v", gotProv)
+		}
+	})
+
+	t.Run("rejects a tampered asset", func(t *testing.T) {
+		t.Parallel()
+
+		tampered := cloneAssets(assets)
+		tampered[driverFile] = append(append([]byte{}, driver...), 'x')
+
+		if _, _, err := fetch(tampered, "driver-linux-amd64-lgpl"); !errors.Is(err, ErrChecksumMismatch) {
+			t.Fatalf("want ErrChecksumMismatch, got %v", err)
+		}
+	})
+
+	t.Run("rejects a provenance key naming a different file", func(t *testing.T) {
+		t.Parallel()
+
+		if _, _, err := fetch(assets, "lgpl"); !errors.Is(err, ErrProvenanceMismatch) {
+			t.Fatalf("want ErrProvenanceMismatch, got %v", err)
+		}
+	})
+}
+
 func cloneAssets(in map[string][]byte) map[string][]byte {
 	out := make(map[string][]byte, len(in))
 	for k, v := range in {
