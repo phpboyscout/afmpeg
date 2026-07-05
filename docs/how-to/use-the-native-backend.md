@@ -66,8 +66,12 @@ profiles](https://ffmpeg-wasi.phpboyscout.uk/reference/variants/); select one wi
 | Profile | Adds over the previous | Asset |
 |---|---|---|
 | `ProfileLean` | H.264 encode (openh264; libx264 in gpl) at native speed | `ffmpeg-wasi-driver-linux-amd64-<variant>` |
-| `ProfileIntermediate` | the full software batch — Opus/MP3/Vorbis/WebP/VP8-9 + subtitles | `…-driver-linux-amd64-intermediate-<variant>` |
-| `ProfileFull` | **AV1** (`libsvtav1`, both variants), **HEVC** (`libx265`, **gpl only**) | `…-driver-linux-amd64-full-<variant>` |
+| `ProfileIntermediate` | the full software batch — Opus/MP3/Vorbis/WebP/VP8-9 + subtitles, and **AV1 *decode*** (`libdav1d`) | `…-driver-linux-amd64-intermediate-<variant>` |
+| `ProfileFull` | AV1 *encode* (`libsvtav1`, both variants), **HEVC** encode (`libx265`, **gpl only**) | `…-driver-linux-amd64-full-<variant>` |
+
+AV1 **decode** (via `libdav1d`) is **native-only** — the WASM module cannot decode AV1 (dav1d is
+thread-architected), so transcoding *from* an AV1 source needs the native intermediate or full
+driver. AV1 **encode** needs the full profile.
 
 `ProfileFull` is the only way to reach HEVC/AV1 encode. HEVC (`libx265`) is GPL, so it is present
 **only in the `gpl` variant** — the `lgpl` full driver encodes AV1 but rejects `libx265`. See the
