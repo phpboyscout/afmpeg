@@ -31,6 +31,10 @@ include:
   - component: gitlab.com/phpboyscout/cicd/go-lint@v0.18.1
   - component: gitlab.com/phpboyscout/cicd/go-test@v0.18.1
   - component: gitlab.com/phpboyscout/cicd/go-security@v0.18.1
+    inputs:
+      # Bump osv-scanner off the component default (v2.3.8) to v2.4.0 — a routine
+      # currency bump; paired with the osv-scanner `script` override below.
+      osv_scanner_image: "ghcr.io/google/osv-scanner:v2.4.0"
 
   # Docs — main-branch zensical-pages deploy.
   - component: gitlab.com/phpboyscout/cicd/zensical-pages@v0.18.1
@@ -115,3 +119,31 @@ coverage-policy:
   script:
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - ./scripts/coverage-policy.sh
+
+# ----------------------------------------------------------------------
+# osv-scanner override — apply our ignore list and skip call-analysis.
+#
+# The go-security component runs `/osv-scanner -L go.mod`, which needs two
+# adjustments for afmpeg:
+#
+#   1. --config .osv-scanner.toml — the component passes no --config and the
+#      scanner does not auto-discover the repo config for a lockfile scan, so
+#      our ignore of GO-2026-5932 (golang.org/x/crypto — an advisory with NO
+#      upstream fix that govulncheck confirms afmpeg does not call) never
+#      applied. Pass it explicitly.
+#   2. --no-call-analysis=all — osv-scanner runs an internal govulncheck to
+#      prune unreachable findings, which BUILDS the module with the Go bundled
+#      in the scanner image (GOTOOLCHAIN=local). Since go.mod now requires
+#      1.26.5 and the image bundles older Go, that build fails and osv-scanner
+#      exits 127 once the ignore empties the result set. Reachability is
+#      already covered by the dedicated (build-aware) govulncheck job, so
+#      disabling osv-scanner's own call-analysis loses no coverage and removes
+#      the fragile toolchain coupling.
+#
+# We keep osv-scanner running (not disabled). Only `script` is overridden;
+# stage/image/rules are inherited from the component. Remove once x/crypto
+# ships a fix (Renovate bumps it) or the component handles both natively.
+osv-scanner:
+  script:
+    - echo "go-security (afmpeg override) — osv-scanner -L go.mod --config .osv-scanner.toml --no-call-analysis=all"
+    - /osv-scanner -L go.mod --config .osv-scanner.toml --no-call-analysis=all
