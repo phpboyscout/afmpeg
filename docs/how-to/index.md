@@ -46,6 +46,9 @@ Available:
 - **[Compose a command with the builder](compose-a-command.md)** — assemble any
   invocation (inputs / filtergraph / outputs) as typed data and run it with `RunJob`
   (`JobSpec()`).
+- **[Watch job progress](watch-job-progress.md)** — receive live progress for a running job on a
+  channel with `WithProgress`: a best-effort completion `Fraction` and byte counters, observed at
+  the filesystem boundary (no engine cooperation, best-effort, never blocks the job).
 - **[Reuse a Runtime across many invocations](reuse-a-runtime.md)** — compile the module once
   at startup, share one `Runtime` for the process lifetime, and parallelise with a fleet
   (invocations serialise one-at-a-time per `Runtime`).

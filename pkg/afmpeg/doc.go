@@ -49,6 +49,10 @@
 // 0 removes a bound; a caller-supplied context deadline is always honoured over
 // the default (spec 0027).
 //
+// For a long job, attach a channel with WithProgress(ctx, ch) to receive live,
+// best-effort progress (a completion fraction and byte counters) while Run/RunJob/
+// Frames execute; it never blocks or alters the job (spec 0031).
+//
 // The WASM module is the default and sole sandboxed runtime. For consumers who are
 // encode- or throughput-bound, an opt-in native backend runs the same engine as a
 // native subprocess (spec 0028): the [gitlab.com/phpboyscout/afmpeg/pkg/afmpeg/native]

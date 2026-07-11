@@ -354,6 +354,12 @@ func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result,
 	ctx, cancel := r.withDeadline(ctx)
 	defer cancel()
 
+	// Attach live progress reporting when the caller asked for it via
+	// WithProgress (spec 0031). No channel → fs is returned unchanged and stop is
+	// a no-op, so the common path is untouched.
+	fs, stop := r.startProgress(ctx, fs)
+	defer stop()
+
 	return r.backend.Invoke(ctx, fs, args...)
 }
 
