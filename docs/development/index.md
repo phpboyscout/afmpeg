@@ -14,7 +14,7 @@ them.
 
 > **Picking up implementation?** Start at the
 > [implementation roadmap](implementation-roadmap.md) — the phased build order across all
-> specs (0013–0030) with dependencies and prerequisites. Phases 0–4 are shipped, and Phase 5
+> specs (0013–0031) with dependencies and prerequisites. Phases 0–4 are shipped, and Phase 5
 > (the native backend + matrix, HEVC/AV1, perf) is now **largely shipped** too — what remains is
 > HW-accel encode, the arm64/darwin native platforms, and the trigger-gated specs (0009/0025/0026/0030).
 
@@ -60,6 +60,7 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0028 — native backends](specs/0028-native-subprocess-backend.md) | **SHIPPED** (Backend B): the native `driver.c` compiled to an ELF + seekable AVIO-over-IPC, wired via `WithBackend` / `native.NewFromRelease` (lean/intermediate/full, linux/amd64). WASM stays default; CGO-free. HW-accel (NVENC/VAAPI) + the local-ffmpeg-via-HTTP path (MAY) remain deferred |
 | [0029 — meson cross-compile toolchain](specs/0029-meson-cross-compile-toolchain.md) | **IMPLEMENTED**: the wasm32-wasi meson cross-file (`write_meson_cross`) the meson-built libs (freetype/harfbuzz/fribidi/libass, dav1d) use — the toolchain seam for spec 0019 and AV1 decode |
 | [0030 — WASM threading strategy](specs/0030-wasm-threading-strategy.md) | **DRAFT/SCOPING** (from the dav1d-WASM spike): stay single-threaded on wazero (default; the native backend is the threaded tier), fork wazero for the threads proposal (only on a concrete sandboxed-and-fast need), or reject a CGO runtime — the decision record for why the `.wasm` is single-threaded (R-AF-15) |
+| [0031 — job progress reporting](specs/0031-job-progress-reporting.md) | **IMPLEMENTED (phase A)** (spike-validated): live in-flight progress via **A** observed-filesystem (host-side, zero engine change — watch bytes read/written at the `afero.Fs` boundary) then **B** an engine progress side-channel (frame/time/speed), both behind one `Progress` stream (R-PROGRESS) |
 | [external review — validation & disposition](external-review/README.md) | The commissioned external review + our per-finding validation verdicts and spec mapping |
 
 ## Method

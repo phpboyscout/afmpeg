@@ -92,6 +92,12 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   convert/copy/embed; native subrip/webvtt/mov_text/ass codecs); vocab **v8**.
 - **[0026](specs/0026-engine-hot-path-performance.md) engine hot-path perf** — measure-first; pairs
   with 0008's measurement rig. Only land fixes with a measured win.
+- **[0031](specs/0031-job-progress-reporting.md) job progress reporting** — **phase A IMPLEMENTED
+  (`afmpeg.WithProgress`), spike-validated**, pulled in by a keyrx progress-indicator need. Plan
+  **A→B**: (A) host-side
+  observed-filesystem progress — watch bytes read/written at the `afero.Fs` boundary, zero engine
+  change, ships first; (B) a later ffmpeg-wasi progress side-channel (frame/time/speed) behind the
+  same `Progress` stream. Spike: [`spikes/0031-progress-observed-fs`](spikes/0031-progress-observed-fs/).
 
 ### Phase 5 — Strategic / native (largely SHIPPED, 2026-07-05)
 - **[0028](specs/0028-native-subprocess-backend.md) native backend (Backend B)** — **SHIPPED**. The
