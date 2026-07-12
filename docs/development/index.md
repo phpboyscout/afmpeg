@@ -18,6 +18,12 @@ them.
 > (the native backend + matrix, HEVC/AV1, perf) is now **largely shipped** too — what remains is
 > HW-accel encode, the arm64/darwin native platforms, and the trigger-gated specs (0009/0025/0026/0030).
 
+## Contributor docs
+
+- [CI security scanning](ci-security-scanning.md) — how the MR security gate works
+  (govulncheck / osv-scanner / trivy / gitleaks), and the recorded decisions behind the
+  osv-scanner ignore + job overrides (incl. the unfixable, unreachable x/crypto advisory).
+
 ## Specs
 
 The source of truth. Start with 0001, the thesis; it decomposes into the component specs.
