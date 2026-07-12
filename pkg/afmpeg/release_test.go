@@ -16,8 +16,8 @@ import (
 	"testing"
 
 	"github.com/cockroachdb/errors"
-	"gitlab.com/phpboyscout/signing/openpgpkey"
-	"gitlab.com/phpboyscout/signing/verify"
+	"gitlab.com/phpboyscout/go/signing/openpgpkey"
+	"gitlab.com/phpboyscout/go/signing/verify"
 )
 
 // releaseAssets builds the three manifest assets for a (variant, module), signed

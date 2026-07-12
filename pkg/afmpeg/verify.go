@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
-	"gitlab.com/phpboyscout/signing/verify"
+	"gitlab.com/phpboyscout/go/signing/verify"
 )
 
 // Variant selects which licence build of the ffmpeg-wasi engine to load

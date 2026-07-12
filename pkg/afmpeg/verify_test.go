@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"gitlab.com/phpboyscout/signing/openpgpkey"
-	"gitlab.com/phpboyscout/signing/verify"
+	"gitlab.com/phpboyscout/go/signing/openpgpkey"
+	"gitlab.com/phpboyscout/go/signing/verify"
 )
 
 var testKeyEpoch = time.Unix(0, 0)

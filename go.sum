@@ -84,8 +84,8 @@ github.com/tetratelabs/wazero v1.12.0 h1:DuWcpNu/FzgEXgGBDp8J1Spc+CWOvvtvVyjKlaZ
 github.com/tetratelabs/wazero v1.12.0/go.mod h1:LvKtzl2RqO4gyF27BiXU+nKAjcV8f38U+kP/q2vgxh0=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
-gitlab.com/phpboyscout/signing v0.1.0 h1:N86vkT20bVo/zudbfKANwueBwvPaP/EzAqgMi7VIwv8=
-gitlab.com/phpboyscout/signing v0.1.0/go.mod h1:6ubfzqFxvGIjQiYXwLR3maTH5Jr8f6kw3P/dN5o/C+s=
+gitlab.com/phpboyscout/go/signing v0.2.0 h1:cx7dFY2CWvbI+O+vx5D9Y6fvh8NcZE6s3UVcDsKBeU8=
+gitlab.com/phpboyscout/go/signing v0.2.0/go.mod h1:Rg43efDnq8bGzQjoMTxvnFj5KAQHeuLe2PaUSi+P11Q=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/cockroachdb/errors"
-	"gitlab.com/phpboyscout/signing/verify"
+	"gitlab.com/phpboyscout/go/signing/verify"
 )
 
 // defaultReleaseBaseURL is the canonical ffmpeg-wasi generic-package layout on
@@ -130,7 +130,7 @@ func withReleaseKeys(armoredKeys ...[]byte) ReleaseOption {
 // fetches the module plus its checksums, signature, and provenance, and verifies
 // — against afmpeg's pinned OpenPGP trust keys — the detached signature over the
 // checksums, the module's and provenance's checksums, and that provenance names
-// this variant (spec 0010, revised to gitlab.com/phpboyscout/signing). Only then
+// this variant (spec 0010, revised to gitlab.com/phpboyscout/go/signing). Only then
 // is the module compiled. Any tamper fails with a typed error
 // (signing/verify.ErrSignatureInvalid, ErrChecksumMismatch, ErrProvenanceMismatch).
 //

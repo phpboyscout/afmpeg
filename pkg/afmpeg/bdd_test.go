@@ -12,8 +12,8 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/cucumber/godog"
-	"gitlab.com/phpboyscout/signing/openpgpkey"
-	"gitlab.com/phpboyscout/signing/verify"
+	"gitlab.com/phpboyscout/go/signing/openpgpkey"
+	"gitlab.com/phpboyscout/go/signing/verify"
 )
 
 // releaseWorld is the per-scenario state for the release-verification feature.
