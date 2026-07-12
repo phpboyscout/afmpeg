@@ -66,7 +66,7 @@ func (b *wasmBackend) Close(ctx context.Context) error {
 // stdout and stderr into a Result. The module name is cleared so the compiled
 // module can be instantiated repeatedly across calls.
 func (b *wasmBackend) Invoke(ctx context.Context, fs afero.Fs, args ...string) (Result, error) {
-	mount, err := mountConfig(fs)
+	mount, err := mountConfig(fs, progressSinkFrom(ctx))
 	if err != nil {
 		return Result{}, err
 	}
@@ -96,14 +96,20 @@ func (b *wasmBackend) Invoke(ctx context.Context, fs afero.Fs, args ...string) (
 }
 
 // mountConfig builds a wazero FSConfig that mounts the vfs bridge over fs at the
-// guest root.
-func mountConfig(fs afero.Fs) (wazero.FSConfig, error) {
+// guest root. When sink is non-nil (a progress-reporting invocation, spec 0032),
+// the bridge also serves /dev/afmpeg-progress as a write-device feeding sink.
+func mountConfig(fs afero.Fs, sink func([]byte)) (wazero.FSConfig, error) {
 	sysCfg, ok := wazero.NewFSConfig().(sysfs.FSConfig)
 	if !ok {
 		return nil, errors.New("afmpeg: wazero FSConfig does not support sys.FS mounts")
 	}
 
-	return sysCfg.WithSysFSMount(vfs.New(fs), "/"), nil
+	var opts []vfs.Option
+	if sink != nil {
+		opts = append(opts, vfs.WithProgressSink(sink))
+	}
+
+	return sysCfg.WithSysFSMount(vfs.New(fs, opts...), "/"), nil
 }
 
 // exitCodeFrom interprets an InstantiateModule error: a cancelled context is a

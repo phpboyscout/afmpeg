@@ -355,10 +355,16 @@ func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result,
 	defer cancel()
 
 	// Attach live progress reporting when the caller asked for it via
-	// WithProgress (spec 0031). No channel → fs is returned unchanged and stop is
-	// a no-op, so the common path is untouched.
-	fs, stop := r.startProgress(ctx, fs)
+	// WithProgress (spec 0031). No channel → ctx/fs are returned unchanged and
+	// stop is a no-op, so the common path is untouched. When active, ctx also
+	// carries the engine-record sink, and a process job spec is stamped with
+	// progress:true so a v9+ engine emits over /dev/afmpeg-progress (spec 0032).
+	ctx, fs, stop := r.startProgress(ctx, fs)
 	defer stop()
+
+	if progressFrom(ctx) != nil {
+		args = withProgressRequested(args)
+	}
 
 	return r.backend.Invoke(ctx, fs, args...)
 }

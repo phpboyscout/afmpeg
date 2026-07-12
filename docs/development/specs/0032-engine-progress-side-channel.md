@@ -1,7 +1,9 @@
 # 0032 — engine progress side-channel (0031 phase B)
 
-Status: **APPROVED** — decision-bearing questions resolved with the user 2026-07-12 (D-B1 device,
-D-B3 vocab-v9 gating); cleared to implement across ffmpeg-wasi then afmpeg.
+Status: **IMPLEMENTED** — engine half in ffmpeg-wasi (vocab v9, released `n8.1.2-9`); afmpeg
+surfacing half landed (the `/dev/afmpeg-progress` vfs device + reporter merge). Decision-bearing
+questions resolved with the user 2026-07-12 (D-B1 device, D-B3 vocab-v9 gating); the impl-time forks
+are recorded under §5 (Resolved during implementation).
 Date: 2026-07-12
 Parent: [0031](0031-job-progress-reporting.md) (implements its phase B / decision D0);
 [0003](0003-vfs-bridge.md) (the vfs device seam this rides); [0007](0007-libav-direct-engine.md)
@@ -86,12 +88,30 @@ parser.
 
 ## 5. Open questions
 
-- **D-B1 confirm** — `/dev/afmpeg-progress` device vs host-import. Recommend the device.
-- **`out_time` origin for multi-output jobs** — which output's timeline drives `Fraction` when a
-  job writes several? (First mapped output, or max?) Settle in impl.
-- **Cadence value** — 100 ms media-time vs a frame-count stride; pick during the engine change.
-- **Does `total_size` deprecate phase A's observed output bytes?** Likely yes for `OutputBytes`
-  when present; keep observed-fs for inputs.
+Resolved during implementation (2026-07-12):
+
+- **D-B1 confirm** — **the device**, as recommended. `internal/vfs/progress.go` serves
+  `/dev/afmpeg-progress` (write-only, `WithProgressSink`), overlaid only when `WithProgress` is
+  active. *Resolved.*
+- **`out_time` origin for multi-output jobs** — the engine emits a single monotonic `out_time`
+  across the encode loop (max across mux sites via `pmux`); afmpeg consumes it as-is. No per-output
+  fan-out — one bar per job. *Resolved (engine behaviour).*
+- **Cadence value** — 100 ms **media-time** throttle plus a final record (engine `EMIT_INTERVAL_US`);
+  afmpeg coalesces further (0031 D2 newest-wins). Confirmed smooth: a 20 s audio transcode yields
+  ~230 samples. *Resolved.*
+- **Does `total_size` deprecate phase A's observed output bytes?** **No.** Measured: the engine's
+  `total_size` is an encoded-**payload** sum (e.g. 1074 B) and undercounts the real muxed file (2941 B,
+  which includes container structure). `OutputBytes` therefore stays the **observed-fs** value — the
+  true bytes written — and `total_size` is parsed but not surfaced. *Resolved (empirical).*
+- **`Fraction = out_time/duration` needs a duration the engine record lacks.** The `n8.1.2-9` record
+  carries `frame`/`out_time_us`/`total_size` but **no duration**, so afmpeg cannot form
+  `out_time/duration` against it. Chosen path: the afmpeg reporter parses an **optional
+  `duration_us`** field (forward-compatible) — when present it drives `Fraction`
+  (incl. generative/R-PROGRESS-B2); when absent (today) `Fraction` falls back to the phase-A byte
+  ratio, and `Frame`/`OutTime`/`Speed` still light up. Lighting up `Fraction` for generative inputs
+  needs a **one-field engine follow-up** (emit `duration_us`); the afmpeg side is done and needs no
+  further change to consume it. *Resolved: ship forward-compatible, defer the engine `duration_us`
+  emission to a follow-up.*
 
 ## 6. Requirements & acceptance
 
@@ -109,3 +129,21 @@ parser.
 - Cross-repo: the engine change lands in **ffmpeg-wasi** (new engine build, vocab v9) and is
   consumed by afmpeg via `WithModuleRelease`; afmpeg tests gate on `AFMPEG_TEST_FFMPEG_WASI`
   pointing at a v9 build. Test-first from these contracts; ≥90 % on new `pkg/` code.
+
+**As-shipped status (2026-07-12):**
+
+- **R-PROGRESS-B1** — ✅ `OutTime` rises monotonically and `Speed` is derived and non-zero, verified
+  against `n8.1.2-9` (`TestIntegration_ProgressPhaseB`, ~230 samples over a 20 s transcode). Two
+  refinements vs the literal wording: `Frame` is **video-only** (an audio-only job legitimately keeps
+  `Frame == 0` — the engine's `frames++` is guarded on `is_video`); and the `Fraction = out_time/duration`
+  clause is **pending the engine `duration_us` follow-up** (see §5) — until then `Fraction` is the
+  phase-A byte ratio.
+- **R-PROGRESS-B2** — ⏳ **pending the engine `duration_us` follow-up.** The afmpeg side is complete
+  and forward-compatible (unit-verified with a synthetic `duration_us` record,
+  `TestRun_threadsEngineSinkToChannel`): the moment the engine emits `duration_us`, a generative
+  input reports a real `Fraction` with **no afmpeg change**.
+- **R-PROGRESS-B3** — ✅ compatibility intact: a pre-v9 engine is rejected at `New` by the vocab gate
+  (verified — the local v8 build is refused); `WithProgress` inactive → no sink, no device, no
+  `progress` field, phase-A path byte-identical.
+- **R-PROGRESS-B4** — ✅ best-effort throughout: malformed/partial lines dropped, a runaway
+  newline-less stream is capped, non-draining channel never blocks (unit-covered).

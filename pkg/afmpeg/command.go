@@ -136,6 +136,12 @@ type jobSpec struct {
 	Inputs  []jobInput  `json:"inputs"`
 	Filter  string      `json:"filter,omitempty"`
 	Outputs []jobOutput `json:"outputs,omitempty"`
+
+	// Progress opts the job into the engine's progress side-channel (spec 0032,
+	// D-B3): a v9+ engine then streams NDJSON records over /dev/afmpeg-progress.
+	// afmpeg sets it at Run time (never in JobSpec) — only when WithProgress is
+	// active — via withProgressRequested; the field is inert on any other engine.
+	Progress bool `json:"progress,omitempty"`
 }
 
 type jobInput struct {
@@ -253,6 +259,39 @@ func (c Command) validateCopyEntry(outPath, m string) error {
 	}
 
 	return nil
+}
+
+// withProgressRequested stamps a single process job spec with progress:true so a
+// v9+ engine emits over /dev/afmpeg-progress (spec 0032, D-B3). It is applied at
+// Run time only when WithProgress is active. It edits the raw JSON in place (via
+// a shallow field map, preserving every other field verbatim) so it works for
+// both the typed RunJob path and a hand-written Run spec. Anything it cannot
+// safely recognise as a process job — a non-JSON arg, a multi-arg invocation, or
+// a non-"process" op (probe/version/frames carry no progress, 0031 D6) — is left
+// exactly as-is.
+func withProgressRequested(args []string) []string {
+	if len(args) != 1 {
+		return args
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(args[0]), &fields); err != nil {
+		return args
+	}
+
+	var op string
+	if err := json.Unmarshal(fields["op"], &op); err != nil || op != "process" {
+		return args
+	}
+
+	fields["progress"] = json.RawMessage("true")
+
+	patched, err := json.Marshal(fields)
+	if err != nil {
+		return args
+	}
+
+	return []string{string(patched)}
 }
 
 // RunJob renders c as a job spec and runs it over the fs bridge — sugar for Run

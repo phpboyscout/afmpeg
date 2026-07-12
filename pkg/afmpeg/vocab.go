@@ -31,11 +31,15 @@ import (
 //	8 — subtitle streams (spec 0019): Output.SubtitleCodec (an encoder name or
 //	    CodecCopy) + "N:s" subtitle map specifiers — extract/convert/copy
 //	    subtitle tracks.
+//	9 — job progress side-channel (spec 0032): a top-level "progress":true opt-in
+//	    on a process job; a v9+ engine then streams NDJSON progress records over
+//	    the /dev/afmpeg-progress device. Additive/opt-in — a v9 engine still runs
+//	    any earlier spec unchanged.
 //
 // Every process/probe spec is stamped with it; the engine rejects a spec whose
 // version exceeds what it supports, so a new field can never be silently dropped
 // by an older engine (it fails the whole spec instead).
-const vocabVersion = 8
+const vocabVersion = 9
 
 // engineVocab is the engine's reply to the op:"version" query — its highest
 // supported vocabulary version and the FFmpeg build it links.

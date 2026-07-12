@@ -33,6 +33,7 @@ var (
 	_ experimentalsys.FS   = (*FS)(nil)
 	_ experimentalsys.File = (*file)(nil)
 	_ experimentalsys.File = (*nullFile)(nil)
+	_ experimentalsys.File = (*progressFile)(nil)
 )
 
 // FS adapts an afero.Fs to experimental/sys.FS. Construct it with New; the zero
@@ -44,6 +45,13 @@ type FS struct {
 	root      afero.Fs
 	tmp       afero.Fs
 	tmpPrefix string
+
+	// progressSink, when non-nil, makes /dev/afmpeg-progress a live write-device
+	// that streams the engine's NDJSON progress records to it (spec 0032). It is
+	// set only when the caller attached progress reporting (WithProgress → the
+	// wasm backend threads it here); otherwise the device is not served and the
+	// path resolves against the backing fs like any other (D-B3).
+	progressSink func([]byte)
 }
 
 // Option configures an FS.
@@ -55,6 +63,16 @@ type Option func(*FS)
 func WithTmpFs(tmp afero.Fs) Option {
 	return func(f *FS) {
 		f.tmp = tmp
+	}
+}
+
+// WithProgressSink serves /dev/afmpeg-progress as a write-only device that hands
+// each complete NDJSON line the engine writes to it to sink (spec 0032, D-B1).
+// Absent this option the device is not overlaid, so the path behaves like any
+// other backing-fs path (D-B3). A nil sink is a no-op.
+func WithProgressSink(sink func([]byte)) Option {
+	return func(f *FS) {
+		f.progressSink = sink
 	}
 }
 
@@ -100,6 +118,10 @@ func (f *FS) OpenFile(
 		return newRandFile(), 0
 	}
 
+	if f.progressSink != nil && isDevProgress(name) {
+		return newProgressFile(f.progressSink), 0
+	}
+
 	af, err := f.backendFor(name).OpenFile(name, toOSFlag(flag), perm)
 	if err != nil {
 		return nil, experimentalsys.UnwrapOSError(err)
@@ -116,6 +138,10 @@ func (f *FS) Stat(name string) (wsys.Stat_t, experimentalsys.Errno) {
 
 	if isDevRandom(name) {
 		return randStat(), 0
+	}
+
+	if f.progressSink != nil && isDevProgress(name) {
+		return progressStat(), 0
 	}
 
 	info, err := f.backendFor(name).Stat(name)
