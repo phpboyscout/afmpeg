@@ -1,6 +1,6 @@
 ---
 title: CI security scanning
-description: How afmpeg's MR security gate works (govulncheck, osv-scanner, trivy, gitleaks), and the decisions behind the osv-scanner ignore + overrides.
+description: How afmpeg's MR security gate works (govulncheck, osv-scanner, trivy, gitleaks), and the decisions behind the osv-scanner GO-2026-5932 waiver (now shipped in the go-security component).
 date: 2026-07-12
 tags: [development, ci, security]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -55,19 +55,23 @@ call-graph aware — confirms afmpeg never calls the affected symbol: only
 unreachable, unfixable, undroppable module-level false positive. That is exactly
 what an ignore entry is for. Reachability is still enforced, by `govulncheck`.
 
-The ignore lives in [`.osv-scanner.toml`](../../.osv-scanner.toml) with an
-`ignoreUntil` review date — revisit when x/crypto ships a fix (Renovate will bump
-the dep) and delete the entry.
+The waiver is **not** carried here per-repo: it ships in the `go-security`
+component itself (from `cicd v0.21.0`), which applies it to every consumer. afmpeg
+therefore keeps no local `.osv-scanner.toml`. Revisit when x/crypto ships a fix —
+that removal happens in the component, not here.
 
-## The two osv-scanner gotchas (why `.gitlab-ci.yml` overrides the job)
+## The two osv-scanner gotchas (now handled by the component)
 
-Adding the ignore file was not enough. The `go-security` component runs
-`/osv-scanner -L go.mod`, and two things broke:
+Getting osv-scanner green took more than an ignore entry, and the debugging is
+worth keeping even though the fix now lives upstream. The `go-security` component
+used to run `/osv-scanner -L go.mod`, and two things broke — both fixed in
+`cicd v0.21.0` (spec: the component's `osv-scanner-toolchain-and-waiver`):
 
-1. **Config not applied.** The component passes no `--config`, and osv-scanner
-   does not auto-discover `.osv-scanner.toml` for a `-L` (lockfile) scan. The
-   ignore had no effect until the job's script was overridden to pass
-   `--config .osv-scanner.toml` explicitly.
+1. **Config not applied.** osv-scanner does not auto-discover `.osv-scanner.toml`
+   for a `-L` (lockfile) scan, and the job passed no `--config`, so any ignore
+   list was silently inert. The component now appends its global waivers to the
+   repo's `.osv-scanner.toml` (creating it if absent) and always passes
+   `--config`, so per-repo ignores work too.
 
 2. **Exit 127 from a failed internal build.** osv-scanner runs its *own*
    `govulncheck` for call-analysis, which **builds the module using the Go
@@ -76,14 +80,14 @@ Adding the ignore file was not enough. The `go-security` component runs
    older-Go scanner image (`go.mod requires go >= 1.26.5 (running go 1.26.4;
    GOTOOLCHAIN=local)`), and osv-scanner exited **127** — but only *after* the
    ignore emptied the result set (with findings present it exits 1, masking the
-   error). The fix is `--no-call-analysis=all`: osv-scanner's reachability step
-   is redundant here (the dedicated `govulncheck` job already provides it) and it
-   couples the scanner image's Go version to `go.mod`'s requirement, which is
-   fragile. Disabling it loses no coverage.
+   error). The component now defaults `osv_scanner_call_analysis` to false
+   (passing `--no-call-analysis=all`): that reachability step is redundant (the
+   dedicated `govulncheck` job already provides it) and it fragilely couples the
+   scanner image's Go to `go.mod`'s requirement.
 
-Both live as an `osv-scanner:` job override in
-[`.gitlab-ci.yml`](../../.gitlab-ci.yml) (only `script` is overridden;
-stage/image/rules stay inherited), plus an `osv_scanner_image` bump to v2.4.0.
+afmpeg briefly carried these as a local `osv-scanner:` job override; that override
+(and the local `.osv-scanner.toml`) were removed once it adopted `go-security
+@v0.21.0`.
 
 ## The Go 1.26.5 bump
 
