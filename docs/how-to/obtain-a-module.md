@@ -23,7 +23,7 @@ the certified path; for your own builds, supply them directly.
 release by `(tag, variant)` and **verifies it before it runs** — the release's
 `checksums.txt` carries a detached **OpenPGP** signature made by a key held in AWS KMS
 (signable only by ffmpeg-wasi's tag pipeline), and afmpeg checks that signature against a
-**public key pinned inside afmpeg** (via `gitlab.com/phpboyscout/signing`), then the
+**public key pinned inside afmpeg** (via `gitlab.com/phpboyscout/go/signing`), then the
 module's and provenance's checksums, then that the provenance names the variant you asked
 for:
 

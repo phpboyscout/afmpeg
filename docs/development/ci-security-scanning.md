@@ -39,7 +39,7 @@ foundation of the OpenPGP release-verification stack:
 
 ```
 pkg/afmpeg
-  → gitlab.com/phpboyscout/signing/verify        (WithModuleRelease / WKD — specs 0010/0011)
+  → gitlab.com/phpboyscout/go/signing/verify     (WithModuleRelease / WKD — specs 0010/0011)
     → github.com/ProtonMail/go-crypto/openpgp     (OpenPGP)
       → golang.org/x/crypto/hkdf
 ```

@@ -17,7 +17,7 @@ acquisition paths with deliberately different trust postures (spec
 - **`WithModuleRelease`** — *certified*, for the project's own published releases. This page is
   about that path.
 
-Verification reuses the org signing module, **`gitlab.com/phpboyscout/signing`** — the same
+Verification reuses the org signing module, **`gitlab.com/phpboyscout/go/signing`** — the same
 OpenPGP/WKD machinery go-tool-base uses — rather than any afmpeg-specific crypto.
 
 ## The chain

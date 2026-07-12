@@ -16,14 +16,14 @@ The initial implementation (releases `n8.1.2-1`..`-3`) used a **bespoke** signat
 KMS RSASSA-PSS signature in a custom JSON envelope, verified with afmpeg's own stdlib crypto
 (decisions D-0010-E/F below). That worked and is secure, but it **diverged from the org's
 established OpenPGP/WKD signing model** (go-tool-base + `openpgpkey.phpboyscout.uk`). That model
-is now a standalone, dependency-light module — **[`gitlab.com/phpboyscout/signing`](https://gitlab.com/phpboyscout/signing)**
+is now a standalone, dependency-light module — **[`gitlab.com/phpboyscout/go/signing`](https://gitlab.com/phpboyscout/go/signing)**
 (library `go.mod` = `go-crypto` + `cockroachdb/errors` only) — so there is no reason to keep a
 parallel scheme. This spec is revised to use it:
 
 - **D-0010-E is superseded.** Releases are signed with an **ASCII-armored OpenPGP detached
   signature** over `checksums.txt` (`checksums.txt.sig`), produced by the **`gtb sign --backend
   aws-kms`** CLI (same KMS key, OIDC-gated, as today). afmpeg verifies with
-  **`gitlab.com/phpboyscout/signing/verify`** — `LoadTrustSet(...).VerifyManifestSignature(checksums, sig)`.
+  **`gitlab.com/phpboyscout/go/signing/verify`** — `LoadTrustSet(...).VerifyManifestSignature(checksums, sig)`.
 - **D-0010-F is superseded.** OpenPGP identifies the signing key natively (key fingerprint), so
   the hand-rolled JSON envelope, `key_id`, and key-*set* logic are dropped. The **embedded** trust
   keys + the **WKD cross-check** + the **rotation key** are the GTB model, specified in

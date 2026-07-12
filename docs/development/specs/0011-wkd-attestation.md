@@ -3,7 +3,7 @@
 Status: **IMPLEMENTED** (2026-06-30; the embedded↔WKD cross-check is default-on in afmpeg's
 `WithModuleRelease`, validated against the live `openpgpkey.phpboyscout.uk` + release `n8.1.2-4`.
 Built on the org signing module
-[`gitlab.com/phpboyscout/signing`](https://gitlab.com/phpboyscout/signing) and the go-tool-base
+[`gitlab.com/phpboyscout/go/signing`](https://gitlab.com/phpboyscout/go/signing) and the go-tool-base
 WKD model. Supersedes this spec's earlier "independent per-release content attestation" framing,
 which mis-stated the threat it closes.)
 Date: 2026-06-29 (revised 2026-06-30)
@@ -15,7 +15,7 @@ Owns: **R-AF-15** (WKD cross-check + rotation authority), **R-AF-16** (key publi
 0010 (revised) gives afmpeg an **embedded** OpenPGP trust key and a detached-signature check.
 This spec adds the org's **second trust anchor (WKD)** and the **offline rotation authority** —
 exactly what go-tool-base's `gtb update` does, reused via
-`gitlab.com/phpboyscout/signing/verify`. afmpeg embeds the publisher's keys *and* fetches them
+`gitlab.com/phpboyscout/go/signing/verify`. afmpeg embeds the publisher's keys *and* fetches them
 live from WKD on the domain, requiring the two to **agree by fingerprint**.
 
 **Correction (important).** This spec previously claimed WKD "closes the poisoned-well" — a
