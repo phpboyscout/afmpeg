@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.10.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.10.0)
+
+### Features
+
+- **afmpeg**: live job progress via WithProgress (spec 0031 phase A)
+
 ## [v0.9.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.9.0)
 
 ### Features
