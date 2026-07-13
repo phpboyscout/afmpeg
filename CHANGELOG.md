@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.11.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.11.0)
+
+### Features
+
+- **progress**: surface engine progress over /dev/afmpeg-progress (0032 phase B)
+
+### Bug Fixes
+
+- **deps**: update gomod-weekly
+
 ## [v0.10.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.10.0)
 
 ### Features
