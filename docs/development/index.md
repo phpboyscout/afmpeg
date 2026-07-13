@@ -14,9 +14,11 @@ them.
 
 > **Picking up implementation?** Start at the
 > [implementation roadmap](implementation-roadmap.md) — the phased build order across all
-> specs (0013–0031) with dependencies and prerequisites. Phases 0–4 are shipped, and Phase 5
-> (the native backend + matrix, HEVC/AV1, perf) is now **largely shipped** too — what remains is
-> HW-accel encode, the arm64/darwin native platforms, and the trigger-gated specs (0009/0025/0026/0030).
+> specs (0013–0032) with dependencies and prerequisites, and its **Pick-up menu** of the remaining
+> trigger-gated work. Phases 0–4 are shipped (through **vocab v9** — job progress), and Phase 5
+> (the native backend + matrix, HEVC/AV1, perf) is **largely shipped** too. Current anchors:
+> afmpeg **v0.11.0**, ffmpeg-wasi **n8.1.2-10**. What remains is all optional/trigger-gated —
+> `0009` CLI, `0030` WASM threads, arm64/darwin native, HW-accel encode, `0025`/`0026`.
 
 ## Contributor docs
 
@@ -60,8 +62,8 @@ The source of truth. Start with 0001, the thesis; it decomposes into the compone
 | [0028 — native backends](specs/0028-native-subprocess-backend.md) | **SHIPPED** (Backend B): the native `driver.c` compiled to an ELF + seekable AVIO-over-IPC, wired via `WithBackend` / `native.NewFromRelease` (lean/intermediate/full, linux/amd64). WASM stays default; CGO-free. HW-accel (NVENC/VAAPI) + the local-ffmpeg-via-HTTP path (MAY) remain deferred |
 | [0029 — meson cross-compile toolchain](specs/0029-meson-cross-compile-toolchain.md) | **IMPLEMENTED**: the wasm32-wasi meson cross-file (`write_meson_cross`) the meson-built libs (freetype/harfbuzz/fribidi/libass, dav1d) use — the toolchain seam for spec 0019 and AV1 decode |
 | [0030 — WASM threading strategy](specs/0030-wasm-threading-strategy.md) | **DRAFT/SCOPING** (from the dav1d-WASM spike): stay single-threaded on wazero (default; the native backend is the threaded tier), fork wazero for the threads proposal (only on a concrete sandboxed-and-fast need), or reject a CGO runtime — the decision record for why the `.wasm` is single-threaded (R-AF-15) |
-| [0031 — job progress reporting](specs/0031-job-progress-reporting.md) | **IMPLEMENTED (phase A)** (spike-validated): live in-flight progress via **A** observed-filesystem (host-side, zero engine change — watch bytes read/written at the `afero.Fs` boundary) then **B** an engine progress side-channel (frame/time/speed), both behind one `Progress` stream (R-PROGRESS) |
-| [0032 — engine progress side-channel](specs/0032-engine-progress-side-channel.md) | **APPROVED** (0031 phase B): the engine emits `frame`/`out_time`/`speed` to a `/dev/afmpeg-progress` vfs device (vocab **v9**, host-gated); afmpeg surfaces them on the same `WithProgress` channel — accurate `Fraction` + progress for generative inputs (R-PROGRESS-B) |
+| [0031 — job progress reporting](specs/0031-job-progress-reporting.md) | **SHIPPED (both phases)**: live in-flight progress via **A** observed-filesystem (v0.10.0, host-side, zero engine change — watch bytes at the `afero.Fs` boundary) then **B** the engine progress side-channel (0032), both behind one `Progress` stream (R-PROGRESS) |
+| [0032 — engine progress side-channel](specs/0032-engine-progress-side-channel.md) | **SHIPPED** (0031 phase B; v0.11.0 / n8.1.2-10, vocab **v9**): the engine emits `frame`/`out_time_us`/`total_size`(+optional `duration_us`) NDJSON to a `/dev/afmpeg-progress` vfs device (host-gated by `progress:true`); afmpeg surfaces `Frame`/`OutTime`/host-derived `Speed` on the same `WithProgress` channel, with an accurate `Fraction` for file inputs and for generative inputs on n8.1.2-10+ (R-PROGRESS-B) |
 | [external review — validation & disposition](external-review/README.md) | The commissioned external review + our per-finding validation verdicts and spec mapping |
 
 ## Method

@@ -1,13 +1,17 @@
 # Implementation roadmap — build order & prerequisites
 
-**Entry point for picking up implementation.** Phases 0–4 are **shipped**, and Phase 5 (the native
-backend 0028, the native matrix 0022 on linux/amd64, HEVC/AV1 encode + AV1 decode 0023, the 0008
-perf spike) is now **largely shipped** too — as of afmpeg v0.9.0 / ffmpeg-wasi n8.1.2-8. What remains
-is HW-accel encode, the arm64/darwin native platforms, and the trigger-gated 0009/0025/0026/0030.
-This document sequences the specs into phases
-with dependencies, and lists what's needed before/during each — see the per-spec status inline
-below. It supersedes 0012 §7's parity-only ordering by folding in the review-driven specs
-(0024–0028) and the 0022 bundling policy.
+**Entry point for picking up implementation.** Phases 0–4 are **shipped** (through **vocab v9** —
+job progress side-channel 0031/0032), and Phase 5 (the native backend 0028, the native matrix 0022
+on linux/amd64, HEVC/AV1 encode + AV1 decode 0023, the 0008 perf spike) is now **largely shipped**
+too. What remains is a menu of **trigger-gated** work, none of it on a critical path — see
+[**Pick-up menu**](#pick-up-menu-for-a-future-session) at the foot of this doc for the short list a
+future session can grab. This document sequences the specs into phases with dependencies, and lists
+what's needed before/during each — see the per-spec status inline below. It supersedes 0012 §7's
+parity-only ordering by folding in the review-driven specs (0024–0028) and the 0022 bundling policy.
+
+> **Current anchors (2026-07-13):** afmpeg **v0.11.0**, ffmpeg-wasi **n8.1.2-10**, job-spec
+> **vocab v9**. The core roadmap is complete; everything below in "what remains" is optional and
+> waits for its trigger (a consumer need, a device, or a measured regression).
 
 ## The two tracks
 
@@ -92,16 +96,19 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   convert/copy/embed; native subrip/webvtt/mov_text/ass codecs); vocab **v8**.
 - **[0026](specs/0026-engine-hot-path-performance.md) engine hot-path perf** — measure-first; pairs
   with 0008's measurement rig. Only land fixes with a measured win.
-- **[0032](specs/0032-engine-progress-side-channel.md) engine progress side-channel** — **APPROVED**
-  (0031 phase B): the engine emits `frame`/`out_time`/`speed` to a `/dev/afmpeg-progress` vfs device
-  (vocab **v9**, host-gated) and afmpeg surfaces them on the same `WithProgress` channel — accurate
-  `Fraction` + progress for generative inputs. Cross-repo: ffmpeg-wasi engine change then afmpeg.
-- **[0031](specs/0031-job-progress-reporting.md) job progress reporting** — **phase A IMPLEMENTED
-  (`afmpeg.WithProgress`), spike-validated**, pulled in by a keyrx progress-indicator need. Plan
-  **A→B** (B is [0032](specs/0032-engine-progress-side-channel.md)): (A) host-side
-  observed-filesystem progress — watch bytes read/written at the `afero.Fs` boundary, zero engine
-  change, ships first; (B) a later ffmpeg-wasi progress side-channel (frame/time/speed) behind the
-  same `Progress` stream. Spike: [`spikes/0031-progress-observed-fs`](spikes/0031-progress-observed-fs/).
+- **[0031](specs/0031-job-progress-reporting.md) job progress reporting** — **SHIPPED (both phases)**,
+  pulled in by a keyrx progress-indicator need. **Phase A** (afmpeg v0.10.0): host-side
+  observed-filesystem progress — `afmpeg.WithProgress` watches bytes read/written at the `afero.Fs`
+  boundary, zero engine change. **Phase B** = [0032](specs/0032-engine-progress-side-channel.md).
+  Spike: [`spikes/0031-progress-observed-fs`](spikes/0031-progress-observed-fs/).
+- **[0032](specs/0032-engine-progress-side-channel.md) engine progress side-channel** — **SHIPPED**
+  (0031 phase B; afmpeg v0.11.0 / ffmpeg-wasi n8.1.2-10, vocab **v9**). The engine emits
+  `frame`/`out_time_us`/`total_size`(+optional `duration_us`) NDJSON to a `/dev/afmpeg-progress`
+  vfs write-device (host-gated by a `progress:true` opt-in); afmpeg merges it onto the same
+  `WithProgress` channel — real `Frame`/`OutTime`/host-derived `Speed`, and an accurate `Fraction`
+  for file inputs on any v9 engine and for **generative/lavfi** inputs once on **n8.1.2-10+** (the
+  `duration_us` follow-up, R-PROGRESS-B2). Older engines fall back to the byte `Fraction`. Speed is
+  host-derived (`OutTime/Elapsed`) because the WASI engine is clockless.
 
 ### Phase 5 — Strategic / native (largely SHIPPED, 2026-07-05)
 - **[0028](specs/0028-native-subprocess-backend.md) native backend (Backend B)** — **SHIPPED**. The
@@ -150,9 +157,29 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
 ## Start-here summary
 
 ~~`0027` (memory limit) → `0013/0014/0024` → `0022` profiles + `0015/0016/0017` native batches →
-`0018` + `0020/0021` → `0019`~~ **← all done (Phases 0–4, through vocab v8).** And **Phase 5 is
-largely done too** (afmpeg v0.9.0 / ffmpeg-wasi n8.1.2-8): the `0028` native backend + `0022` native
-matrix (linux/amd64), `0023` HEVC/AV1 encode + AV1 decode (both runtimes), the `0008` perf spike, and
-the `0017` §Q analysis output. What remains is all trigger-gated: **HW-accel encode** (needs a GPU),
-the **arm64/darwin** native platforms, `0026` micro-opts + `0025` A/V-sync (measure/complaint first),
-`0009` CLI, and `0030` (WASM threads). All can wait.
+`0018` + `0020/0021` → `0019` → `0031/0032` progress~~ **← all done (Phases 0–4, through vocab v9).**
+And **Phase 5 is largely done too**: the `0028` native backend + `0022` native matrix (linux/amd64),
+`0023` HEVC/AV1 encode + AV1 decode (both runtimes), the `0008` perf spike, and the `0017` §Q analysis
+output. There is **no forced next step** — the critical path is clear. What remains is the trigger-gated
+menu below.
+
+## Pick-up menu for a future session
+
+Nothing here is on a critical path; each item waits for its own trigger. Ordered by how ready it is to
+grab (most-ready first). A future session should confirm the trigger still holds before starting.
+
+| Spec | What it adds | Trigger / gate | Rough cost | Ready to pull? |
+|------|--------------|----------------|------------|----------------|
+| **[0009](specs/0009-afmpeg-cli.md) afmpeg CLI** | A standalone `afmpeg` command-line binary over the library | None — pure Go, no hardware, no consumer needed. The only net-new user-facing surface not otherwise blocked | Medium | **Yes** — spec it → approve → build. Best candidate if the goal is to keep shipping value |
+| **[0030](specs/0030-wasm-threading-strategy.md) WASM threading** | Multi-threaded in-browser WASM encode | Wanting *WASM* speed specifically — the native backend already gives 48–58× off-browser, so this only matters for the pure-browser path | Large | Only if a browser-perf need appears; strategy spec exists, impl does not |
+| **[0022](specs/0022-build-size-matrix.md) arm64/darwin native** | Native Backend-B on `linux/arm64` + `darwin/arm64` | A consumer needing the native backend off `linux/amd64` (e.g. Apple Silicon). The real cost is the cross-build toolchains/runners, not the artifact count | Large | Only on a platform need |
+| **HW-accel encode** | NVENC/VAAPI/QSV/… (the full profile's remaining members) | **Blocked** — needs a GPU/accel device; not available on the headless dev box | Medium once a device exists | No — environment-blocked |
+| **[0026](specs/0026-engine-hot-path-performance.md) hot-path micro-opts** | Engine perf tuning | **Measure-first** — pair with the `0008` rig (`cmd/afmpeg-bench`); only land a change with a measured win | Small–Medium | Only with a profile showing a hotspot |
+| **[0025](specs/0025-av-sync-and-framerate.md) A/V-sync / framerate** | VFR handling beyond the `fps` filter | **Complaint-first** — the `fps` filter covers today's cases; build only on a real VFR bug | Medium | Only on a complaint |
+
+**How new work lands here:** the last two roadmap pulls (0031 phase A, then 0031/0032 phase B) were
+driven by a **keyrx** consumer need, not by this list. If keyrx (or another consumer) surfaces the
+next requirement, that sets priority for free — draft a spec, get it to `approved` with the human
+(see the `spec-driven-development` skill), then implement. Vocabulary-affecting engine work bumps the
+job-spec version additively (next is **v10**) and is cross-repo (ffmpeg-wasi engine change → tag/
+release → afmpeg consumes behind the version gate).
