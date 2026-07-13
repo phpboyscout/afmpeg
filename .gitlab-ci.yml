@@ -33,7 +33,7 @@ include:
   - component: gitlab.com/phpboyscout/cicd/go-security@v0.21.0
 
   # Docs — main-branch zensical-pages deploy.
-  - component: gitlab.com/phpboyscout/cicd/zensical-pages@v0.18.1
+  - component: gitlab.com/phpboyscout/cicd/zensical-pages@v0.23.0
 
   # Release MR machinery — our wrapper over apricote/releaser-pleaser
   # (carries the schedule-never guard, so it does not fire on the Renovate
