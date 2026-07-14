@@ -1,4 +1,4 @@
-FROM golang:1.24-bookworm
+FROM golang:1.26-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc pkg-config ffmpeg libavformat-dev libavcodec-dev libavutil-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /spike
