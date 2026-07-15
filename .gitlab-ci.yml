@@ -28,8 +28,8 @@ include:
   # Quality gates — MR-only by default. Toolchain + tools come from the
   # cicd dev-tools image baked into the components (Go 1.26.x, govulncheck,
   # golangci-lint).
-  - component: gitlab.com/phpboyscout/cicd/go-lint@v0.20.0
-  - component: gitlab.com/phpboyscout/cicd/go-test@v0.20.0
+  - component: gitlab.com/phpboyscout/cicd/go-lint@v0.20.1
+  - component: gitlab.com/phpboyscout/cicd/go-test@v0.20.1
   - component: gitlab.com/phpboyscout/cicd/go-security@v0.21.0
 
   # Docs — main-branch zensical-pages deploy.
@@ -38,7 +38,7 @@ include:
   # Release MR machinery — our wrapper over apricote/releaser-pleaser
   # (carries the schedule-never guard, so it does not fire on the Renovate
   # schedule).
-  - component: gitlab.com/phpboyscout/cicd/releaser-pleaser@v0.20.0
+  - component: gitlab.com/phpboyscout/cicd/releaser-pleaser@v0.20.1
     inputs:
       token: $RELEASER_PLEASER_TOKEN
       branch: main
@@ -47,7 +47,7 @@ include:
   # Scheduled Renovate run — wires its own schedule gate; the cicd preset
   # (extended in renovate.json) carries the custom manager that auto-bumps
   # the component pins above.
-  - component: gitlab.com/phpboyscout/cicd/renovate-self@v0.20.0
+  - component: gitlab.com/phpboyscout/cicd/renovate-self@v0.20.1
     inputs:
       repositories: '["phpboyscout/afmpeg"]'
 
