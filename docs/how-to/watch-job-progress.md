@@ -1,7 +1,7 @@
 ---
 title: Watch job progress
-description: Receive live progress for a running job on a channel with WithProgress — a best-effort completion fraction and byte counters, observed at the filesystem boundary with no engine cooperation.
-date: 2026-07-11
+description: Receive live progress for a running job on a channel with WithProgress — a best-effort completion fraction and byte counters observed at the filesystem boundary, plus frame/time/speed from a v9+ engine's progress side-channel.
+date: 2026-07-16
 tags: [how-to, runtime, progress]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
 ---
@@ -9,16 +9,30 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 # Watch job progress
 
 Long jobs (a full-file transcode, a large remux) run for seconds or minutes. `afmpeg.WithProgress`
-lets you receive **live progress** while the job runs — a completion fraction and byte counters —
-so you can drive a progress bar. It works on any `Run`, `RunJob`, or `Frames` call, needs no
-special module, and adds nothing to a job that doesn't ask for it.
+lets you receive **live progress** while the job runs — a completion fraction, byte counters, and
+(on a v9+ engine) the frame count, media time, and encode speed — so you can drive a progress bar.
+It works on any `Run`, `RunJob`, or `Frames` call, needs no special module, and adds nothing to a
+job that doesn't ask for it.
 
 ## How it works
 
-afmpeg implements the filesystem the engine reads and writes through, so it can watch bytes flow —
-input consumed, output produced — without the engine emitting anything. The completion `Fraction`
-is the input read position (`bytes_read / input_size`), which tracks a linear demuxer closely.
-This is spec [0031](../development/specs/0031-job-progress-reporting.md) phase A.
+afmpeg gathers progress two ways and merges both onto the one channel:
+
+- **Phase A — observed filesystem** (any module, either backend). afmpeg implements the filesystem
+  the engine reads and writes through, so it watches bytes flow — input consumed, output produced —
+  without the engine emitting anything. The completion `Fraction` is the input read position
+  (`bytes_read / input_size`), which tracks a linear demuxer closely. Spec
+  [0031](../development/specs/0031-job-progress-reporting.md) phase A.
+- **Phase B — engine side-channel** (a **v9+** ffmpeg-wasi engine, WASM backend). When the module
+  supports it, setting `progress:true` makes the engine emit NDJSON records to a
+  `/dev/afmpeg-progress` device afmpeg serves — filling `Frame`, `OutTime`, and a host-derived
+  `Speed`. When the engine also reports the media duration (**n8.1.2-10+**), `Fraction` is derived
+  from `out_time / duration`, accurate even for a generative input with no file to measure. Spec
+  [0032](../development/specs/0032-engine-progress-side-channel.md).
+
+Both feed the same `Progress` value: afmpeg turns on the engine channel automatically when you
+attach `WithProgress`, phase-B records **refine** the phase-A samples as soon as the first one
+arrives, and it falls back to byte progress on an older engine.
 
 ## Attach a channel with WithProgress
 
@@ -32,7 +46,9 @@ ch := make(chan afmpeg.Progress, 64) // buffered: see back-pressure below
 // Drain in a goroutine while the (blocking) Run executes.
 go func() {
     for p := range ch {
-        if p.Fraction >= 0 {
+        if p.Frame > 0 { // phase B: a v9+ engine is reporting frame / time / speed
+            fmt.Printf("\rframe=%d  t=%s  %.1f×realtime", p.Frame, p.OutTime.Round(time.Second), p.Speed)
+        } else if p.Fraction >= 0 {
             fmt.Printf("\r%.0f%%  out=%d bytes", p.Fraction*100, p.OutputBytes)
         }
     }
@@ -64,7 +80,11 @@ type Progress struct {
     InputBytes  int64         // bytes read from inputs so far
     InputTotal  int64         // total input size, 0 if unknown
     OutputBytes int64         // bytes written to outputs so far
-    // Frame / OutTime / Speed are reserved for a future engine-side source; zero today.
+    // Populated once a phase-B engine record has arrived (a v9+ engine on the WASM
+    // backend); zero before then, and on an engine that emits nothing:
+    Frame   int64         // frames processed
+    OutTime time.Duration // media timestamp reached
+    Speed   float64       // ×realtime encode speed (host-derived: OutTime/Elapsed)
 }
 ```
 
@@ -79,17 +99,20 @@ consumer simply **misses intermediate samples** — the job is never blocked or 
 channel a modest buffer and drain it promptly for the smoothest bar. A job run with a channel
 nobody reads produces the identical result as one with no channel at all.
 
-## Limits (today)
+## Limits
 
-`Fraction` is **byte progress, not a time/ETA**, and not wall-clock. A few cases carry a weaker
-signal — phase B (a future engine-side frame/time source, behind this same channel) will improve
-them:
+`Fraction` is a completion fraction, not a wall-clock ETA. Its quality depends on what the engine
+tells afmpeg:
 
-- **Generative inputs** (a filter source with no input file) and very short ops report
-  `Fraction == -1`.
-- **Seek-heavy inputs** (e.g. an MP4 whose index sits at the end) make the fraction lumpy; it is
-  clamped so it never goes backwards, but it can jump.
-- **Sequential multi-input** (concat) can sit near a plateau as each part completes, since the
-  total to read grows as inputs open.
-- The **native backend** ([use the native backend](use-the-native-backend.md)) does not report
-  phase-A progress (its I/O does not cross this boundary); that arrives with phase B.
+- **Byte-only fallback.** Without a phase-B duration (a pre-v9 engine, or the native backend below)
+  `Fraction` is byte progress (`bytes_read / input_size`). **Seek-heavy inputs** (e.g. an MP4 whose
+  index sits at the end) make it lumpy — it is clamped so it never goes backwards, but it can jump —
+  and **sequential multi-input** (concat) can plateau as each part completes, since the total to
+  read grows as inputs open.
+- **Generative inputs** (a filter source with no input file) report `Fraction == -1` on the
+  byte-only path; on a **v9 engine at n8.1.2-10+** the engine reports the media duration, so
+  `Fraction` is accurate even there (the `out_time / duration` derivation).
+- **The native backend** ([use the native backend](use-the-native-backend.md)) reports phase-A byte
+  progress (`Fraction`, `InputBytes`, `OutputBytes` — its IPC I/O crosses the same filesystem
+  boundary), but not the phase-B engine record: its `Frame` / `OutTime` / `Speed` stay zero, because
+  the `/dev/afmpeg-progress` device is served by the WASM backend only.

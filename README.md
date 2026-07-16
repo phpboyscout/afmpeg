@@ -7,12 +7,15 @@ runtime), with its I/O bridged to an [`afero.Fs`](https://github.com/spf13/afero
 inputs and outputs can live entirely in memory (or any afero backend), and the whole
 thing cross-compiles to a single static binary.
 
-> **Status: released (v0.6.0).** The runtime (`New` / `Run` / `RunJob` / `Probe` /
-> `Close`), the `Command` builder, and certified module acquisition
+> **Status: released (v0.11.0).** The runtime (`New` / `Run` / `RunJob` / `Probe` /
+> `Frames` / `Close`), the `Command` builder, and certified module acquisition
 > (`WithModuleRelease`) are all shipped and stable. It drives the companion
 > [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine over the structured job spec:
 > transcode, remux/stream-copy, seeking & clips, multi-input `filter_complex`,
-> subtitles & burn-in, metadata/chapters, and frame extraction. The design record lives
+> subtitles & burn-in, metadata/chapters, frame extraction, analysis measurements, and
+> **live progress** (`WithProgress`). A **native backend** (`WithBackend` /
+> `native.NewFromRelease`) drives ffmpeg-wasi's native driver for **48–58× faster**
+> software encode plus HEVC/AV1 encode — still CGO-free. The design record lives
 > in [`docs/development/specs/`](docs/development/specs/0001-afmpeg.md); the current build
 > order is the [implementation roadmap](docs/development/implementation-roadmap.md).
 
@@ -56,8 +59,13 @@ Three layers — the middle one is the novel engineering:
    ffmpeg invocation with its I/O bridged to a caller-supplied `afero.Fs`. A general,
    use-case-agnostic command builder layers on top (spec 0005).
 
+A second **native backend** (spec 0028) swaps layer 1 for ffmpeg-wasi's native driver, run
+out-of-process with the same `afero.Fs` served over a seekable AVIO-over-IPC socket — same API,
+same no-host-disk guarantee, **48–58× faster** software encode (and HEVC/AV1). Select it with
+`WithBackend` / `native.NewFromRelease`; WASM stays the default.
+
 ```go
-rt, _ := afmpeg.New(ctx, afmpeg.WithModuleRelease("n8.1.2-6", afmpeg.VariantLGPL)) // compile once, reuse
+rt, _ := afmpeg.New(ctx, afmpeg.WithModuleRelease("n8.1.2-10", afmpeg.VariantLGPL)) // compile once, reuse
 defer rt.Close(ctx)
 
 fs := afero.NewMemMapFs()            // or the caller's in-memory worktree
@@ -82,9 +90,12 @@ audio filters are all already LGPL-clean. See spec 0001 §10 (D-C).
 
 ## Roadmap
 
-The foundations (specs 0001–0007) shipped, and the feature-parity roadmap (0013–0021,
-0024, 0027) landed across v0.4.0–v0.6.0. The **[implementation roadmap](docs/development/implementation-roadmap.md)**
-tracks per-spec status and the current build order; the design records live in
+The foundations (specs 0001–0007) and the full feature-parity roadmap (0013–0021, 0024, 0027)
+shipped; the strategic tier on top — signed releases (0010), the **native backend** (0028),
+**HEVC/AV1 encode + AV1 decode** (0023), **analysis measurements**, and **live progress**
+(0031/0032) — is shipped as of **v0.11.0** (job-spec vocab v9). The
+**[implementation roadmap](docs/development/implementation-roadmap.md)** tracks per-spec status
+and the current build order; the design records live in
 [`docs/development/specs/`](docs/development/specs/0001-afmpeg.md).
 
 | Spec | Scope |
@@ -94,8 +105,13 @@ tracks per-spec status and the current build order; the design records live in
 | [0004](docs/development/specs/0004-runtime-and-api.md) | `New` / `Run` / `RunJob` / `Probe` / `Close` — the public API |
 | [0007](docs/development/specs/0007-libav-direct-engine.md) | The libav-direct engine + structured job spec (supersedes the CLI-string design) |
 | [0010](docs/development/specs/0010-signed-release-acquisition.md) | Signature-verified module acquisition (`WithModuleRelease`) |
+| [0028](docs/development/specs/0028-native-subprocess-backend.md) | The native subprocess backend — 48–58× faster software encode, HEVC/AV1, still CGO-free |
+| [0031](docs/development/specs/0031-job-progress-reporting.md) / [0032](docs/development/specs/0032-engine-progress-side-channel.md) | Live job progress (`WithProgress`) — observed-fs (phase A) + engine side-channel (phase B) |
 
-What remains is trigger-gated (perf work, HEVC/AV1, the native backend) — see the roadmap.
+What remains is a menu of **trigger-gated** work — a standalone [CLI](docs/development/specs/0009-afmpeg-cli.md)
+(0009), WASM threading (0030), native `arm64`/`darwin` (0022), HW-accel encoders, and measure-first
+perf/AV-sync (0026/0025) — none of it on a critical path. See the roadmap's
+[pick-up menu](docs/development/implementation-roadmap.md#pick-up-menu-for-a-future-session).
 
 ## Quick links
 
