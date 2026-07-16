@@ -176,6 +176,7 @@ grab (most-ready first). A future session should confirm the trigger still holds
 | **HW-accel encode** | NVENC/VAAPI/QSV/… (the full profile's remaining members) | **Blocked** — needs a GPU/accel device; not available on the headless dev box | Medium once a device exists | No — environment-blocked |
 | **[0026](specs/0026-engine-hot-path-performance.md) hot-path micro-opts** | Engine perf tuning | **Measure-first** — pair with the `0008` rig (`cmd/afmpeg-bench`); only land a change with a measured win | Small–Medium | Only with a profile showing a hotspot |
 | **[0025](specs/0025-av-sync-and-framerate.md) A/V-sync / framerate** | VFR handling beyond the `fps` filter | **Complaint-first** — the `fps` filter covers today's cases; build only on a real VFR bug | Medium | Only on a complaint |
+| **[0033](specs/0033-native-progress-side-channel.md) native phase-B progress** | `Frame`/`OutTime`/`Speed` + accurate `Fraction` for the **native** backend (WASM parity) | **Need-first** — native already has phase-A byte progress; this only helps a *long generative* native job. Needs an engine change + a new native-driver release | Medium | Deferred — spec drafted, revive on a real consumer need |
 
 **How new work lands here:** the last two roadmap pulls (0031 phase A, then 0031/0032 phase B) were
 driven by a **keyrx** consumer need, not by this list. If keyrx (or another consumer) surfaces the
