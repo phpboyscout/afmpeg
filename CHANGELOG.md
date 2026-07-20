@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.11.1](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.11.1)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.11.0...v0.11.1)
+
+### Bug Fixes
+
+- guard workflow dedup rule so release tag pipelines fire ([1da6211](https://gitlab.com/phpboyscout/afmpeg/-/commit/1da62117bb849dcb17a655469edb1deed05f36ac))
+
 ## [v0.11.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.11.0)
 
 ### Features
