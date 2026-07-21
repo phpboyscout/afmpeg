@@ -75,9 +75,6 @@ variables:
   # releaser-pleaser walks the full commit history.
   GIT_DEPTH: "0"
 
-default:
-  tags: [saas-linux-medium-amd64]
-
 # ----------------------------------------------------------------------
 # Public-API diff — ADVISORY (non-blocking) while pre-1.0.
 #
