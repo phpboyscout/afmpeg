@@ -47,9 +47,6 @@ include:
   # Scheduled Renovate run — wires its own schedule gate; the cicd preset
   # (extended in renovate.json) carries the custom manager that auto-bumps
   # the component pins above.
-  - component: gitlab.com/phpboyscout/cicd/renovate-self@v0.27.0
-    inputs:
-      repositories: '["phpboyscout/afmpeg"]'
 
 stages:
   - lint
