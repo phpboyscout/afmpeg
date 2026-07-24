@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.12.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.12.0)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.11.2...v0.12.0)
+
+### Features
+
+- **keys**: rotate trust anchors to the v2 dual-trust set ([607d747](https://gitlab.com/phpboyscout/afmpeg/-/commit/607d747137034eca0174d70457f2cba3fba7e297))
+
 ## [v0.11.2](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.11.2)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.11.1...v0.11.2)
