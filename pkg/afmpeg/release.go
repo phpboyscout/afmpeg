@@ -22,7 +22,7 @@ const provenanceFile = "provenance.json"
 // Web Key Directory on phpboyscout.uk. On every online fetch afmpeg cross-checks
 // its embedded signing key against the copy served here — a control plane
 // independent of GitLab (spec 0011). Empty disables the cross-check.
-const defaultWKDEmail = "ffmpeg-wasi-release@phpboyscout.uk"
+const defaultWKDEmail = "ffmpeg-wasi-release-v2@phpboyscout.uk"
 
 // releaseConfig configures a certified release fetch.
 type releaseConfig struct {
