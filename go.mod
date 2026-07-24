@@ -7,7 +7,7 @@ require (
 	github.com/cucumber/godog v0.15.1
 	github.com/spf13/afero v1.15.0
 	github.com/tetratelabs/wazero v1.12.0
-	gitlab.com/phpboyscout/go/signing v0.2.0
+	gitlab.com/phpboyscout/go/signing v0.2.2
 	golang.org/x/image v0.44.0
 )
 
