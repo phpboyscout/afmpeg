@@ -9,7 +9,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 # Work with subtitle tracks
 
 afmpeg handles subtitles two ways: as a **stream** (transcode or copy a subtitle track,
-spec [0019](../development/specs/0019-text-and-subtitles.md)) or **burned in** (rendered
+spec [0019](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0019-text-and-subtitles)) or **burned in** (rendered
 into the video pixels). Both need the
 [intermediate-profile module](obtain-a-module.md) — the subtitle codecs and the
 `subtitles`/`ass`/`drawtext` filters aren't in the lean build.

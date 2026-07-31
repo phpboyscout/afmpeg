@@ -40,7 +40,7 @@ thing cross-compiles to a single static binary.
     subprocess, for native-speed encode and the full profile's HEVC/AV1. See the
     [latest afmpeg release](https://gitlab.com/phpboyscout/afmpeg/-/releases); design rationale
     is in the specs under [Development](development/index.md) (start with
-    [0001](development/specs/0001-afmpeg.md)).
+    [0001](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg)).
 
 ## Why it exists
 

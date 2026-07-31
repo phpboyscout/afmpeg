@@ -8,7 +8,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 # Extract frames and thumbnails
 
-The `frames` op (spec [0021](../development/specs/0021-frame-extraction-op.md)) writes still
+The `frames` op (spec [0021](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0021-frame-extraction-op)) writes still
 images from a video without a full transcode. Drive it with a `FrameJob` and
 `Runtime.Frames`; the encoders it uses (`png`, `mjpeg`, `webp`) are in every profile, and the
 scene/thumbnail selectors need the intermediate profile's native filters.

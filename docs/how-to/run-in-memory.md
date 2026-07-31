@@ -14,7 +14,7 @@ files. It assumes you already have a wasm FFmpeg module — a released
 [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine (see
 [obtain a module](obtain-a-module.md)) or another build. It is deliberately **not**
 embedded in the package; see the
-[licensing posture](../development/specs/0001-afmpeg.md).
+[licensing posture](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg).
 
 ## 1. Build a Runtime once
 
@@ -90,6 +90,6 @@ _, err := rt.Run(ctx, fs, /* … */) // returns a context error if it overruns
 
 - **One invocation at a time per `Runtime`.** Concurrent `Run` calls serialise
   safely; for parallel renders, construct more than one `Runtime` (a pool is on
-  the [roadmap](../development/specs/0006-hardening-roadmap.md)).
+  the [roadmap](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0006-hardening-roadmap)).
 - The full Go API reference is on
   [pkg.go.dev](https://pkg.go.dev/gitlab.com/phpboyscout/afmpeg/pkg/afmpeg).

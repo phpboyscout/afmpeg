@@ -10,7 +10,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 afmpeg loads executable WebAssembly. Where those bytes come from matters, so afmpeg offers two
 acquisition paths with deliberately different trust postures (spec
-[0010](../../development/specs/0010-signed-release-acquisition.md)):
+[0010](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0010-signed-release-acquisition)):
 
 - **`WithModuleURL`** — *uncertified*, for a module you host or build yourself. Integrity is the
   caller-supplied `WithSHA256`. afmpeg can't vouch for bytes it didn't publish.

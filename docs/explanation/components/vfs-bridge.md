@@ -14,7 +14,7 @@ other Go ffmpeg binding lacks: it presents the caller's
 [`experimental/sys.FS`](https://pkg.go.dev/github.com/tetratelabs/wazero/experimental/sys),
 so the guest ffmpeg's WASI filesystem syscalls read and write the caller's
 filesystem — including a fully in-memory `MemMapFs` — without touching the host
-disk. It implements [spec 0003](../../development/specs/0003-vfs-bridge.md).
+disk. It implements [spec 0003](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0003-vfs-bridge).
 
 ## Where it sits
 
@@ -52,7 +52,7 @@ could not seek backwards and overwrite over an `afero.Fs`, the whole approach
 would be unworkable. It can, and the round-trip — write placeholder → append
 payload → seek back → overwrite → read back — is verified against `MemMapFs`,
 `BasePathFs`, and `OsFs`. This is gate **G1** in the
-[execution plan](../../development/specs/0003-vfs-bridge.md).
+[execution plan](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0003-vfs-bridge).
 
 ## The synthetic overlays (`/tmp` and the device files)
 
@@ -111,8 +111,8 @@ to a sink the host installed, buffering a trailing partial line until its newlin
 arrives in a later write. Those records become the `Frame` / `OutTime` / `Speed`
 fields — and the authoritative `Fraction` — on the
 [`WithProgress`](../../how-to/watch-job-progress.md) channel (specs
-[0032](../../development/specs/0032-engine-progress-side-channel.md),
-[0034](../../development/specs/0034-fraction-source-precedence.md)).
+[0032](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0032-engine-progress-side-channel),
+[0034](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0034-fraction-source-precedence)).
 
 Two properties are worth calling out, because both are deliberate:
 
@@ -141,7 +141,7 @@ keryx hand afmpeg an in-memory worktree and render without a local checkout.
 
 The bridge is deliberately runtime-agnostic. Mounting it into a wazero module
 (`WithSysFSMount`) and driving an actual guest is the job of the afmpeg runtime
-([spec 0004](../../development/specs/0004-runtime-and-api.md)), which composes
+([spec 0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api)), which composes
 this package with the embedded `ffmpeg.wasm`. The end-to-end test that exercises
 the bridge *through* a real WASI host therefore lands with that runtime; the
 contract tests here drive the exact `sys.FS` / `sys.File` methods wazero

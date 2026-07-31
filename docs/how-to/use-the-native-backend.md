@@ -11,7 +11,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 By default afmpeg runs the [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine as a
 sandboxed WebAssembly module — portable, arch-independent, single-threaded. For consumers who
 are encode- or throughput-bound, afmpeg also has an **opt-in native backend** (spec
-[0028](../development/specs/0028-native-subprocess-backend.md), "Backend B"): the *same*
+[0028](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0028-native-subprocess-backend), "Backend B"): the *same*
 libav-direct engine compiled to a native ELF, driven over an in-memory IPC bridge. It is
 **CGO-free** — a subprocess, not a linked library — so afmpeg's Go package stays permissively
 licensed, and all I/O still crosses your `afero.Fs`, never the host disk.
@@ -120,7 +120,7 @@ like an MP4 `moov` patch, round-trip through the filesystem you passed, never ho
 job spec, the `Command`/`Probe`/`Frames` API, and the results are **identical** to the WASM
 path — only the runtime underneath changes. See the
 [architecture overview](../explanation/concepts/architecture.md) and spec
-[0028](../development/specs/0028-native-subprocess-backend.md) for the full design.
+[0028](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0028-native-subprocess-backend) for the full design.
 
 !!! warning "Trust boundary"
     The native driver is a **native subprocess**, not a WASM sandbox — it runs with your

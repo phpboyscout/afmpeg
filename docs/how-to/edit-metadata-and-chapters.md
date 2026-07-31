@@ -9,7 +9,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 # Read & write metadata and chapters
 
 afmpeg reads and writes container-level tags, per-stream language/disposition/tags, and
-chapters (spec [0020](../development/specs/0020-metadata-and-chapters.md)). Writing tags and
+chapters (spec [0020](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0020-metadata-and-chapters)). Writing tags and
 chapters works in any profile; it rides the mux, so it pairs naturally with a
 [stream copy](remux-without-re-encoding.md).
 

@@ -22,13 +22,13 @@ afmpeg gathers progress two ways and merges both onto the one channel:
   the engine reads and writes through, so it watches bytes flow — input consumed, output produced —
   without the engine emitting anything. The completion `Fraction` is the input read position
   (`bytes_read / input_size`), which tracks a linear demuxer closely. Spec
-  [0031](../development/specs/0031-job-progress-reporting.md) phase A.
+  [0031](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0031-job-progress-reporting) phase A.
 - **Phase B — engine side-channel** (a **v9+** ffmpeg-wasi engine, WASM backend). When the module
   supports it, setting `progress:true` makes the engine emit NDJSON records to a
   `/dev/afmpeg-progress` device afmpeg serves — filling `Frame`, `OutTime`, and a host-derived
   `Speed`. When the engine also reports the media duration (**n8.1.2-10+**), `Fraction` is derived
   from `out_time / duration`, accurate even for a generative input with no file to measure. Spec
-  [0032](../development/specs/0032-engine-progress-side-channel.md).
+  [0032](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0032-engine-progress-side-channel).
 
 Both feed the same `Progress` value: afmpeg turns on the engine channel automatically when you
 attach `WithProgress`, phase-B records **refine** the phase-A samples as soon as the first one
@@ -37,7 +37,7 @@ arrives, and it falls back to byte progress on an older engine.
 When both sources are live the **engine's is authoritative** — it measures the work that actually
 remains, where the byte source only measures input already read. `Source` on each sample tells you
 which one produced the number. Spec
-[0034](../development/specs/0034-fraction-source-precedence.md).
+[0034](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0034-fraction-source-precedence).
 
 ## Attach a channel with WithProgress
 

@@ -11,7 +11,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 Some inputs carry no header for the demuxer to probe — raw `.yuv` video, raw `.pcm` audio, a
 stream with a misleading extension. For those, name the demuxer with `InputFormat` and hand it
 the geometry it can't infer through `DemuxerOption` (spec
-[0024](../development/specs/0024-input-options-and-formats.md)).
+[0024](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0024-input-options-and-formats)).
 
 ## Raw video
 

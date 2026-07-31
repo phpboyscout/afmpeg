@@ -32,4 +32,4 @@ The API is also summarised in [`pkg/afmpeg/doc.go`](https://gitlab.com/phpboysco
 - **Errors** — the sentinel-error catalogue lives under
   [Explanation › Components › Errors](../explanation/components/errors.md).
 - **CLI** — `cmd/afmpeg` flags and subcommands, *if/when* it ships (spec
-  [0006](../development/specs/0006-hardening-roadmap.md), item 2D). Deferred.
+  [0006](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0006-hardening-roadmap), item 2D). Deferred.

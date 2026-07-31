@@ -31,7 +31,7 @@ only the codecs/filters real workflows need. It is produced by a reproducible bu
 and — per the licensing decision — shipped as a **separate downloadable artifact, not
 `//go:embed`-ed**, so the GPL obligation stays at arm's length from the permissively
 licensed Go package. See spec
-[0002](../../development/specs/0002-wasm-build-pipeline.md).
+[0002](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0002-wasm-build-pipeline).
 
 ## 2. The afero ↔ wazero vfs bridge (the heart)
 
@@ -41,7 +41,7 @@ the guest's reads and writes hit the caller's filesystem (e.g. an in-memory `Mem
 with no host disk touched. It also provides a writable `/tmp` and `/dev/null` the guest
 needs, and must handle seek-on-write (the mp4 muxer rewrites the `moov` atom under
 `+faststart`). This is what every other Go ffmpeg-wasm binding lacks. See spec
-[0003](../../development/specs/0003-vfs-bridge.md).
+[0003](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0003-vfs-bridge).
 
 ## 3. The Go API
 
@@ -51,13 +51,13 @@ exit code + captured stdout/stderr; `RunJob`/`Command.JobSpec` render a job for 
 [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine, and `Probe` reports a file's
 container, duration, and streams over the same bridge. The use-case-agnostic command
 builder layers on top (a consumer's reel/timeline is built on it, in the consumer's code).
-See specs [0004](../../development/specs/0004-runtime-and-api.md) and
-[0005](../../development/specs/0005-render-helper-and-keyrx-backend.md).
+See specs [0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api) and
+[0005](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0005-render-helper-and-keyrx-backend).
 
 ## 4. The backend seam (WASM default · native opt-in)
 
 `Run`/`Probe`/`Frames` sit behind a small **backend** interface (spec
-[0028](../../development/specs/0028-native-subprocess-backend.md)). The default backend is the
+[0028](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0028-native-subprocess-backend)). The default backend is the
 WASM path above (wazero + the vfs bridge). An opt-in **native backend** (`pkg/afmpeg/native`,
 wired with `WithBackend`) satisfies the same seam differently: it spawns the *same* libav-direct
 engine compiled to a **native ELF** as a subprocess and serves the caller's `afero.Fs` to it over
@@ -78,4 +78,4 @@ filters/AAC, not filesystem-virtualised) — each failed at least one of *pure-G
 When native speed or HW-class codecs (HEVC/AV1) *are* required, the **native subprocess
 backend** (§4) is the sanctioned escape hatch — the same engine, out-of-process and signed,
 rather than reaching for the CGO libav binding this design set out to avoid. The full reasoning
-is in spec [0001](../../development/specs/0001-afmpeg.md) §11.
+is in spec [0001](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg) §11.

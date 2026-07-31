@@ -65,7 +65,7 @@ share the engine.
 ## Safe by default: memory ceiling and invocation deadline
 
 Because afmpeg's job is to process **untrusted** media, a `Runtime` is hardened out of the box —
-you do not have to opt in (spec [0027](../development/specs/0027-runtime-security-hardening.md)):
+you do not have to opt in (spec [0027](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0027-runtime-security-hardening)):
 
 - **Guest memory is capped at 512 MB.** A crafted file declaring outsized dimensions can make
   libav try to allocate gigabytes; the cap turns that into a clean guest-side failure (a non-zero
@@ -93,7 +93,7 @@ unbounded behaviour.
 
 A `Runtime` runs **one invocation at a time** — `Run`/`RunJob`/`Probe` take an internal lock,
 so concurrent callers queue rather than execute in parallel (spec
-[0004](../development/specs/0004-runtime-and-api.md) D-0004-B). That keeps the engine safe to
+[0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api) D-0004-B). That keeps the engine safe to
 share, but it means a single `Runtime` does **not** give you parallelism.
 
 To actually run jobs in parallel, build **more than one** `Runtime` and hand work out across
@@ -112,7 +112,7 @@ for i := range engines {
 ```
 
 `WithModuleBytes` avoids re-reading the file `n` times. A built-in `RuntimePool` that manages
-this for you is on the [roadmap](../development/specs/0006-hardening-roadmap.md) (§2E); for now
+this for you is on the [roadmap](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0006-hardening-roadmap) (§2E); for now
 a small fixed fleet is all it takes.
 
 ## Checklist

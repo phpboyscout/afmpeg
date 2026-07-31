@@ -24,4 +24,4 @@ alternatives that were weighed.
   defends, and the WKD second anchor that cross-checks the pinned key.
 
 For the full design thesis, requirements, and the decision record, see the
-[specs](../development/specs/0001-afmpeg.md) — the source of truth.
+[specs](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg) — the source of truth.

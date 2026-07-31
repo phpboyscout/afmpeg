@@ -11,7 +11,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 "Give me 5 seconds from 0:12" should not cost a decode of the first 12 seconds. `Input.Seek`
 jumps the demuxer straight to the target (mirroring ffmpeg's `-ss`), and `Output.Duration` /
 `Output.End` stop the output early (`-t` / `-to`) — so a clip costs roughly its own length,
-not the whole file (spec [0014](../development/specs/0014-seeking-and-time-ranges.md)).
+not the whole file (spec [0014](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0014-seeking-and-time-ranges)).
 
 ## The cheap cut (fast seek — the default)
 

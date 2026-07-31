@@ -11,7 +11,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 afmpeg does **not** embed or bundle the ffmpeg WebAssembly module, and it never
 downloads one behind your back. You supply it — deliberately, so the module's
 licence (a full/GPL build links x264) never attaches to afmpeg's permissively
-licensed Go package (spec [0001](../development/specs/0001-afmpeg.md) D-C). `New`
+licensed Go package (spec [0001](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg) D-C). `New`
 returns [`ErrNoModule`](../explanation/components/errors.md) if none is given.
 
 There are several ways to provide it. For the project's **own** releases, prefer
@@ -133,5 +133,5 @@ never executed.
   separate artifact you fetch), but your obligations follow the variant you choose. The `lgpl`
   module's self-compiled openh264 carries an [AVC patent caveat](https://ffmpeg-wasi.phpboyscout.uk/explanation/licensing/#h264-encode-and-the-avc-patent-pool).
 - **Build your own** — any current FFmpeg compiled to `wasm32-wasi` with the feature set
-  afmpeg's runtime enables (spec [0004](../development/specs/0004-runtime-and-api.md)
+  afmpeg's runtime enables (spec [0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api)
   R-0004-9). afmpeg runs it.

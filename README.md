@@ -16,7 +16,7 @@ thing cross-compiles to a single static binary.
 > **live progress** (`WithProgress`). A **native backend** (`WithBackend` /
 > `native.NewFromRelease`) drives ffmpeg-wasi's native driver for **48–58× faster**
 > software encode plus HEVC/AV1 encode — still CGO-free. The design record lives
-> in [`docs/development/specs/`](docs/development/specs/0001-afmpeg.md); the current build
+> in [`docs/development/specs/`](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg); the current build
 > order is the [implementation roadmap](docs/development/implementation-roadmap.md).
 
 ## Why this exists
@@ -96,20 +96,20 @@ shipped; the strategic tier on top — signed releases (0010), the **native back
 (0031/0032) — is shipped as of **v0.11.0** (job-spec vocab v9). The
 **[implementation roadmap](docs/development/implementation-roadmap.md)** tracks per-spec status
 and the current build order; the design records live in
-[`docs/development/specs/`](docs/development/specs/0001-afmpeg.md).
+[`docs/development/specs/`](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg).
 
 | Spec | Scope |
 |------|-------|
-| [0001](docs/development/specs/0001-afmpeg.md) | The thesis: design, requirements, the resolved decision record (§10) |
-| [0003](docs/development/specs/0003-vfs-bridge.md) | The afero.Fs → wazero `sys.FS` adapter (the core) |
-| [0004](docs/development/specs/0004-runtime-and-api.md) | `New` / `Run` / `RunJob` / `Probe` / `Close` — the public API |
-| [0007](docs/development/specs/0007-libav-direct-engine.md) | The libav-direct engine + structured job spec (supersedes the CLI-string design) |
-| [0010](docs/development/specs/0010-signed-release-acquisition.md) | Signature-verified module acquisition (`WithModuleRelease`) |
-| [0028](docs/development/specs/0028-native-subprocess-backend.md) | The native subprocess backend — 48–58× faster software encode, HEVC/AV1, still CGO-free |
-| [0031](docs/development/specs/0031-job-progress-reporting.md) / [0032](docs/development/specs/0032-engine-progress-side-channel.md) | Live job progress (`WithProgress`) — observed-fs (phase A) + engine side-channel (phase B) |
-| [0034](docs/development/specs/0034-fraction-source-precedence.md) | Which source `Progress.Fraction` derives from — engine time over input bytes, and `-1` rather than a false "done" |
+| [0001](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg) | The thesis: design, requirements, the resolved decision record (§10) |
+| [0003](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0003-vfs-bridge) | The afero.Fs → wazero `sys.FS` adapter (the core) |
+| [0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api) | `New` / `Run` / `RunJob` / `Probe` / `Close` — the public API |
+| [0007](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0007-libav-direct-engine) | The libav-direct engine + structured job spec (supersedes the CLI-string design) |
+| [0010](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0010-signed-release-acquisition) | Signature-verified module acquisition (`WithModuleRelease`) |
+| [0028](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0028-native-subprocess-backend) | The native subprocess backend — 48–58× faster software encode, HEVC/AV1, still CGO-free |
+| [0031](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0031-job-progress-reporting) / [0032](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0032-engine-progress-side-channel) | Live job progress (`WithProgress`) — observed-fs (phase A) + engine side-channel (phase B) |
+| [0034](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0034-fraction-source-precedence) | Which source `Progress.Fraction` derives from — engine time over input bytes, and `-1` rather than a false "done" |
 
-What remains is a menu of **trigger-gated** work — a standalone [CLI](docs/development/specs/0009-afmpeg-cli.md)
+What remains is a menu of **trigger-gated** work — a standalone [CLI](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0009-afmpeg-cli)
 (0009), WASM threading (0030), native `arm64`/`darwin` (0022), HW-accel encoders, and measure-first
 perf/AV-sync (0026/0025) — none of it on a critical path. See the roadmap's
 [pick-up menu](docs/development/implementation-roadmap.md#pick-up-menu-for-a-future-session).
@@ -117,6 +117,6 @@ perf/AV-sync (0026/0025) — none of it on a critical path. See the roadmap's
 ## Quick links
 
 - Documentation: [`docs/`](docs/index.md) (Diátaxis — tutorials / how-to / reference / explanation)
-- Design + decision record: [`docs/development/specs/0001-afmpeg.md`](docs/development/specs/0001-afmpeg.md)
+- Design + decision record: [`0001-afmpeg`](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg)
 - API overview: [`pkg/afmpeg/doc.go`](pkg/afmpeg/doc.go) · published reference: [pkg.go.dev](https://pkg.go.dev/gitlab.com/phpboyscout/afmpeg)
 - Local dev: `just` (build) · `just test` · `just ci` · `just docs-serve`

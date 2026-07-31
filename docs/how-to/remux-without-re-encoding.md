@@ -12,7 +12,7 @@ Most container changes don't need a transcode. Moving `mp4 → mkv`, or joining 
 already share a codec, is a **stream copy**: read the demuxed packets, optionally fix their
 bitstream framing, and mux them straight back out — no decode, no encode. It's fast, lossless,
 and needs *no codec at all*, so it works for any codec in either licence variant, including
-streams the engine can't itself decode (spec [0013](../development/specs/0013-remux-and-stream-copy.md)).
+streams the engine can't itself decode (spec [0013](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0013-remux-and-stream-copy)).
 
 The mechanism: name the input streams to copy in `Map` with **unbracketed specifiers**
 (`"0:v"`, `"0:a:0"`, `"0:0"` — an input index, a media type, an optional per-type index) and set
@@ -94,10 +94,10 @@ afmpeg.WithOutput("out.ts",
 
 - **Copy can only cut on keyframes.** Trimming a copied stream to an exact frame needs a decode
   the copy path skips; for a frame-accurate cut re-encode with `SeekAccurateTo`
-  ([extract a clip](extract-a-clip.md), spec [0014](../development/specs/0014-seeking-and-time-ranges.md)).
+  ([extract a clip](extract-a-clip.md), spec [0014](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0014-seeking-and-time-ranges)).
 - **Container reach.** Copy lands on mp4/mkv/webm in the lean profile; MPEG-TS, HLS/DASH
   segmenting, and fragmented MP4 are available in the intermediate profile (spec
-  [0015](../development/specs/0015-container-coverage.md)) — see
+  [0015](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0015-container-coverage)) — see
   [package for streaming](package-for-streaming.md).
 - **Licensing.** Copy touches no codec library, so it stays in the LGPL default and even reaches
   codecs the engine doesn't ship a decoder or encoder for.

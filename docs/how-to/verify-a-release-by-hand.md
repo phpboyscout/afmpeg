@@ -11,8 +11,8 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 afmpeg's `WithModuleRelease` verifies releases for you. This page shows the same checks with
 nothing but `gpg`, `curl`, and `sha256sum` — useful for auditing, CI in another language, or just
 confirming the chain yourself. It mirrors exactly what afmpeg does (spec
-[0010](../development/specs/0010-signed-release-acquisition.md) /
-[0011](../development/specs/0011-wkd-attestation.md)).
+[0010](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0010-signed-release-acquisition) /
+[0011](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0011-wkd-attestation)).
 
 Set the release you want:
 

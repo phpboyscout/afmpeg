@@ -8,7 +8,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 # Package for streaming (MPEG-TS, HLS, fragmented MP4)
 
-The intermediate-profile engine (spec [0015](../development/specs/0015-container-coverage.md))
+The intermediate-profile engine (spec [0015](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0015-container-coverage))
 writes the web-delivery containers — MPEG-TS, HLS, DASH, fragmented MP4 — all to the mounted
 `afero.Fs`, with **no network**: segment files and playlists are written as files for you to
 serve however you like.
