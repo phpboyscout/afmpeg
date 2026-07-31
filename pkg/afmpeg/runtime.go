@@ -359,7 +359,12 @@ func (r *Runtime) Run(ctx context.Context, fs afero.Fs, args ...string) (Result,
 	// stop is a no-op, so the common path is untouched. When active, ctx also
 	// carries the engine-record sink, and a process job spec is stamped with
 	// progress:true so a v9+ engine emits over /dev/afmpeg-progress (spec 0032).
-	ctx, fs, stop := r.startProgress(ctx, fs)
+	// The spec is read once up front (spec 0034): it fixes the byte denominator
+	// from the declared inputs (D2) and says whether to expect engine records at
+	// all (D1), which depends on both the op and the backend's capability.
+	plan := planProgress(args, backendSupportsEngineProgress(r.backend))
+
+	ctx, fs, stop := r.startProgress(ctx, fs, plan)
 	defer stop()
 
 	if progressFrom(ctx) != nil {

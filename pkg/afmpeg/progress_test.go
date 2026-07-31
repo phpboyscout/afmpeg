@@ -116,9 +116,21 @@ func TestProgress_reportsRisingFractionInFlight(t *testing.T) {
 		t.Fatal("no progress samples observed")
 	}
 
+	// -1 is a legitimate in-flight value (spec 0034: unknown, or inputs exhausted
+	// while the encode runs on); it is skipped rather than treated as a regression.
 	var last float64
+
 	sawPartial := false
+
 	for i, s := range samples {
+		if s.Fraction == -1 {
+			if s.Source != SourceUnknown {
+				t.Fatalf("sample %d: Fraction -1 with Source %v, want unknown", i, s.Source)
+			}
+
+			continue
+		}
+
 		if s.Fraction < 0 || s.Fraction > 1 {
 			t.Fatalf("sample %d Fraction %.4f out of [0,1]", i, s.Fraction)
 		}
@@ -240,24 +252,33 @@ func TestProgress_absentIsNoOp(t *testing.T) {
 	}
 }
 
-// D3 monotonic + D4 size-weighting: opening a second, larger input enlarges the
-// denominator; the reported Fraction must not regress even though the raw ratio
-// drops. (This is the sequential multi-input / concat case — lumpy but safe.)
-func TestProgressReporter_monotonicAcrossInputs(t *testing.T) {
+// D4 size-weighting on the lazy-discovery fallback (no declared inputs, e.g. an
+// unparseable spec). Finishing the first input saturates the ratio against a
+// denominator that has not finished growing: under spec 0034 D3 that reports -1
+// rather than a false 1.0, and when the denominator does grow the stale ceiling
+// is retired so the job gets a real number back instead of plateauing.
+func TestProgressReporter_lazyDenominatorGrowth(t *testing.T) {
 	t.Parallel()
 
 	rep := newProgressReporter(make(chan Progress, 1))
 
-	rep.addRead("a", 100, 100) // first input fully read → raw 1.0
-	if s := rep.snapshot(); s.Fraction != 1.0 {
-		t.Fatalf("after input a: Fraction = %.4f, want 1.0", s.Fraction)
+	rep.addRead("a", 100, 100) // first input fully read → raw 1.0, mid-job
+
+	if s := rep.snapshot(); s.Fraction != -1 || s.Source != SourceUnknown {
+		t.Fatalf("saturated mid-job: Fraction = %.4f/%v, want -1/unknown (0034 D3)", s.Fraction, s.Source)
 	}
 
-	rep.addRead("b", 50, 900) // denominator jumps: raw (150/1000)=0.15
+	rep.addRead("b", 50, 900) // denominator grows: raw (150/1000) = 0.15
+
 	s := rep.snapshot()
-	if s.Fraction != 1.0 {
-		t.Fatalf("Fraction regressed to %.4f; monotonic clamp must hold 1.0", s.Fraction)
+	if s.Fraction < 0.149 || s.Fraction > 0.151 {
+		t.Fatalf("Fraction = %.4f, want ≈0.15 — a stale ceiling must not pin it", s.Fraction)
 	}
+
+	if s.Source != SourceBytes {
+		t.Fatalf("Source = %v, want bytes", s.Source)
+	}
+
 	if s.InputTotal != 1000 || s.InputBytes != 150 {
 		t.Fatalf("size-weighting wrong: bytes=%d total=%d, want 150/1000", s.InputBytes, s.InputTotal)
 	}
@@ -275,9 +296,19 @@ func TestProgressReporter_guardsAndUpperClamp(t *testing.T) {
 		t.Fatalf("zero-length I/O recorded: %+v", s)
 	}
 
-	rep.addRead("y", 150, 100) // raw 1.5 → clamp to 1.0
-	if s := rep.snapshot(); s.Fraction != 1.0 {
-		t.Fatalf("upper clamp: Fraction = %.4f, want 1.0", s.Fraction)
+	// Raw 1.5 → clamped to 1.0, never beyond. In flight that reads as -1 (0034
+	// D3: inputs exhausted, job still running); the closing snapshot reports the
+	// genuine 1.0.
+	rep.addRead("y", 150, 100)
+
+	if s := rep.snapshot(); s.Fraction != -1 {
+		t.Fatalf("saturated mid-job: Fraction = %.4f, want -1", s.Fraction)
+	}
+
+	rep.final = true
+
+	if s := rep.snapshot(); s.Fraction != 1.0 || s.Source != SourceBytes {
+		t.Fatalf("upper clamp at end of job: Fraction = %.4f/%v, want 1.0/bytes", s.Fraction, s.Source)
 	}
 }
 

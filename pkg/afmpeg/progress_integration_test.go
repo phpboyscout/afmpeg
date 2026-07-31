@@ -62,20 +62,33 @@ func TestIntegration_ProgressReporting(t *testing.T) {
 		t.Fatalf("want multiple in-flight progress samples, got %d", len(samples))
 	}
 
+	// Fraction is -1 while it cannot be determined — the startup window before the
+	// engine's first record, and any stretch where the inputs are consumed but the
+	// job runs on (spec 0034 D1/D3). Those samples carry SourceUnknown and are not
+	// part of the monotonic sequence.
 	var last float64
 	var sawPartial, sawElapsed bool
 	for i, s := range samples {
+		if s.Elapsed > 0 {
+			sawElapsed = true
+		}
+		if s.Fraction == -1 {
+			if s.Source != afmpeg.SourceUnknown {
+				t.Fatalf("sample %d: Fraction -1 with Source %v, want unknown", i, s.Source)
+			}
+			continue
+		}
 		if s.Fraction < 0 || s.Fraction > 1 {
 			t.Fatalf("sample %d Fraction %.4f out of [0,1]", i, s.Fraction)
 		}
 		if s.Fraction+1e-9 < last {
 			t.Fatalf("sample %d Fraction %.4f regressed below %.4f", i, s.Fraction, last)
 		}
+		if s.Source == afmpeg.SourceUnknown {
+			t.Fatalf("sample %d: Fraction %.4f with Source unknown", i, s.Fraction)
+		}
 		if s.Fraction > 0.05 && s.Fraction < 0.95 {
 			sawPartial = true
-		}
-		if s.Elapsed > 0 {
-			sawElapsed = true
 		}
 		last = s.Fraction
 	}

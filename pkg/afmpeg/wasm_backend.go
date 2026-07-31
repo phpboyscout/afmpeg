@@ -58,6 +58,11 @@ func newWASMBackend(ctx context.Context, cfg *config) (*wasmBackend, error) {
 }
 
 // Close releases the wazero runtime (and with it the compiled module).
+// supportsEngineProgress reports that this backend can deliver phase-B engine
+// records: it serves /dev/afmpeg-progress from the vfs bridge (spec 0032), so
+// Fraction may wait for the engine's first record (spec 0034, D1).
+func (*wasmBackend) supportsEngineProgress() bool { return true }
+
 func (b *wasmBackend) Close(ctx context.Context) error {
 	return errors.Wrap(b.rt.Close(ctx), "afmpeg: close runtime")
 }

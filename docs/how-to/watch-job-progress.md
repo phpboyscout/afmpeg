@@ -34,6 +34,11 @@ Both feed the same `Progress` value: afmpeg turns on the engine channel automati
 attach `WithProgress`, phase-B records **refine** the phase-A samples as soon as the first one
 arrives, and it falls back to byte progress on an older engine.
 
+When both sources are live the **engine's is authoritative** — it measures the work that actually
+remains, where the byte source only measures input already read. `Source` on each sample tells you
+which one produced the number. Spec
+[0034](../development/specs/0034-fraction-source-precedence.md).
+
 ## Attach a channel with WithProgress
 
 Progress is **per-invocation** — a `Runtime` is shared and serialises its calls — so you attach the
@@ -75,8 +80,9 @@ out, err := rt.Frames(afmpeg.WithProgress(ctx, ch), fs, job)
 
 ```go
 type Progress struct {
-    Fraction    float64       // completion in [0,1], or -1 when unknown
-    Elapsed     time.Duration // since the invocation began
+    Fraction    float64        // completion in [0,1], or -1 when unknown
+    Source      FractionSource // how Fraction was derived: unknown / bytes / engine
+    Elapsed     time.Duration  // since the invocation began
     InputBytes  int64         // bytes read from inputs so far
     InputTotal  int64         // total input size, 0 if unknown
     OutputBytes int64         // bytes written to outputs so far
@@ -92,6 +98,22 @@ type Progress struct {
 backwards. Show a determinate bar when `Fraction >= 0`; fall back to an indeterminate spinner (and
 use `OutputBytes` / `Elapsed`) when it is `-1`.
 
+`Source` says where the number came from, so you can decide how far to trust it:
+
+| `Source` | Meaning |
+| --- | --- |
+| `SourceEngine` | Engine-derived from `out_time / duration`. Accurate regardless of input size. Preferred. |
+| `SourceBytes` | Byte-observed at the filesystem bridge (`bytes_read / input_size`). Good when the inputs dominate the work, poor when the encode does. |
+| `SourceUnknown` | `Fraction` is `-1`. |
+
+!!! warning "`Fraction == 1` is not a completion signal"
+
+    Use the invocation's return to know a job finished. afmpeg deliberately reports `-1` rather
+    than `1.0` when the inputs are exhausted but the job is still encoding — a render whose inputs
+    are small next to its output (a few cards and a music bed becoming a 30 s reel) consumes every
+    input byte in the first moments. Treating `1.0` as "done" would show a full bar for almost the
+    whole render.
+
 ## Back-pressure — you cannot slow the job down
 
 Delivery is **best-effort**: afmpeg sends with a non-blocking send, so a slow or non-draining
@@ -105,10 +127,18 @@ nobody reads produces the identical result as one with no channel at all.
 tells afmpeg:
 
 - **Byte-only fallback.** Without a phase-B duration (a pre-v9 engine, or the native backend below)
-  `Fraction` is byte progress (`bytes_read / input_size`). **Seek-heavy inputs** (e.g. an MP4 whose
-  index sits at the end) make it lumpy — it is clamped so it never goes backwards, but it can jump —
-  and **sequential multi-input** (concat) can plateau as each part completes, since the total to
-  read grows as inputs open.
+  `Fraction` is byte progress (`bytes_read / input_size`), reported as `SourceBytes`. **Seek-heavy
+  inputs** (e.g. an MP4 whose index sits at the end) make it lumpy — it is clamped so it never goes
+  backwards, but it can jump. The denominator is the total size of the inputs the job spec declares,
+  fixed before the run starts, so a concat job measures against the whole set rather than the parts
+  opened so far.
+- **Encode-bound work.** When the output is long relative to the inputs, the byte source runs out of
+  signal: every input byte is read while most of the encode remains. `Fraction` reports `-1` for
+  that tail rather than a saturated `1.0`. On an engine that reports the media duration you get a
+  real number throughout instead — this is the case where `SourceEngine` matters most.
+- **A brief `-1` at startup.** When engine progress is expected, `Fraction` is `-1` until the
+  engine's first record arrives rather than showing a byte ratio the engine would immediately
+  contradict.
 - **Generative inputs** (a filter source with no input file) report `Fraction == -1` on the
   byte-only path; on a **v9 engine at n8.1.2-10+** the engine reports the media duration, so
   `Fraction` is accurate even there (the `out_time / duration` derivation).
