@@ -1,6 +1,9 @@
 # 0034 — Fraction source precedence (progress correctness)
 
-Status: **APPROVED** — decisions D1–D4 resolved with the user 2026-07-31; safe to implement.
+Status: **IMPLEMENTED** — shipped in MR !123 (2026-07-31), fast-forwarded onto `main` as `95aa439`
+(this spec) + `fce4b6c` (the fix). D1/D3/D4 resolved with the user 2026-07-31; D2/D5 followed from
+them; **D6 was found during implementation** while validating against a real `n8.1.2-10` and is
+recorded under §3 with its own rationale.
 Date: 2026-07-31
 Parent: [0031](0031-job-progress-reporting.md) (owns the `Progress` stream and the D3 monotonicity
 contract this amends); [0032](0032-engine-progress-side-channel.md) (the engine-derived source whose
@@ -156,4 +159,5 @@ the byte branch never fires and the two sources never collide.
 
 ## 6. Open questions
 
-None. D1–D5 resolved with the user 2026-07-31.
+None. D1/D3/D4 resolved with the user 2026-07-31, D2/D5 following from them; D6 was added during
+implementation from an empirical finding and accepted in review (MR !123).
