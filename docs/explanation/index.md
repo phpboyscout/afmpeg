@@ -14,8 +14,9 @@ alternatives that were weighed.
 - **[Architecture](concepts/architecture.md)** — the three layers (embedded WASM module,
   the afero↔wazero vfs bridge, the Go API) and how a call flows through them.
 - **[Components › The vfs bridge](components/vfs-bridge.md)** — how the guest's filesystem
-  syscalls are routed onto an `afero.Fs`, the /tmp + /dev/null overlay, seek-on-write, and
-  the no-host-filesystem guarantee.
+  syscalls are routed onto an `afero.Fs`, the synthetic overlays (`/tmp`, `/dev/null`,
+  `/dev/urandom`, and the progress device), seek-on-write, and the no-host-filesystem
+  guarantee.
 - **[Components › Errors](components/errors.md)** — the sentinel-error catalogue and the
   error-handling convention.
 - **[Verifying a release](concepts/release-verification.md)** — how `WithModuleRelease`

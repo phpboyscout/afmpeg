@@ -67,6 +67,8 @@ provide. The bridge overlays them on top of the caller's filesystem:
 - **`/dev/urandom`** (and `/dev/random`) serve cryptographically-random bytes
   from the host's `crypto/rand`. This one is not a convenience — it is
   **load-bearing**, and the reason is a genuine WASI gotcha (below).
+- **`/dev/afmpeg-progress`** is a write-only sink the engine streams live
+  progress records to. Unlike the others it is **conditional** — see below.
 
 Everything else resolves against the caller's filesystem.
 
@@ -94,6 +96,38 @@ work — it is a smaller world than POSIX, and each missing device is a place a
 "portable" C fallback can quietly misbehave (see also ffmpeg-wasi's
 [build shims](https://ffmpeg-wasi.phpboyscout.uk/explanation/the-build/), which
 fill the *link-time* gaps the same spirit fills here at runtime).
+
+### The progress device is the bridge run backwards
+
+The overlays above exist so the guest can *read* something the caller's
+`afero.Fs` cannot provide. `/dev/afmpeg-progress` inverts that: it exists so the
+guest can **tell the host something**, using the only channel a sandboxed WASI
+module reliably has — a file write.
+
+The engine opens it write-only and streams newline-delimited JSON records
+(`frame`, `out_time_us`, `total_size`, and optionally `duration_us`) as it
+encodes. The bridge splits that byte stream on `\n` and hands each complete line
+to a sink the host installed, buffering a trailing partial line until its newline
+arrives in a later write. Those records become the `Frame` / `OutTime` / `Speed`
+fields — and the authoritative `Fraction` — on the
+[`WithProgress`](../../how-to/watch-job-progress.md) channel (specs
+[0032](../../development/specs/0032-engine-progress-side-channel.md),
+[0034](../../development/specs/0034-fraction-source-precedence.md)).
+
+Two properties are worth calling out, because both are deliberate:
+
+**It is only mounted when someone is listening.** The other overlays are
+unconditional; this one appears only when the caller attached a progress sink —
+which happens only when `WithProgress` is active. A job with no progress channel
+has no such path, so `/dev/afmpeg-progress` resolves against the caller's
+filesystem like any other name. That is what keeps the device from being a
+surprise: it cannot shadow a real file unless you asked for it.
+
+**It cannot fail the job.** Writes always report success, the sink must not
+block, and a malformed stream that never emits a newline has its partial-line
+buffer dropped at 64 KiB rather than growing without bound. Progress is
+best-effort by construction: the worst a broken side-channel can do is report
+nothing.
 
 ## The no-host-filesystem guarantee
 
