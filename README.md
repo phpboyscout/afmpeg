@@ -65,7 +65,7 @@ same no-host-disk guarantee, **48–58× faster** software encode (and HEVC/AV1)
 `WithBackend` / `native.NewFromRelease`; WASM stays the default.
 
 ```go
-rt, _ := afmpeg.New(ctx, afmpeg.WithModuleRelease("n8.1.2-10", afmpeg.VariantLGPL)) // compile once, reuse
+rt, _ := afmpeg.New(ctx, afmpeg.WithModuleRelease("n8.1.2-11", afmpeg.VariantLGPL)) // compile once, reuse
 defer rt.Close(ctx)
 
 fs := afero.NewMemMapFs()            // or the caller's in-memory worktree
@@ -107,6 +107,7 @@ and the current build order; the design records live in
 | [0010](docs/development/specs/0010-signed-release-acquisition.md) | Signature-verified module acquisition (`WithModuleRelease`) |
 | [0028](docs/development/specs/0028-native-subprocess-backend.md) | The native subprocess backend — 48–58× faster software encode, HEVC/AV1, still CGO-free |
 | [0031](docs/development/specs/0031-job-progress-reporting.md) / [0032](docs/development/specs/0032-engine-progress-side-channel.md) | Live job progress (`WithProgress`) — observed-fs (phase A) + engine side-channel (phase B) |
+| [0034](docs/development/specs/0034-fraction-source-precedence.md) | Which source `Progress.Fraction` derives from — engine time over input bytes, and `-1` rather than a false "done" |
 
 What remains is a menu of **trigger-gated** work — a standalone [CLI](docs/development/specs/0009-afmpeg-cli.md)
 (0009), WASM threading (0030), native `arm64`/`darwin` (0022), HW-accel encoders, and measure-first

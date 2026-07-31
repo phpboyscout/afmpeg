@@ -17,7 +17,7 @@ confirming the chain yourself. It mirrors exactly what afmpeg does (spec
 Set the release you want:
 
 ```sh
-TAG=n8.1.2-10
+TAG=n8.1.2-11
 BASE="https://gitlab.com/api/v4/projects/83847809/packages/generic/ffmpeg-wasi/$TAG"
 ```
 

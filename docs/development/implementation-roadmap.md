@@ -9,9 +9,10 @@ future session can grab. This document sequences the specs into phases with depe
 what's needed before/during each — see the per-spec status inline below. It supersedes 0012 §7's
 parity-only ordering by folding in the review-driven specs (0024–0028) and the 0022 bundling policy.
 
-> **Current anchors (2026-07-13):** afmpeg **v0.11.0**, ffmpeg-wasi **n8.1.2-10**, job-spec
-> **vocab v9**. The core roadmap is complete; everything below in "what remains" is optional and
-> waits for its trigger (a consumer need, a device, or a measured regression).
+> **Current anchors (2026-07-31):** afmpeg **v0.11.2** (plus `0034` on `main`, unreleased),
+> ffmpeg-wasi **n8.1.2-11**, job-spec **vocab v9**. The core roadmap is complete; everything below
+> in "what remains" is optional and waits for its trigger (a consumer need, a device, or a measured
+> regression).
 
 ## The two tracks
 
@@ -109,6 +110,14 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   for file inputs on any v9 engine and for **generative/lavfi** inputs once on **n8.1.2-10+** (the
   `duration_us` follow-up, R-PROGRESS-B2). Older engines fall back to the byte `Fraction`. Speed is
   host-derived (`OutTime/Elapsed`) because the WASI engine is clockless.
+- **[0034](specs/0034-fraction-source-precedence.md) Fraction source precedence** — **SHIPPED**
+  (2026-07-31, MR !123), pulled in by keryx feedback
+  ([afmpeg#2](https://gitlab.com/phpboyscout/afmpeg/-/work_items/2)): `Fraction` read a confident
+  `1.000` for the whole of an encode-bound render, because the byte and engine sources shared one
+  monotone clamp and a saturated byte ratio pinned the ceiling. The engine's `out_time/duration` is
+  now authoritative, the byte denominator is fixed upfront from the declared inputs, a saturated or
+  overrun ratio reports `-1` rather than a false "done", and **`Progress.Source`** exposes which
+  source produced the value (R-PROGRESS-FRAC).
 
 ### Phase 5 — Strategic / native (largely SHIPPED, 2026-07-05)
 - **[0028](specs/0028-native-subprocess-backend.md) native backend (Backend B)** — **SHIPPED**. The

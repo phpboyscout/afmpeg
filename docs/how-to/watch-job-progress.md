@@ -48,13 +48,19 @@ channel to the call's *context*, not to `New`. afmpeg sends on the channel while
 ```go
 ch := make(chan afmpeg.Progress, 64) // buffered: see back-pressure below
 
-// Drain in a goroutine while the (blocking) Run executes.
+// Drain in a goroutine while the (blocking) Run executes. Switch on Source:
+// it tells you what the number is worth, so you don't have to infer it.
 go func() {
     for p := range ch {
-        if p.Frame > 0 { // phase B: a v9+ engine is reporting frame / time / speed
-            fmt.Printf("\rframe=%d  t=%s  %.1f×realtime", p.Frame, p.OutTime.Round(time.Second), p.Speed)
-        } else if p.Fraction >= 0 {
+        switch p.Source {
+        case afmpeg.SourceEngine: // the engine's own clock — trust this one
+            fmt.Printf("\r%.0f%%  frame=%d  t=%s  %.1f×realtime",
+                p.Fraction*100, p.Frame, p.OutTime.Round(time.Second), p.Speed)
+        case afmpeg.SourceBytes: // input consumed; good when the inputs dominate
             fmt.Printf("\r%.0f%%  out=%d bytes", p.Fraction*100, p.OutputBytes)
+        default: // SourceUnknown — Fraction is -1; show an indeterminate spinner
+            fmt.Printf("\rworking… out=%d bytes  %s",
+                p.OutputBytes, p.Elapsed.Round(time.Second))
         }
     }
 }()
