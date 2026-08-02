@@ -85,7 +85,7 @@ cmd := afmpeg.NewCommand(
 )
 ```
 
-## Notes
+## Where do trims, frame rate and pixel format go?
 
 - Output **duration and start** are first-class options — `Duration`, `End`, and input-side
   `SeekTo`/`SeekAccurateTo` ([extract a clip](extract-a-clip.md)) — not a filtergraph `trim`.
@@ -94,3 +94,6 @@ cmd := afmpeg.NewCommand(
   from the graph + encoder.
 - A higher-level workflow (a "reel", a thumbnail sheet, …) is *your* code composed on this
   builder — afmpeg ships no opinionated workflow types.
+
+Every field, its default and the combinations that are rejected are in the
+[command reference](../reference/command.md).

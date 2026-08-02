@@ -152,3 +152,8 @@ tells afmpeg:
   progress (`Fraction`, `InputBytes`, `OutputBytes` — its IPC I/O crosses the same filesystem
   boundary), but not the phase-B engine record: its `Frame` / `OutTime` / `Speed` stay zero, because
   the `/dev/afmpeg-progress` device is served by the WASM backend only.
+- **`OutputBytes` is bytes written, not file size.** A muxer that seeks back to patch its header
+  writes those bytes twice, so the final counter sits slightly above the output's length.
+
+Every field of `Progress`, and the exact list of cases where `Fraction` is `-1`, is in the
+[results reference](../reference/results.md#progress).

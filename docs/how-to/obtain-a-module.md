@@ -133,5 +133,11 @@ never executed.
   separate artifact you fetch), but your obligations follow the variant you choose. The `lgpl`
   module's self-compiled openh264 carries an [AVC patent caveat](https://ffmpeg-wasi.phpboyscout.uk/explanation/licensing/#h264-encode-and-the-avc-patent-pool).
 - **Build your own** — any current FFmpeg compiled to `wasm32-wasi` with the feature set
-  afmpeg's runtime enables (spec [0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api)
-  R-0004-9). afmpeg runs it.
+  afmpeg's runtime enables (the stable WebAssembly V2 set plus extended-const, tail-call and
+  exception handling, the last of which carries the setjmp/longjmp lowering a real FFmpeg build
+  needs). afmpeg runs it, and an engine that answers the vocabulary query must be recent enough —
+  see [which engine versions this afmpeg accepts](../reference/release-artifacts.md#which-engine-versions-does-this-afmpeg-accept).
+
+Exact asset filenames, provenance keys, pinned key fingerprints and cache locations are in
+[engine releases](../reference/release-artifacts.md); the option defaults are in
+[runtime options](../reference/runtime-options.md).

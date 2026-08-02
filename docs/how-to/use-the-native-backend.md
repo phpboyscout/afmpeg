@@ -126,3 +126,19 @@ path — only the runtime underneath changes. See the
     The native driver is a **native subprocess**, not a WASM sandbox — it runs with your
     process's privileges. Load it only from a source you trust: `NewFromRelease` gives you the
     signature-verified project artifact; `WithNativeBinary` trusts whatever path you supply.
+
+## What you give up by switching
+
+Three things stop working when you swap the WASM backend out, and none of them is obvious from
+the call site:
+
+- **`WithMemoryLimit` has no effect.** The cap is a wazero setting and there is no wazero. The
+  driver is bounded by the operating system, like any other subprocess. `WithTimeout` does still
+  apply — `Run` imposes it above the backend seam.
+- **Engine progress goes quiet.** `Frame`, `OutTime` and `Speed` stay zero and `Fraction` falls
+  back to the byte-observed source, because `/dev/afmpeg-progress` is served by the WASM backend
+  only.
+- **Portability.** Drivers are published for linux/amd64 only; there is no automatic fallback to
+  WASM on another platform, just a missing asset.
+
+The full list is in [limitations](../reference/limitations.md#what-is-not-supported-in-the-native-backend).

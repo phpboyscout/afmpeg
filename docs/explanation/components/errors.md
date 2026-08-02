@@ -47,3 +47,12 @@ run. Callers match with `errors.Is(err, afmpeg.ErrProvenanceMismatch)`.
   stderr tail itself.
 - Wrap, don't reformat: `errors.Wrap`/`Wrapf` to add context; reserve sentinels for
   conditions callers branch on.
+
+## Errors that are not sentinels
+
+Plenty of failures are unwrapped messages rather than matchable sentinels — an unknown variant or
+profile, a module that will not compile, an engine too old for the job spec, a job spec whose
+`Duration` and `End` conflict. Those are listed with their exact text and their cause in
+[runtime options](../../reference/runtime-options.md#errors-new-can-return) and the
+[command reference](../../reference/command.md#what-commandjobspec-rejects). Match on a sentinel
+where one exists; treat the rest as messages for a human.

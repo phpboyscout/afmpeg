@@ -65,7 +65,8 @@ share the engine.
 ## Safe by default: memory ceiling and invocation deadline
 
 Because afmpeg's job is to process **untrusted** media, a `Runtime` is hardened out of the box —
-you do not have to opt in (spec [0027](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0027-runtime-security-hardening)):
+you do not have to opt in
+([why](../explanation/concepts/safe-defaults.md)):
 
 - **Guest memory is capped at 512 MB.** A crafted file declaring outsized dimensions can make
   libav try to allocate gigabytes; the cap turns that into a clean guest-side failure (a non-zero
@@ -91,10 +92,14 @@ unbounded behaviour.
 
 ## Throughput: invocations serialise
 
-A `Runtime` runs **one invocation at a time** — `Run`/`RunJob`/`Probe` take an internal lock,
-so concurrent callers queue rather than execute in parallel (spec
-[0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api) D-0004-B). That keeps the engine safe to
-share, but it means a single `Runtime` does **not** give you parallelism.
+A `Runtime` runs **one invocation at a time** — `Run`/`RunJob`/`Probe`/`Frames` take a single
+invocation slot, so concurrent callers queue rather than execute in parallel. That keeps the
+engine safe to share, but it means a single `Runtime` does **not** give you parallelism.
+
+The queue honours your context: a caller waiting for the slot whose context is cancelled (or
+whose deadline expires) gives up with `afmpeg: run: cancelled while queued` instead of blocking
+for the whole job in front of it. The invocation deadline only starts once the slot is acquired,
+so queueing does not eat the budget.
 
 To actually run jobs in parallel, build **more than one** `Runtime` and hand work out across
 them — each compiles the module once:
@@ -121,3 +126,6 @@ a small fixed fleet is all it takes.
 - **Share freely.** Concurrent `Run`/`RunJob`/`Probe` on one `Runtime` are safe; they serialise.
 - **Parallelise with more `Runtime`s**, not more calls on one.
 - **`Close` on shutdown** to release the compiled module and the wazero runtime.
+
+The exact defaults, and what each one does when it is hit, are in
+[runtime options](../reference/runtime-options.md).

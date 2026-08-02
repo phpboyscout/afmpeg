@@ -86,10 +86,19 @@ defer cancel()
 _, err := rt.Run(ctx, fs, /* … */) // returns a context error if it overruns
 ```
 
-## Notes
+## Can I run several jobs at once on one Runtime?
 
-- **One invocation at a time per `Runtime`.** Concurrent `Run` calls serialise
-  safely; for parallel renders, construct more than one `Runtime` (a pool is on
-  the [roadmap](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0006-hardening-roadmap)).
-- The full Go API reference is on
+Not in parallel. A `Runtime` runs **one invocation at a time**: concurrent `Run` calls are safe
+and they serialise, so calling from ten goroutines gives you ten queued jobs rather than ten
+running ones. For parallel renders, construct more than one `Runtime` — see
+[reuse a Runtime](reuse-a-runtime.md), and
+[why it works that way](../explanation/concepts/safe-defaults.md#why-one-invocation-at-a-time).
+There is no built-in pool.
+
+## Where the details are
+
+- Every option to `New`, with its default: [runtime options](../reference/runtime-options.md).
+- Every field of `Command`/`Input`/`Output`: [command reference](../reference/command.md).
+- Every field of `Result` and `Probe`: [results reference](../reference/results.md).
+- The per-symbol Go API is on
   [pkg.go.dev](https://pkg.go.dev/gitlab.com/phpboyscout/afmpeg/pkg/afmpeg).

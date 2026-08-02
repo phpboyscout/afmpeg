@@ -57,6 +57,13 @@ Available:
   the signed **native driver** (`native.NewFromRelease` + `WithBackend`): native-speed software
   encode (48–58×) and the **full** profile's HEVC/AV1 encoders. linux/amd64, opt-in, CGO-free.
 
+New to afmpeg? Do **[your first in-memory transcode](../tutorials/first-in-memory-transcode.md)**
+first — these guides assume you already have a `Runtime`.
+
+Looking for a fact rather than a task — a default, a field, an error, or whether something is
+supported at all? That is the **[reference](../reference/index.md)**, and in particular
+[limitations](../reference/limitations.md).
+
 The WASM engine itself — current FFmpeg compiled to `wasm32-wasi`, with its `process`/`probe`
 job spec — is the companion [**ffmpeg-wasi**](https://ffmpeg-wasi.phpboyscout.uk) project;
 grab a released module via [obtain a module](obtain-a-module.md).
