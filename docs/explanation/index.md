@@ -22,6 +22,12 @@ alternatives that were weighed.
 - **[Verifying a release](concepts/release-verification.md)** — how `WithModuleRelease`
   certifies a published module: the KMS-signed checksums, the pinned key, what each layer
   defends, and the WKD second anchor that cross-checks the pinned key.
+- **[Why a Runtime is capped, deadlined and serialised](concepts/safe-defaults.md)** — the
+  reasoning behind the 512 MB memory cap, the one-hour invocation deadline, and one-job-at-a-time
+  execution, and what none of them protects you from.
 
-For the full design thesis, requirements, and the decision record, see the
-[specs](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg) — the source of truth.
+The point-in-time design records — the original thesis, the requirements, the decisions taken and
+rejected along the way — live in the
+[project wiki](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/home). They are a record of
+what was decided when, not documentation of how afmpeg behaves now; where the two disagree, these
+pages and the code are what count.
