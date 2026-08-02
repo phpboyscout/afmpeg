@@ -11,15 +11,16 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 Learning-oriented, step-by-step walkthroughs that teach afmpeg by doing — each
 guaranteed to work from a clean start.
 
-afmpeg is released. Until a dedicated start-to-finish tutorial lands, the
-**[how-to guides](../how-to/index.md)** are the practical, working walkthroughs:
+- **[Your first in-memory transcode](first-in-memory-transcode.md)** — fetch a verified engine,
+  encode video you generate in Go, read the MP4 back, and watch live progress, without a single
+  file on disk. About fifteen minutes. Start here if you have never used afmpeg.
 
-- **[Obtain a module](../how-to/obtain-a-module.md)** — get a released
-  [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine (URL + SHA-256).
-- **[Run over an in-memory filesystem](../how-to/run-in-memory.md)** — inputs into an
-  `afero.MemMapFs`, transcode, read the output back, all without touching disk.
-- **[Compose a command](../how-to/compose-a-command.md)** — assemble inputs / filtergraph /
-  outputs and run it as a job over the ffmpeg-wasi engine.
+## What to read instead
 
-If you just need to accomplish a specific task and already know the basics, see the
-[how-to guides](../how-to/index.md) instead.
+A tutorial teaches; it is not the fastest route to one specific answer.
+
+- Already know the basics and need to accomplish one thing? The
+  **[how-to guides](../how-to/index.md)** are task-shaped.
+- After a fact — a default, a field, an error? The **[reference](../reference/index.md)** has it.
+- Want to know why afmpeg is built this way? Start with the
+  **[architecture](../explanation/concepts/architecture.md)**.

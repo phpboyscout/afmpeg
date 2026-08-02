@@ -77,11 +77,13 @@ and the [roadmap](development/index.md) for how the specs decompose the build.
 
 <div class="grid cards" markdown>
 
-- :material-school: **[Tutorials](tutorials/index.md)** — learn afmpeg by doing.
+- :material-school: **[Your first in-memory transcode](tutorials/first-in-memory-transcode.md)** —
+  start here: a working program in about fifteen minutes.
 - :material-wrench: **[How-to guides](how-to/index.md)** — solve a specific task.
 - :material-lightbulb: **[Explanation](explanation/index.md)** — the architecture and the *why*.
-- :material-book-open-variant: **[Reference](reference/index.md)** — the Go API and engine artifacts.
-- :material-file-document-multiple: **[Development](development/index.md)** — specs and contributor docs.
+- :material-book-open-variant: **[Reference](reference/index.md)** — every option, field, default
+  and limit.
+- :material-file-document-multiple: **[Development](development/index.md)** — contributor docs.
 
 </div>
 
