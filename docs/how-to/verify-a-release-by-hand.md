@@ -21,27 +21,33 @@ TAG=n8.1.2-11
 BASE="https://gitlab.com/api/v4/projects/83847809/packages/generic/ffmpeg-wasi/$TAG"
 ```
 
-## 1. Get the signing key from WKD
+## 1. Get the signing keys from WKD
 
-The release-signing key is published via the **Web Key Directory** on the `phpboyscout.uk`
-domain — a control plane independent of the GitLab repo that hosts the releases. Fetch it by
+The release-signing keys are published via the **Web Key Directory** on the `phpboyscout.uk`
+domain — a control plane independent of the GitLab repo that hosts the releases. Fetch them by
 email; `gpg` resolves WKD automatically:
 
 ```sh
-gpg --locate-external-keys ffmpeg-wasi-release@phpboyscout.uk
+gpg --locate-external-keys ffmpeg-wasi-release-v2@phpboyscout.uk
 ```
 
-Confirm the fingerprint is **exactly** this (the value afmpeg pins):
+That address is the one to use. The older `ffmpeg-wasi-release@phpboyscout.uk` still resolves,
+but it serves only the first of the two keys below — enough to verify an older release and not a
+current one. `ffmpeg-wasi-release-v2@phpboyscout.uk` is also the identity afmpeg itself
+cross-checks against by default.
+
+Two keys come back, and afmpeg pins both. Confirm the fingerprints are **exactly** these:
 
 ```
-710881C1 DDAE ABD1 38E5 3004  A216 6E59 EB60 60E1
+7108 81C1 DDAE ABD1 38E5  3004 A216 6E59 EB60 60E1
+4C96 ECB3 5C74 4661 9FF7  8EB1 ED13 44E5 76B7 BBBF
 ```
 
 ```sh
-gpg --fingerprint ffmpeg-wasi-release@phpboyscout.uk
+gpg --fingerprint ffmpeg-wasi-release-v2@phpboyscout.uk
 ```
 
-If the fingerprint differs, stop — do not trust the release.
+If a fingerprint differs, stop — do not trust the release.
 
 ## 2. Verify the signature over the manifest
 
@@ -54,10 +60,11 @@ curl -fsSLO "$BASE/checksums.txt.sig"
 gpg --verify checksums.txt.sig checksums.txt
 ```
 
-Expect `Good signature from "ffmpeg-wasi Release Signing <ffmpeg-wasi-release@phpboyscout.uk>"`.
-(`gpg` may add a "not certified with a trusted signature" web-of-trust warning — that is about
-*your* local trust DB, not the cryptographic validity; the fingerprint check in step 1 is the
-trust decision.)
+A current release is signed by **both** keys, so `gpg` reports two signatures — expect a
+`Good signature from "ffmpeg-wasi Release Signing <ffmpeg-wasi-release-v2@phpboyscout.uk>"` for
+each. (`gpg` may add a "not certified with a trusted signature" web-of-trust warning — that is
+about *your* local trust DB, not the cryptographic validity; the fingerprint check in step 1 is
+the trust decision.)
 
 ## 3. Check the assets against the signed manifest
 

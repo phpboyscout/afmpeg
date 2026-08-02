@@ -16,9 +16,9 @@ wiring around it.
    (MemMapFs / OsFs / …)        New → compile module once; Run/Probe per call
           │                                   │
           ▼                                   ▼
-   internal/vfs  ──────────────►  internal/wasm  ──────────────►  ffmpeg.wasm
-   afero.Fs → wazero                module wiring                  (FFmpeg + openh264
-   experimental/sys.FS              over wazero                     /x264, wasm32-wasi)
+   internal/vfs  ────────────►  the wasm backend  ────────────►  ffmpeg.wasm
+   afero.Fs → wazero            (pkg/afmpeg, wazero               (FFmpeg + openh264
+   experimental/sys.FS           runtime + mounts)                  /x264, wasm32-wasi)
           ▲                                                              │
           └──────────────── WASI fs syscalls (path_open, fd_read, ──────┘
                             fd_write, fd_seek, …) routed to the afero.Fs

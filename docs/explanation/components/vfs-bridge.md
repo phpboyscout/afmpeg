@@ -59,9 +59,10 @@ payload → seek back → overwrite → read back — is verified against `MemMa
 A guest ffmpeg expects a few POSIX locations that a bare `afero.Fs` does not
 provide. The bridge overlays them on top of the caller's filesystem:
 
-- **`/tmp`** is routed to an isolated in-memory scratch filesystem, so the
-  guest's temporary writes never pollute the caller's `afero.Fs`. (Callers can
-  supply their own scratch fs to inspect what the guest wrote.)
+- **`/tmp`** is routed to an isolated in-memory scratch filesystem, freshly created
+  for each invocation, so the guest's temporary writes never pollute the caller's
+  `afero.Fs`. There is no public option to supply your own or to read it back
+  afterwards — anything you want to keep has to be written outside `/tmp`.
 - **`/dev/null`** is a discard sink: writes succeed and vanish, reads report
   EOF.
 - **`/dev/urandom`** (and `/dev/random`) serve cryptographically-random bytes
@@ -140,13 +141,14 @@ keryx hand afmpeg an in-memory worktree and render without a local checkout.
 ## What lives elsewhere
 
 The bridge is deliberately runtime-agnostic. Mounting it into a wazero module
-(`WithSysFSMount`) and driving an actual guest is the job of the afmpeg runtime
-([spec 0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api)), which composes
-this package with the embedded `ffmpeg.wasm`. The end-to-end test that exercises
+(`WithSysFSMount`) and driving an actual guest is the job of afmpeg's wasm backend,
+which composes this package with the `ffmpeg.wasm` the caller supplied — the module
+is never embedded. The end-to-end test that exercises
 the bridge *through* a real WASI host therefore lands with that runtime; the
 contract tests here drive the exact `sys.FS` / `sys.File` methods wazero
 invokes.
 
-The Go API is documented at
-[pkg.go.dev](https://pkg.go.dev/gitlab.com/phpboyscout/afmpeg/internal/vfs) and is
-not duplicated here.
+The bridge is an internal package, so it has no published Go API. What a caller can
+actually observe of it — path resolution, the synthetic locations, which operations
+are supported and which return `ENOSYS` — is listed in
+[the guest filesystem](../../reference/guest-filesystem.md).

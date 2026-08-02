@@ -57,8 +57,10 @@ hosts the releases.
 - The **offline-bundle** path (`WithReleaseBundleDir`) skips WKD entirely — it must not touch the
   network. `WithReleaseWKDEmail` overrides the WKD identity (for a mirror) or disables it (`""`).
 
-There are **two** OpenPGP keys in the model, with distinct roles. The **signing key**
-(`ffmpeg-wasi-release@phpboyscout.uk`) is what afmpeg embeds and cross-checks — it signs releases.
+There are **two kinds** of OpenPGP key in the model, with distinct roles. The **signing
+identity** (`ffmpeg-wasi-release-v2@phpboyscout.uk`) is what afmpeg embeds and cross-checks — it
+signs releases. More than one key can carry that identity at once: afmpeg currently pins two, and
+a release is signed by both, which is how a rotation ships without invalidating anything.
 The **rotation-authority key** (`release@phpboyscout.uk`) is a shared, *offline* break-glass key
 that certifies and rotates signing keys; it never signs releases and is **not** in afmpeg's
 runtime trust set (afmpeg pins the signing key directly, so the rotation key adds no runtime
@@ -92,5 +94,8 @@ anchor narrows the attack surface; it does not eliminate that case.
 ## Verifying by hand
 
 You don't need afmpeg (or Go) to check a release — see
-[Verify a release by hand](../../how-to/verify-a-release-by-hand.md): fetch the key from WKD,
+[Verify a release by hand](../../how-to/verify-a-release-by-hand.md): fetch the keys from WKD,
 verify the OpenPGP signature over `checksums.txt`, then `sha256sum -c`.
+
+The pinned fingerprints, the exact asset and provenance names, and where verified bytes are
+cached are in [engine releases](../../reference/release-artifacts.md).

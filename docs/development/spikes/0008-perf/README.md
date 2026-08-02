@@ -1,6 +1,6 @@
 # Spike — spec 0008 performance measurement rig
 
-Answers the [0008](../../specs/0008-performance-strategy.md) question — *"is single-threaded
+Answers the [0008](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0008-performance-strategy) question — *"is single-threaded
 WASM encode actually a problem, and by how much versus native?"* — with **measured numbers**
 instead of assumptions.
 

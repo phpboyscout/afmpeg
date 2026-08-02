@@ -1,6 +1,6 @@
 # Spike — Backend B custom-AVIO/IPC bridge (spec 0028 §5.2)
 
-Proves the [0028](../../specs/0028-native-subprocess-backend.md) **Backend B** I/O model: a native
+Proves the [0028](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0028-native-subprocess-backend) **Backend B** I/O model: a native
 `libav*`-linked program whose *entire* media I/O is `avio_alloc_context` read/write/**seek**
 callbacks over a **Unix socket** to a Go host serving an **in-memory store** (the afero stand-in) —
 remuxing to a **non-fragmented MP4**, the case the HTTP-`PUT` bridge (Backend C) cannot do.
