@@ -41,7 +41,7 @@ what does change with the code.
 
 | Also | Scope |
 |------|-------|
-| [external review — validation & disposition](external-review/README.md) | The commissioned external review + our per-finding validation verdicts and spec mapping |
+| [external review — validation & disposition](https://gitlab.com/phpboyscout/afmpeg/-/wikis/external-review/home) | The commissioned external review + our per-finding validation verdicts and spec mapping |
 
 ## Method
 
