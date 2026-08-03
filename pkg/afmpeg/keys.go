@@ -4,7 +4,7 @@ import (
 	"embed"
 	"io/fs"
 
-	"github.com/cockroachdb/errors"
+	"gitlab.com/phpboyscout/go/errors"
 )
 
 // keyFS holds afmpeg's pinned OpenPGP public keys (ASCII-armored): the

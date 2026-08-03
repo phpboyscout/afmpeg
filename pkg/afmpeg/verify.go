@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/cockroachdb/errors"
+	"gitlab.com/phpboyscout/go/errors"
 	"gitlab.com/phpboyscout/go/signing/verify"
 )
 
@@ -89,7 +89,7 @@ type ProvenanceVariant struct {
 // ErrProvenanceMismatch is returned when a release's provenance does not
 // corroborate the requested variant. (Signature failures surface as
 // signing/verify's ErrSignatureInvalid; checksum failures as ErrChecksumMismatch.)
-var ErrProvenanceMismatch = errors.New("afmpeg: release provenance mismatch")
+var ErrProvenanceMismatch = errors.NewSentinel("afmpeg.provenance_mismatch", "afmpeg: release provenance mismatch")
 
 // releaseBundle is the set of fetched (or locally supplied) assets for one
 // (tag, variant) release. signature is an ASCII-armored OpenPGP detached

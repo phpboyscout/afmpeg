@@ -3,10 +3,10 @@ package afmpeg
 import (
 	"context"
 
-	"github.com/cockroachdb/errors"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
 	"github.com/tetratelabs/wazero/experimental"
+	"gitlab.com/phpboyscout/go/errors"
 )
 
 // runtimeCoreFeatures are the WebAssembly features afmpeg's runtime enables. It

@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cockroachdb/errors"
+	"gitlab.com/phpboyscout/go/errors"
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 
 // ErrChecksumMismatch is returned by a URL-sourced module whose downloaded bytes
 // do not match the expected SHA-256.
-var ErrChecksumMismatch = errors.New("afmpeg: module checksum mismatch")
+var ErrChecksumMismatch = errors.NewSentinel("afmpeg.checksum_mismatch", "afmpeg: module checksum mismatch")
 
 // fetchConfig configures a module download.
 type fetchConfig struct {

@@ -5,8 +5,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/cockroachdb/errors"
 	"github.com/spf13/afero"
+	"gitlab.com/phpboyscout/go/errors"
 )
 
 // serveConn services one file session on conn against fs: it validates the

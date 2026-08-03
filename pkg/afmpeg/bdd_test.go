@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cockroachdb/errors"
 	"github.com/cucumber/godog"
+	"gitlab.com/phpboyscout/go/errors"
 	"gitlab.com/phpboyscout/go/signing/openpgpkey"
 	"gitlab.com/phpboyscout/go/signing/verify"
 )

@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/cockroachdb/errors"
 	"github.com/spf13/afero"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/experimental/sysfs"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 	wsys "github.com/tetratelabs/wazero/sys"
+	"gitlab.com/phpboyscout/go/errors"
 
 	"gitlab.com/phpboyscout/afmpeg/internal/vfs"
 )

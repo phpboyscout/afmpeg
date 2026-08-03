@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/cockroachdb/errors"
+	"gitlab.com/phpboyscout/go/errors"
 
 	"gitlab.com/phpboyscout/afmpeg/pkg/afmpeg"
 )

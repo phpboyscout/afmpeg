@@ -3,7 +3,7 @@ package afmpeg
 import (
 	"encoding/json"
 
-	"github.com/cockroachdb/errors"
+	"gitlab.com/phpboyscout/go/errors"
 )
 
 // ProcessResult is the structured result of a process job (Run / RunJob), parsed

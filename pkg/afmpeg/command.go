@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cockroachdb/errors"
 	"github.com/spf13/afero"
+	"gitlab.com/phpboyscout/go/errors"
 )
 
 // Command is a declarative description of a media job for the ffmpeg-wasi engine:

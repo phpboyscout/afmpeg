@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cockroachdb/errors"
+	"gitlab.com/phpboyscout/go/errors"
 	"gitlab.com/phpboyscout/go/signing/openpgpkey"
 	"gitlab.com/phpboyscout/go/signing/verify"
 )

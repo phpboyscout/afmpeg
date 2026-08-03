@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cockroachdb/errors"
 	"github.com/spf13/afero"
+	"gitlab.com/phpboyscout/go/errors"
 )
 
 const (
@@ -41,7 +41,7 @@ const (
 
 // ErrNoModule is returned by New when no wasm module source is configured. The
 // module is never embedded, so a WithModule* option is mandatory (spec 0004 D-C).
-var ErrNoModule = errors.New("afmpeg: no wasm module configured (use WithModuleRelease, WithModuleURL, WithModuleFile, WithModuleBytes, or WithModuleFS)")
+var ErrNoModule = errors.NewSentinel("afmpeg.no_module", "afmpeg: no wasm module configured (use WithModuleRelease, WithModuleURL, WithModuleFile, WithModuleBytes, or WithModuleFS)")
 
 // Runtime drives an engine backend behind a stable API. Build it once with New —
 // compiling the wasm module (the default backend) is the expensive step — and

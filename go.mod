@@ -3,10 +3,10 @@ module gitlab.com/phpboyscout/afmpeg
 go 1.26.5
 
 require (
-	github.com/cockroachdb/errors v1.14.0
 	github.com/cucumber/godog v0.15.1
 	github.com/spf13/afero v1.15.0
 	github.com/tetratelabs/wazero v1.12.0
+	gitlab.com/phpboyscout/go/errors v0.1.0
 	gitlab.com/phpboyscout/go/signing v0.5.0
 	golang.org/x/image v0.44.0
 )
@@ -14,6 +14,7 @@ require (
 require (
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
+	github.com/cockroachdb/errors v1.14.0 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cucumber/gherkin/go/v26 v26.2.0 // indirect

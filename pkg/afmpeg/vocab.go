@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/cockroachdb/errors"
 	"github.com/spf13/afero"
+	"gitlab.com/phpboyscout/go/errors"
 )
 
 // vocabVersion is the job-spec vocabulary version this afmpeg emits (spec 0007

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/cockroachdb/errors"
 	"github.com/spf13/afero"
+	"gitlab.com/phpboyscout/go/errors"
 )
 
 // FrameJob is a declarative request to pull still frames from one video input to
