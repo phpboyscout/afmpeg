@@ -169,7 +169,8 @@ Other things this path enforces, none of them configurable:
 - **the variant is neither `lgpl` nor `gpl`** — `afmpeg: unknown variant "…" (want "lgpl" or "gpl")`;
 - **the profile is `full`** — there is no WASM full module, so `WithModuleRelease` refuses it and
   names the alternative: `profile "full" is native-only — load it with native.NewFromRelease`;
-- **the profile is anything else unrecognised** — `afmpeg: unknown profile "…"`.
+- **the profile is anything else unrecognised** — `afmpeg: unknown profile "…" (want "lean" or
+  "intermediate")`.
 
 The tag is **not** validated. A tag that does not exist surfaces later as a download failure on
 `checksums.txt`, not as a "no such release" error.
@@ -214,7 +215,7 @@ Why it exists at all is covered in
 | `verify.ErrSignatureInvalid` | `checksums.txt.sig` does not verify against the trusted keys |
 | `verify.ErrKeyResolverMismatch` | the embedded key and the WKD key disagree |
 | `afmpeg: compile module` | wazero could not compile the bytes — usually not a WASI ffmpeg build, or one needing features this runtime does not enable |
-| `afmpeg: ffmpeg-wasi engine vocabulary vN is older than this afmpeg requires (v9)` | the module is a gated ffmpeg-wasi engine too old for the job spec this afmpeg emits |
+| `afmpeg: ffmpeg-wasi engine vocabulary vN is older than this afmpeg requires (v9); upgrade the module` | the module is a gated ffmpeg-wasi engine too old for the job spec this afmpeg emits |
 
 The vocabulary check only fires for a module that answers the engine's `version` op. A generic
 WASI module that does not is run as-is — a `Runtime` can drive any wasm module, it just has no
