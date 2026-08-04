@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.13.1](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.13.1)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.13.0...v0.13.1)
+
+### Bug Fixes
+
+- **deps**: update module gitlab.com/phpboyscout/go/signing to v0.6.1 ([2da34d7](https://gitlab.com/phpboyscout/afmpeg/-/commit/2da34d75ce1fda9b8c79e9f0cf26ccc86c5fc707))
+
 ## [v0.13.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.13.0)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.12.0...v0.13.0)
