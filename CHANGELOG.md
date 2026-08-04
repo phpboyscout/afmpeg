@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.13.2](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.13.2)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.13.1...v0.13.2)
+
+### Bug Fixes
+
+- **deps**: update module gitlab.com/phpboyscout/go/errors to v0.2.0 ([7ff1c9c](https://gitlab.com/phpboyscout/afmpeg/-/commit/7ff1c9cd799a3fa4d16cc7a623400f6f70c3491a))
+
 ## [v0.13.1](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.13.1)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.13.0...v0.13.1)
