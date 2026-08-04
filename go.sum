@@ -34,8 +34,8 @@ github.com/tetratelabs/wazero v1.12.0 h1:DuWcpNu/FzgEXgGBDp8J1Spc+CWOvvtvVyjKlaZ
 github.com/tetratelabs/wazero v1.12.0/go.mod h1:LvKtzl2RqO4gyF27BiXU+nKAjcV8f38U+kP/q2vgxh0=
 gitlab.com/phpboyscout/go/errors v0.1.0 h1:xv47mBwOxVB3MznoUKXFohSB+K3BNIFTnHysJw/rnUg=
 gitlab.com/phpboyscout/go/errors v0.1.0/go.mod h1:PXvnIO9P3Vanx1n0KYGr5s0rD0eKrrKBdbNfWUQWDjw=
-gitlab.com/phpboyscout/go/signing v0.6.0 h1:Fo9TbdqH+P1j3T2czv9uXh1Ak3nvR2j3ALm48DtdPMc=
-gitlab.com/phpboyscout/go/signing v0.6.0/go.mod h1:/3A542bQYaS9Kc+bn1DKRTxm0U0WCbpwbXzlAKm8a44=
+gitlab.com/phpboyscout/go/signing v0.6.1 h1:I1G2a+LNZWXp7vS9qmtlu7p6Yyz8xwzbhydMeOod05s=
+gitlab.com/phpboyscout/go/signing v0.6.1/go.mod h1:Rb3rhFkcP/bltgzS2VIZx/rNYdt5rZEmFnVIO4xBVtw=
 golang.org/x/crypto v0.54.0 h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=
 golang.org/x/crypto v0.54.0/go.mod h1:KWL8ny2AZdGR2cWmzeHrp2azQPGogOv+HeQaVEXC2dk=
 golang.org/x/image v0.44.0 h1:+tDekMZED9+LrtB3G5xzRggpVh9CARjZqROla3R3R+I=
