@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.13.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.13.0)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.12.0...v0.13.0)
+
+### Features
+
+- adopt gitlab.com/phpboyscout/go/errors ([bb9b94d](https://gitlab.com/phpboyscout/afmpeg/-/commit/bb9b94d1cc1bc400aa50760235fb74169856441f))
+- **progress**: prefer engine-derived Fraction over saturated byte ratio ([fce4b6c](https://gitlab.com/phpboyscout/afmpeg/-/commit/fce4b6c9e0f35ef103f302dd84df4094d2c1e37a))
+
+### Bug Fixes
+
+- **deps**: update module github.com/cucumber/godog to v0.16.0 ([f875646](https://gitlab.com/phpboyscout/afmpeg/-/commit/f875646093d1219377732b2aa6f0dceaafd3329a))
+- **deps**: update module gitlab.com/phpboyscout/go/signing to v0.5.0 ([1690781](https://gitlab.com/phpboyscout/afmpeg/-/commit/1690781009c5d4c11a7499195115d0f942aabb65))
+- **deps**: update module gitlab.com/phpboyscout/go/signing to v0.4.0 ([0e81328](https://gitlab.com/phpboyscout/afmpeg/-/commit/0e81328f65a72fd2a33516eb03294f1aeaa6782f))
+
 ## [v0.12.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.12.0)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.11.2...v0.12.0)
