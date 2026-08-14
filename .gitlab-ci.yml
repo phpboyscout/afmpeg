@@ -28,17 +28,17 @@ include:
   # Quality gates — MR-only by default. Toolchain + tools come from the
   # cicd dev-tools image baked into the components (Go 1.26.x, govulncheck,
   # golangci-lint).
-  - component: gitlab.com/phpboyscout/cicd/go-lint@v0.35.0
-  - component: gitlab.com/phpboyscout/cicd/go-test@v0.35.0
-  - component: gitlab.com/phpboyscout/cicd/go-security@v0.35.0
+  - component: gitlab.com/phpboyscout/cicd/go-lint@v0.36.0
+  - component: gitlab.com/phpboyscout/cicd/go-test@v0.36.0
+  - component: gitlab.com/phpboyscout/cicd/go-security@v0.36.0
 
   # Docs — main-branch zensical-pages deploy.
-  - component: gitlab.com/phpboyscout/cicd/zensical-pages@v0.35.0
+  - component: gitlab.com/phpboyscout/cicd/zensical-pages@v0.36.0
 
   # Release MR machinery — our wrapper over apricote/releaser-pleaser
   # (carries the schedule-never guard, so it does not fire on the Renovate
   # schedule).
-  - component: gitlab.com/phpboyscout/cicd/releaser-pleaser@v0.35.0
+  - component: gitlab.com/phpboyscout/cicd/releaser-pleaser@v0.36.0
     inputs:
       token: $RELEASER_PLEASER_TOKEN
       branch: main
@@ -52,7 +52,7 @@ include:
   # major cuts only by default; the webhook comes from the
   # DISCORD_RELEASE_WEBHOOK group variable, which is protected and so
   # reaches this job because `v*` is a protected tag here.
-  - component: gitlab.com/phpboyscout/cicd/discord-release@v0.35.0
+  - component: gitlab.com/phpboyscout/cicd/discord-release@v0.36.0
     inputs:
       # Headline project: patch releases are news here too.
       announce_patches: true
