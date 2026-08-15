@@ -31,6 +31,25 @@ var nativeDrivers = []struct {
 	{afmpeg.ProfileFull, true, "AFMPEG_TEST_NATIVE_DRIVER_FULL_GPL"},
 }
 
+// integrationModule resolves a WASM module for the one test here that compares
+// the two backends. Only the lean profile is ever needed on this side, so this is
+// a narrower thing than pkg/afmpeg's profile-aware resolver — which lives in a
+// different test package and cannot be shared without exporting it.
+func integrationModule(t *testing.T) string {
+	t.Helper()
+
+	// Intermediate is a superset of lean, so either will do.
+	for _, env := range []string{"AFMPEG_TEST_FFMPEG_WASI", "AFMPEG_TEST_FFMPEG_WASI_INTERMEDIATE"} {
+		if path := os.Getenv(env); path != "" {
+			return path
+		}
+	}
+
+	t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi module to run this test")
+
+	return ""
+}
+
 // profileRank orders the capability profiles. A higher rank includes everything a
 // lower one carries.
 func profileRank(t *testing.T, p afmpeg.Profile) int {
