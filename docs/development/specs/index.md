@@ -44,7 +44,7 @@ conventions stay in `docs/`, because those change with the code.
 | [0032](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0032-engine-progress-side-channel) | engine progress side-channel (0031 phase B) | `IMPLEMENTED` |
 | [0033](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0033-native-progress-side-channel) | native progress side-channel (0031 phase B for Backend B) | `DRAFT` |
 | [0034](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0034-fraction-source-precedence) | Fraction source precedence (progress correctness) | `IMPLEMENTED` |
-| [0035](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0035-engine-builds-on-a-merge-request) | engine builds on a merge request (ffmpeg-wasi CI evidence before the tag) | `DRAFT` |
+| [0035](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0035-engine-builds-on-a-merge-request) | engine builds on a merge request (ffmpeg-wasi CI evidence before the tag) | `APPROVED` |
 
 ## Referring to a spec
 
