@@ -6,10 +6,20 @@
 #
 # Quality gates live exclusively at the MR level — pushing to main runs
 # nothing except releaser-pleaser (which itself opens an MR that gets the
-# full gate), so by the time anything lands on main it has already been
-# vetted. The zensical-pages deploy fires from the tag releaser-pleaser
-# cuts when its Release MR merges, so the docs site always corresponds to
-# a real tagged release.
+# full gate) and the docs deploy, so by the time anything lands on main it
+# has already been vetted.
+#
+# The zensical-pages deploy fires from **main**, not from a release tag: the
+# component's `pages` job is gated on `$CI_COMMIT_BRANCH == "main"` and its
+# `zensical-build` explicitly declines to run when `$CI_COMMIT_TAG` is set.
+# So the docs site tracks main, and a docs-only change is live as soon as it
+# merges — no release needed. Both jobs also carry a `changes` filter
+# (docs/**/*, zensical.toml, .gitlab-ci.yml by default), so a code-only
+# change does not rebuild the site.
+#
+# Note the consequence: docs on the site can be ahead of the newest tag,
+# while pkg.go.dev renders doc.go from the tag and so lags until the next
+# release. That is the intended trade — a docs fix should not need a release.
 #
 # NOTE: afmpeg is library-first (spec 0001 / 0004). There is no goreleaser
 # job yet — it ships no binary. When `cmd/afmpeg` lands (spec 0006 / 2D),
