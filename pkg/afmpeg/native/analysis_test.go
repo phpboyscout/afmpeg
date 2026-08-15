@@ -17,15 +17,17 @@ import (
 // TestIntegration_AnalysisFilterOutput proves structured analysis-filter output
 // (spec 0017 §Q): a cropdetect filter's per-frame lavfi.* measurements come back in
 // the result JSON's `analysis` array (afmpeg.ParseResult → ProcessResult.Analysis),
-// not only the log. Gated on AFMPEG_TEST_NATIVE_DRIVER (any profile ≥ intermediate)
-// + a host ffmpeg to synthesise a black-bordered fixture cropdetect can measure.
+// not only the log.
+//
+// Needs an intermediate **gpl** driver on both counts: cropdetect carries
+// `cropdetect_filter_deps="gpl"` upstream, and the output is encoded with libx264.
+// No lgpl build carries either, whatever its profile — so set
+// AFMPEG_TEST_NATIVE_DRIVER_INTERMEDIATE_GPL (or _FULL_GPL). Also needs a host
+// ffmpeg to synthesise the black-bordered fixture cropdetect measures.
 func TestIntegration_AnalysisFilterOutput(t *testing.T) {
 	t.Parallel()
 
-	driver := os.Getenv("AFMPEG_TEST_NATIVE_DRIVER")
-	if driver == "" {
-		t.Skip("set AFMPEG_TEST_NATIVE_DRIVER to a native driver binary to run this")
-	}
+	driver := integrationDriver(t, afmpeg.ProfileIntermediate, true)
 
 	ff, err := exec.LookPath("ffmpeg")
 	if err != nil {

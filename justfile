@@ -45,6 +45,10 @@ test-race:
 # the intermediate-profile tests need mpegts/libopus/yadif/libass, which a lean build
 # does not carry. Omit either and the tests needing it skip, naming what to set.
 #   just test-integration ~/m/ffmpeg-wasi-lgpl.wasm ~/m/ffmpeg-wasi-intermediate-lgpl.wasm
+#
+# The pkg/afmpeg/native tests want *driver* binaries instead, named by profile and
+# licence variant (AFMPEG_TEST_NATIVE_DRIVER[_INTERMEDIATE|_FULL][_GPL]). Put those
+# in a .env — dotenv-load is on — since one gpl intermediate driver satisfies them all.
 test-integration lean="" intermediate="":
     AFMPEG_TEST_FFMPEG_WASI="{{lean}}" \
     AFMPEG_TEST_FFMPEG_WASI_INTERMEDIATE="{{intermediate}}" \

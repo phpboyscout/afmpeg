@@ -19,16 +19,13 @@ import (
 // entirely through the caller's afero.Fs over the IPC bridge — no host-disk file
 // for the input or the output.
 //
-// Gated on AFMPEG_TEST_NATIVE_DRIVER (a path to a native driver binary, built with
-// ffmpeg-wasi's build/Dockerfile.native) and a host ffmpeg to synthesise a
+// Gated on AFMPEG_TEST_NATIVE_DRIVER (a lean-or-richer native driver binary, built
+// with ffmpeg-wasi's build/Dockerfile.native) and a host ffmpeg to synthesise a
 // fixture; skipped otherwise, so CI stays green without the artifact.
 func TestIntegration_NativeBackend_RemuxOverIPC(t *testing.T) {
 	t.Parallel()
 
-	driver := os.Getenv("AFMPEG_TEST_NATIVE_DRIVER")
-	if driver == "" {
-		t.Skip("set AFMPEG_TEST_NATIVE_DRIVER to a native driver binary to run this")
-	}
+	driver := integrationDriver(t, afmpeg.ProfileLean, false)
 
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {

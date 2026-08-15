@@ -102,6 +102,34 @@ AFMPEG_TEST_FFMPEG_WASI_INTERMEDIATE=/path/to/ffmpeg-wasi-intermediate-lgpl.wasm
 
 Both are published on every [ffmpeg-wasi release](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases).
 
+#### Backend B (the native driver)
+
+The `pkg/afmpeg/native` tests drive a native **driver binary** rather than a WASM module, and
+a driver varies on two independent axes — the capability profile *and* the licence variant:
+
+| Variable | Driver |
+|---|---|
+| `AFMPEG_TEST_NATIVE_DRIVER` | lean / lgpl |
+| `AFMPEG_TEST_NATIVE_DRIVER_GPL` | lean / gpl |
+| `AFMPEG_TEST_NATIVE_DRIVER_INTERMEDIATE` | intermediate / lgpl |
+| `AFMPEG_TEST_NATIVE_DRIVER_INTERMEDIATE_GPL` | intermediate / gpl |
+| `AFMPEG_TEST_NATIVE_DRIVER_FULL` | full / lgpl |
+| `AFMPEG_TEST_NATIVE_DRIVER_FULL_GPL` | full / gpl |
+
+Both axes are ordered, so a richer driver satisfies a poorer requirement and the resolver
+picks the least-rich adequate one supplied. In practice **one intermediate/gpl driver runs
+every native test**, because gpl is a superset of lgpl and intermediate of lean.
+
+The variant axis is not cosmetic: `cropdetect` carries `cropdetect_filter_deps="gpl"`
+upstream, so it is absent from every lgpl build no matter how rich the profile — as is the
+`libx264` encoder. A test needing either skips on an lgpl driver rather than failing with a
+message about a missing filter.
+
+Put these in a `.env` (the justfile sets `dotenv-load`) and `just test-integration` picks
+them up. Full is native-only, per spec
+[0022](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0022-capability-profiles) §4 —
+there is no WASM-full module.
+
 The runtime provides the `env` setjmp/longjmp host module and the WebAssembly feature set a
 real FFmpeg build needs (spec [0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api) R-0004-9), so a released
 [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine (spec
