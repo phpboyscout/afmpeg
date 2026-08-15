@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.14.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.14.0)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.13.2...v0.14.0)
+
+### Features
+
+- **ci**: announce releases to Discord ([277572a](https://gitlab.com/phpboyscout/afmpeg/-/commit/277572a8352c549ca9e71dbe17d8b5ac91b10d39))
+
+### Bug Fixes
+
+- **deps**: update module golang.org/x/image to v0.45.0 [security] ([3e09450](https://gitlab.com/phpboyscout/afmpeg/-/commit/3e09450826fb6d690097e77565f6a0dc150a1121))
+- **deps**: require go 1.26.6 for the stdlib advisories ([98d8a20](https://gitlab.com/phpboyscout/afmpeg/-/commit/98d8a20b841d2cbcc53f1148654b1baf730d6218))
+- **ci**: bump the cicd components to v0.36.0 for Go 1.26.6 ([21a1165](https://gitlab.com/phpboyscout/afmpeg/-/commit/21a11656713bb1516411aca9426f8a974255f76f))
+- **deps**: update module gitlab.com/phpboyscout/go/signing to v0.6.2 ([358ee91](https://gitlab.com/phpboyscout/afmpeg/-/commit/358ee910424ac4ea8579e8e59361d82feaaec065))
+
 ## [v0.13.2](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.13.2)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.13.1...v0.13.2)
