@@ -2,7 +2,6 @@ package afmpeg_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -18,10 +17,7 @@ import (
 func TestIntegration_ProgressReporting(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 

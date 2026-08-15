@@ -2,7 +2,6 @@ package afmpeg_test
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -20,10 +19,7 @@ import (
 func TestIntegration_ProgressPhaseB(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a v9 ffmpeg-wasi build to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 

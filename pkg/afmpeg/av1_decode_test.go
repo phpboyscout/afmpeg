@@ -18,10 +18,7 @@ import (
 // afmpeg.New would fail — and (b) DECODES AV1. Gated on AFMPEG_TEST_FFMPEG_WASI
 // pointing at the spike intermediate module + a host ffmpeg to synthesise AV1.
 func TestIntegration_WASM_AV1Decode(t *testing.T) {
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to the spike intermediate .wasm")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ff, err := exec.LookPath("ffmpeg")
 	if err != nil {

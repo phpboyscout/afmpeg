@@ -28,10 +28,7 @@ import (
 func TestIntegration_FFmpegWasiDriver(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -93,10 +90,7 @@ func TestIntegration_FFmpegWasiDriver(t *testing.T) {
 func TestIntegration_H264Encode_OpenH264(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -229,10 +223,7 @@ func makeWAVMono(sampleRate int, seconds float64) []byte {
 func TestIntegration_RunJob(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -280,10 +271,7 @@ func TestIntegration_RunJob(t *testing.T) {
 func TestIntegration_RunJob_MultiOutput(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -334,10 +322,7 @@ func TestIntegration_RunJob_MultiOutput(t *testing.T) {
 func TestIntegration_Probe_FFmpegWasiDriver(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -377,10 +362,7 @@ func TestIntegration_Probe_FFmpegWasiDriver(t *testing.T) {
 func TestIntegration_VersionGate(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -450,10 +432,7 @@ func bootstrapAVMP4(t *testing.T, rt *afmpeg.Runtime, fs afero.Fs, path string) 
 func TestIntegration_StreamCopy_Remux(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -540,10 +519,7 @@ func bootstrapClipMP4(t *testing.T, rt *afmpeg.Runtime, fs afero.Fs, path string
 func TestIntegration_Seek(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -638,10 +614,7 @@ func TestIntegration_Seek(t *testing.T) {
 func TestIntegration_Seek_CopyTrim(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -737,10 +710,7 @@ func makeRawPCMS16LE(sampleRate int, seconds float64) []byte {
 func TestIntegration_RawInput(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -806,10 +776,7 @@ func TestIntegration_RawInput(t *testing.T) {
 func TestIntegration_InputOptions(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -860,10 +827,7 @@ func TestIntegration_InputOptions(t *testing.T) {
 func TestIntegration_IndexedStreamSelection(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -931,10 +895,7 @@ func TestIntegration_IndexedStreamSelection(t *testing.T) {
 func TestIntegration_NativeCodecs(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ctx := context.Background()
 
@@ -1015,10 +976,7 @@ func TestIntegration_NativeCodecs(t *testing.T) {
 func TestIntegration_LGPLEncoders(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ctx := context.Background()
 
@@ -1114,10 +1072,7 @@ func TestIntegration_LGPLEncoders(t *testing.T) {
 func TestIntegration_Frames(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ctx := context.Background()
 
@@ -1241,10 +1196,7 @@ func TestIntegration_Frames(t *testing.T) {
 func TestIntegration_Metadata(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -1309,10 +1261,7 @@ func TestIntegration_Metadata(t *testing.T) {
 func TestIntegration_BurnIn(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ctx := context.Background()
 
@@ -1396,10 +1345,7 @@ func TestIntegration_BurnIn(t *testing.T) {
 func TestIntegration_SubtitleStreams(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ctx := context.Background()
 
@@ -1486,10 +1432,7 @@ func TestIntegration_SubtitleStreams(t *testing.T) {
 func TestIntegration_ProbeRawInput(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -1525,10 +1468,7 @@ func TestIntegration_ProbeRawInput(t *testing.T) {
 func TestIntegration_NativeFilters(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ctx := context.Background()
 
@@ -1600,10 +1540,7 @@ func TestIntegration_NativeFilters(t *testing.T) {
 func TestIntegration_Containers(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ctx := context.Background()
 
@@ -1676,10 +1613,7 @@ func TestIntegration_Containers(t *testing.T) {
 func TestIntegration_MuxerSelection(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ctx := context.Background()
 
@@ -1713,10 +1647,7 @@ func TestIntegration_MuxerSelection(t *testing.T) {
 func TestIntegration_Segmenting_HLS(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ctx := context.Background()
 
@@ -1770,10 +1701,7 @@ func TestIntegration_Segmenting_HLS(t *testing.T) {
 func TestIntegration_FragmentedMP4(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -1811,10 +1739,7 @@ func TestIntegration_FragmentedMP4(t *testing.T) {
 func TestIntegration_TS_CopyRemux(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ctx := context.Background()
 
@@ -1860,10 +1785,7 @@ func TestIntegration_TS_CopyRemux(t *testing.T) {
 func TestIntegration_TS_ConcatCopy(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver (intermediate profile) to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileIntermediate)
 
 	ctx := context.Background()
 
@@ -1929,10 +1851,7 @@ func TestIntegration_TS_ConcatCopy(t *testing.T) {
 func TestIntegration_StreamCopy_Concat(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -1975,10 +1894,7 @@ func TestIntegration_StreamCopy_Concat(t *testing.T) {
 func TestIntegration_StreamCopy_BitstreamFilterNone(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 
@@ -2016,10 +1932,7 @@ func TestIntegration_StreamCopy_BitstreamFilterNone(t *testing.T) {
 func TestIntegration_StreamCopy_Mixed(t *testing.T) {
 	t.Parallel()
 
-	module := os.Getenv("AFMPEG_TEST_FFMPEG_WASI")
-	if module == "" {
-		t.Skip("set AFMPEG_TEST_FFMPEG_WASI to a built ffmpeg-wasi driver to run this test")
-	}
+	module := integrationModule(t, afmpeg.ProfileLean)
 
 	ctx := context.Background()
 

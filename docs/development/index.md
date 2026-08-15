@@ -73,12 +73,34 @@ just docs-serve # preview this site
 
 ### Integration test (real ffmpeg)
 
-The runtime has a gated integration test that loads a **real** ffmpeg-wasi module and
-transcodes in memory. It skips unless pointed at a module:
+The runtime has a gated integration suite that loads **real** ffmpeg-wasi modules and
+transcodes in memory. It skips unless pointed at a module, and there is one variable per
+capability profile (spec [0022](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0022-capability-profiles)):
+
+| Variable | Module |
+|---|---|
+| `AFMPEG_TEST_FFMPEG_WASI` | a **lean** build (or richer) |
+| `AFMPEG_TEST_FFMPEG_WASI_INTERMEDIATE` | an **intermediate** build |
+
+Profiles are cumulative but not interchangeable. Roughly a third of the suite exercises
+mpegts, HLS, libopus/libmp3lame/libvpx, yadif, loudnorm, libass burn-in or AV1 decode —
+none of which a lean build carries — so those tests need the intermediate module and skip
+without it, naming the variable to set. An intermediate build satisfies a lean test, so
+setting only the intermediate variable runs everything too.
 
 ```sh
-AFMPEG_TEST_FFMPEG_WASI=/path/to/ffmpeg-wasi.wasm go test ./pkg/afmpeg/ -run Integration -v
+just test-integration /path/to/ffmpeg-wasi-lgpl.wasm /path/to/ffmpeg-wasi-intermediate-lgpl.wasm
 ```
+
+or directly:
+
+```sh
+AFMPEG_TEST_FFMPEG_WASI=/path/to/ffmpeg-wasi-lgpl.wasm \
+AFMPEG_TEST_FFMPEG_WASI_INTERMEDIATE=/path/to/ffmpeg-wasi-intermediate-lgpl.wasm \
+  go test ./pkg/afmpeg/ -run Integration -v
+```
+
+Both are published on every [ffmpeg-wasi release](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases).
 
 The runtime provides the `env` setjmp/longjmp host module and the WebAssembly feature set a
 real FFmpeg build needs (spec [0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api) R-0004-9), so a released

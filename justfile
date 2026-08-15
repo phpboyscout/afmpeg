@@ -40,9 +40,15 @@ test:
 test-race:
     go test -race ./...
 
-# Run integration tests (env-gated; needs the real ffmpeg.wasm artifact — spec 0002/0004)
-test-integration:
-    INT_TEST=1 go test ./... -v
+# Run the integration suite against built ffmpeg-wasi modules (env-gated).
+# Pass BOTH profiles: spec 0022 profiles are cumulative but not interchangeable, and
+# the intermediate-profile tests need mpegts/libopus/yadif/libass, which a lean build
+# does not carry. Omit either and the tests needing it skip, naming what to set.
+#   just test-integration ~/m/ffmpeg-wasi-lgpl.wasm ~/m/ffmpeg-wasi-intermediate-lgpl.wasm
+test-integration lean="" intermediate="":
+    AFMPEG_TEST_FFMPEG_WASI="{{lean}}" \
+    AFMPEG_TEST_FFMPEG_WASI_INTERMEDIATE="{{intermediate}}" \
+    go test ./pkg/afmpeg/... -run Integration -v
 
 # Generate an HTML coverage report and open it
 coverage:
