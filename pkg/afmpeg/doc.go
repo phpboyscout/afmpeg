@@ -16,7 +16,7 @@
 // URL + SHA-256) or one of WithModuleFile / WithModuleBytes / WithModuleFS:
 //
 //	rt, err := afmpeg.New(ctx,
-//		afmpeg.WithModuleRelease("n8.1.2-12", afmpeg.VariantLGPL))
+//		afmpeg.WithModuleRelease("n9.0.1-1", afmpeg.VariantLGPL))
 //	if err != nil {
 //		return err
 //	}

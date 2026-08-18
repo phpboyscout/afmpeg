@@ -41,7 +41,7 @@ const (
 // it. Defaults to ProfileLean.
 //
 //	rt, err := afmpeg.New(ctx, afmpeg.WithBackend(
-//	    must(native.NewFromRelease(ctx, "n8.1.2-8", afmpeg.VariantGPL,
+//	    must(native.NewFromRelease(ctx, "n9.0.1-1", afmpeg.VariantGPL,
 //	        afmpeg.WithReleaseProfile(afmpeg.ProfileFull)))))
 func NewFromRelease(ctx context.Context, tag string, variant afmpeg.Variant, opts ...afmpeg.ReleaseOption) (*Backend, error) {
 	if variant != afmpeg.VariantLGPL && variant != afmpeg.VariantGPL {

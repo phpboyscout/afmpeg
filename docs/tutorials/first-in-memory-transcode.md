@@ -60,7 +60,7 @@ func run(ctx context.Context) error {
 	var prov afmpeg.Provenance
 
 	rt, err := afmpeg.New(ctx,
-		afmpeg.WithModuleRelease("n8.1.2-12", afmpeg.VariantLGPL,
+		afmpeg.WithModuleRelease("n9.0.1-1", afmpeg.VariantLGPL,
 			afmpeg.WithReleaseProvenance(&prov)),
 	)
 	if err != nil {
@@ -88,7 +88,7 @@ go run .
 ```
 
 ```
-engine: FFmpeg n8.1.2 (build n8.1.2-12)
+engine: FFmpeg n9.0.1 (build n9.0.1-1)
 ```
 
 Quite a lot happened in that one call. afmpeg downloaded the release's checksum manifest and its
@@ -212,8 +212,8 @@ The container comes from the `.mp4` extension. You never write an ffmpeg command
 ```
 
 ```
-engine: FFmpeg n8.1.2 (build n8.1.2-12)
-out/clip.mp4: 84561 bytes
+engine: FFmpeg n9.0.1 (build n9.0.1-1)
+out/clip.mp4: 84560 bytes
 ```
 
 Note the two error checks, because they mean different things. A **non-zero exit code is not a Go
@@ -352,7 +352,7 @@ func run(ctx context.Context) error {
 	var prov afmpeg.Provenance
 
 	rt, err := afmpeg.New(ctx,
-		afmpeg.WithModuleRelease("n8.1.2-12", afmpeg.VariantLGPL,
+		afmpeg.WithModuleRelease("n9.0.1-1", afmpeg.VariantLGPL,
 			afmpeg.WithReleaseProvenance(&prov)),
 	)
 	if err != nil {

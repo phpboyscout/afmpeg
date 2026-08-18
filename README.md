@@ -65,7 +65,7 @@ same no-host-disk guarantee, **48–58× faster** software encode (and HEVC/AV1)
 `WithBackend` / `native.NewFromRelease`; WASM stays the default.
 
 ```go
-rt, _ := afmpeg.New(ctx, afmpeg.WithModuleRelease("n8.1.2-12", afmpeg.VariantLGPL)) // compile once, reuse
+rt, _ := afmpeg.New(ctx, afmpeg.WithModuleRelease("n9.0.1-1", afmpeg.VariantLGPL)) // compile once, reuse
 defer rt.Close(ctx)
 
 fs := afero.NewMemMapFs()            // or the caller's in-memory worktree

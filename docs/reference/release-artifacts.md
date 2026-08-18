@@ -62,7 +62,7 @@ hand. `<variant>` is `lgpl` or `gpl`.
 | intermediate | `ffmpeg-wasi-intermediate-<variant>.wasm` |
 
 Each is also published gzip-compressed with a `.gz` suffix, for use with
-`WithModuleURL(…, WithGunzip())`. The lean `lgpl` module of `n8.1.2-12` is about 5.5 MB
+`WithModuleURL(…, WithGunzip())`. The lean `lgpl` module of `n9.0.1-1` is about 5.6 MB
 uncompressed.
 
 Lean carries no profile segment in its name — that is deliberate backward compatibility with

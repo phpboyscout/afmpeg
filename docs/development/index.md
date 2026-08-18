@@ -17,7 +17,7 @@ them.
 > specs (0013–0034) with dependencies and prerequisites, and its **Pick-up menu** of the remaining
 > trigger-gated work. Phases 0–4 are shipped (through **vocab v9** — job progress), and Phase 5
 > (the native backend + matrix, HEVC/AV1, perf) is **largely shipped** too. Current anchors:
-> afmpeg **v0.14.0**, ffmpeg-wasi **n8.1.2-12**. What remains
+> afmpeg **v0.14.0**, ffmpeg-wasi **n9.0.1-1**. What remains
 > is all optional/trigger-gated — `0009` CLI, `0030` WASM threads, arm64/darwin native, HW-accel
 > encode, `0025`/`0026`.
 
