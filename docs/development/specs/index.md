@@ -46,6 +46,7 @@ conventions stay in `docs/`, because those change with the code.
 | [0034](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0034-fraction-source-precedence) | Fraction source precedence (progress correctness) | `IMPLEMENTED` |
 | [0035](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0035-engine-builds-on-a-merge-request) | engine builds on a merge request (ffmpeg-wasi CI evidence before the tag) | `IMPLEMENTED` |
 | [0036](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0036-engine-test-suite) | engine test suite (the instrument for the n9 bump) | `IMPLEMENTED` |
+| [0038](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0038-engine-on-ffmpeg-n9) | the engine on FFmpeg n9.0.1 | `IMPLEMENTED` |
 
 ## Referring to a spec
 
