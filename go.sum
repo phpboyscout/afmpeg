@@ -32,8 +32,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/tetratelabs/wazero v1.12.0 h1:DuWcpNu/FzgEXgGBDp8J1Spc+CWOvvtvVyjKlaZopYU=
 github.com/tetratelabs/wazero v1.12.0/go.mod h1:LvKtzl2RqO4gyF27BiXU+nKAjcV8f38U+kP/q2vgxh0=
-gitlab.com/phpboyscout/go/errors v0.2.0 h1:m/I+1oI2Qr77JBAVUvIsj7bNnExh+/yrdfHLmVg4nUg=
-gitlab.com/phpboyscout/go/errors v0.2.0/go.mod h1:PXvnIO9P3Vanx1n0KYGr5s0rD0eKrrKBdbNfWUQWDjw=
+gitlab.com/phpboyscout/go/errors v0.3.0 h1:MNCCEGdWGj8rpaDFfcufBQZPPMqGY9HbHg8L13mfSVQ=
+gitlab.com/phpboyscout/go/errors v0.3.0/go.mod h1:Nzx3wIKEwQd5DlKGFgcFlaUptL9XTqWEFtBN1pAgi78=
 gitlab.com/phpboyscout/go/signing v0.6.2 h1:KCDC4RSU2ElC7rBi047jH9cK+PXLR3nsatD7bDrh6fs=
 gitlab.com/phpboyscout/go/signing v0.6.2/go.mod h1:K9/HcOUnXzsKjlYZUIJLanM56bM3MrthpuEGhDHExeg=
 golang.org/x/crypto v0.54.0 h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=
