@@ -48,6 +48,8 @@ conventions stay in `docs/`, because those change with the code.
 | [0036](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0036-engine-test-suite) | engine test suite (the instrument for the n9 bump) | `IMPLEMENTED` |
 | [0037](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0037-engine-parity-and-ipc-host) | engine test suite phase D — parity and the IPC host | `IMPLEMENTED` |
 | [0038](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0038-engine-on-ffmpeg-n9) | the engine on FFmpeg n9.0.1 | `IMPLEMENTED` |
+| [0039](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0039-native-driver-filesystem-boundary) | the native driver's filesystem boundary (routing path-taking filter/codec options over the IPC bridge) | `DRAFT` |
+| [0040](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0040-native-driver-sandbox) | the native driver sandbox (opt-in Landlock confinement, 0039's guarantee enforced by the kernel) | `DRAFT` |
 
 ## Referring to a spec
 
