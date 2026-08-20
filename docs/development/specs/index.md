@@ -50,6 +50,8 @@ conventions stay in `docs/`, because those change with the code.
 | [0038](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0038-engine-on-ffmpeg-n9) | the engine on FFmpeg n9.0.1 | `IMPLEMENTED` |
 | [0039](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0039-native-driver-filesystem-boundary) | the native driver's filesystem boundary (routing path-taking filter/codec options over the IPC bridge) | `DRAFT` |
 | [0040](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0040-native-driver-sandbox) | the native driver sandbox (opt-in Landlock confinement, 0039's guarantee enforced by the kernel) | `DRAFT` |
+| [0041](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0041-ipc-protocol-primitives) | the IPC protocol's missing primitives (read failure, rename, and asking what exists) | `DRAFT` |
+| [0042](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0042-fontconfig-and-adaptive-demuxers) | fontconfig, the hls/dash demuxers, and the filesystem surface | `DRAFT` |
 
 ## Referring to a spec
 
