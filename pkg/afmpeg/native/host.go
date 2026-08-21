@@ -26,8 +26,45 @@ func serveConn(conn io.ReadWriteCloser, fs afero.Fs) (err error) {
 		return errors.Wrap(e, "native: read protocol version")
 	}
 
-	if ver[0] != protocolVersion {
-		return errors.Newf("native: unsupported protocol version %d (want %d)", ver[0], protocolVersion)
+	if ver[0] < protocolVersionMin || ver[0] > protocolVersion {
+		return errors.Newf("native: unsupported protocol version %d (want %d..%d)",
+			ver[0], protocolVersionMin, protocolVersion)
+	}
+
+	// The driver announces the highest version it speaks; the host answers with the
+	// version it will actually use, so a driver built against a newer contract can
+	// degrade rather than guess (spec 0041 D1). A v1 driver expects no answer and
+	// would read one as its Open status, so this is sent only from v2 up.
+	agreed := ver[0]
+	if agreed >= protocolVersionNegotiated {
+		if _, e := conn.Write([]byte{agreed}); e != nil {
+			return errors.Wrap(e, "native: write negotiated version")
+		}
+	}
+
+	var tag [1]byte
+	if _, e := io.ReadFull(conn, tag[:]); e != nil {
+		return errors.Wrap(e, "native: read session opcode")
+	}
+
+	switch tag[0] {
+	case opOpen:
+	case opMove:
+		if agreed < protocolVersionNegotiated {
+			return errors.Newf("native: Move needs protocol v%d, this session agreed v%d",
+				protocolVersionNegotiated, agreed)
+		}
+
+		return serveMove(conn, fs)
+	case opExists:
+		if agreed < protocolVersionNegotiated {
+			return errors.Newf("native: Exists needs protocol v%d, this session agreed v%d",
+				protocolVersionNegotiated, agreed)
+		}
+
+		return serveExists(conn, fs)
+	default:
+		return errors.Newf("native: expected Open, Move or Exists, got %q", tag[0])
 	}
 
 	name, mode, err := readOpen(conn)
@@ -48,21 +85,19 @@ func serveConn(conn io.ReadWriteCloser, fs afero.Fs) (err error) {
 		return errors.Wrap(e, "native: write open status")
 	}
 
-	return serveFile(conn, file)
+	return serveFile(conn, file, agreed)
 }
 
-// readOpen reads the Open frame: 'O', mode, nameLen(u32), name.
+// readOpen reads the rest of an Open frame: mode, nameLen(u32), name. The 'O'
+// tag has already been consumed by serveConn, which needs it to tell Open from
+// the session-level Move and Exists.
 func readOpen(conn io.Reader) (name string, mode byte, err error) {
-	hdr := make([]byte, 6) //nolint:mnd // 'O' + mode + u32 nameLen
+	hdr := make([]byte, 5) //nolint:mnd // mode + u32 nameLen
 	if _, e := io.ReadFull(conn, hdr); e != nil {
 		return "", 0, errors.Wrap(e, "native: read open header")
 	}
 
-	if hdr[0] != opOpen {
-		return "", 0, errors.Newf("native: expected open op, got %q", hdr[0])
-	}
-
-	n := binary.LittleEndian.Uint32(hdr[2:])
+	n := binary.LittleEndian.Uint32(hdr[1:])
 	if n > maxFrameBytes {
 		return "", 0, errors.Newf("native: open name length %d exceeds cap", n)
 	}
@@ -72,7 +107,97 @@ func readOpen(conn io.Reader) (name string, mode byte, err error) {
 		return "", 0, errors.Wrap(e, "native: read open name")
 	}
 
-	return string(nameBuf), hdr[1], nil
+	return string(nameBuf), hdr[0], nil
+}
+
+// readName reads a length-prefixed name: nameLen(u32), name[nameLen].
+func readName(conn io.Reader, what string) (string, error) {
+	n, err := readCount(conn)
+	if err != nil {
+		return "", err
+	}
+
+	buf := make([]byte, n)
+	if _, e := io.ReadFull(conn, buf); e != nil {
+		return "", errors.Wrapf(e, "native: read %s name", what)
+	}
+
+	return string(buf), nil
+}
+
+// serveMove renames from to to, so a muxer can replace a file atomically.
+//
+// HLS writes stream.m3u8.tmp and renames, so anything reading the playlist
+// concurrently sees a whole file or the previous one. Copy-then-delete would
+// satisfy the file layout and lose the property the muxer wanted, which is why
+// this is a frame rather than something the engine emulates (spec 0041 D3).
+//
+// A host whose filesystem cannot rename atomically answers with a failure status
+// and the job fails by name — never a silent fallback to the weaker guarantee.
+func serveMove(conn io.ReadWriter, fs afero.Fs) error {
+	from, err := readName(conn, "move source")
+	if err != nil {
+		return err
+	}
+
+	to, err := readName(conn, "move target")
+	if err != nil {
+		return err
+	}
+
+	if rerr := fs.Rename(from, to); rerr != nil {
+		if _, e := conn.Write([]byte{statusErr}); e != nil {
+			return errors.Wrap(e, "native: write move status")
+		}
+
+		return errors.Wrapf(rerr, "native: move %q to %q", from, to)
+	}
+
+	if _, e := conn.Write([]byte{statusOK}); e != nil {
+		return errors.Wrap(e, "native: write move status")
+	}
+
+	return nil
+}
+
+// serveExists answers whether one exact name is present, and how big it is.
+//
+// Narrow deliberately: not a directory listing. An afero.Fs over object storage
+// may have no cheap listing at all, and the surface this serves is one demuxer —
+// avio_check has three call sites in libavformat and libavfilter and all three
+// are in img2dec.c. What it buys is that a probe and an open resolve against the
+// SAME filesystem, which is exactly what #36 was (spec 0041 D4).
+//
+// A missing name is an ordinary answer, not a host fault: the engine probes for
+// files that may not exist.
+func serveExists(conn io.ReadWriter, fs afero.Fs) error {
+	name, err := readName(conn, "exists")
+	if err != nil {
+		return err
+	}
+
+	reply := make([]byte, 9) //nolint:mnd // status + u64 size
+
+	info, serr := fs.Stat(name)
+	switch {
+	case serr != nil:
+		reply[0] = statusErr
+	default:
+		reply[0] = statusOK
+
+		size := info.Size()
+		if size < 0 {
+			size = 0
+		}
+
+		binary.LittleEndian.PutUint64(reply[1:], uint64(size))
+	}
+
+	if _, e := conn.Write(reply); e != nil {
+		return errors.Wrap(e, "native: write exists reply")
+	}
+
+	return nil
 }
 
 // openFile maps an Open mode to an afero file. Write mode is O_RDWR (not
@@ -91,15 +216,18 @@ func openFile(fs afero.Fs, name string, mode byte) (afero.File, error) {
 
 // fileOps dispatches a per-file opcode to its handler. Close and a clean EOF are
 // handled inline in serveFile (they end the loop rather than serve a frame).
-var fileOps = map[byte]func(io.ReadWriter, afero.File) error{
+//
+// Read takes the agreed version because its reply shape depends on it: from v2 it
+// can report a failure, and under v1 it cannot.
+var fileOps = map[byte]func(io.ReadWriter, afero.File, byte) error{
 	opRead:  serveRead,
-	opWrite: serveWrite,
-	opSeek:  serveSeek,
-	opSize:  serveSize,
+	opWrite: func(c io.ReadWriter, f afero.File, _ byte) error { return serveWrite(c, f) },
+	opSeek:  func(c io.ReadWriter, f afero.File, _ byte) error { return serveSeek(c, f) },
+	opSize:  func(c io.ReadWriter, f afero.File, _ byte) error { return serveSize(c, f) },
 }
 
 // serveFile runs the per-file op loop until Close or a clean connection EOF.
-func serveFile(conn io.ReadWriter, file afero.File) error {
+func serveFile(conn io.ReadWriter, file afero.File, agreed byte) error {
 	op := make([]byte, 1)
 
 	for {
@@ -120,13 +248,22 @@ func serveFile(conn io.ReadWriter, file afero.File) error {
 			return errors.Newf("native: unknown op %q", op[0])
 		}
 
-		if err := handler(conn, file); err != nil {
+		if err := handler(conn, file, agreed); err != nil {
 			return err
 		}
 	}
 }
 
-func serveRead(conn io.ReadWriter, file afero.File) error {
+// serveRead answers a Read frame. From v2 a read that fails is REPORTED rather
+// than dropped: the count is signed, and a negative value tells the driver the
+// host could not serve the read (spec 0041 D2).
+//
+// Under v1 there is no way to say it. The reply is a count where zero means end
+// of file, so a host that cannot serve a read can only lie — answer zero, and the
+// driver treats a failure as a clean end of stream — or hang. Dropping the
+// connection, which is what this did, is the least-bad v1 answer and stays the v1
+// answer.
+func serveRead(conn io.ReadWriter, file afero.File, agreed byte) error {
 	n, err := readCount(conn)
 	if err != nil {
 		return err
@@ -136,7 +273,18 @@ func serveRead(conn io.ReadWriter, file afero.File) error {
 
 	rn, rerr := file.Read(buf)
 	if rerr != nil && !errors.Is(rerr, io.EOF) {
-		return errors.Wrap(rerr, "native: read file")
+		if agreed < protocolVersionNegotiated {
+			return errors.Wrap(rerr, "native: read file")
+		}
+
+		if e := writeI32(conn, readFailed); e != nil {
+			return e
+		}
+
+		// The session survives: the driver now knows this read failed and can fail
+		// the job with a real error instead of a truncated output and exit 0, which
+		// is what #20 was.
+		return nil
 	}
 
 	if err := writeU32(conn, uint32(rn)); err != nil { //nolint:gosec // rn ∈ [0,n], n ≤ maxFrameBytes
@@ -209,6 +357,12 @@ func readCount(conn io.Reader) (uint32, error) {
 	}
 
 	return n, nil
+}
+
+// writeI32 writes a signed frame count. Only the failure form is negative, and
+// only from v2.
+func writeI32(conn io.Writer, v int32) error {
+	return writeU32(conn, uint32(v)) //nolint:gosec // the wire field is 32 bits either way
 }
 
 func writeU32(conn io.Writer, v uint32) error {
