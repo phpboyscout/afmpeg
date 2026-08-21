@@ -7,7 +7,8 @@ runtime), with its I/O bridged to an [`afero.Fs`](https://github.com/spf13/afero
 inputs and outputs can live entirely in memory (or any afero backend), and the whole
 thing cross-compiles to a single static binary.
 
-> **Status: released (v0.11.0).** The runtime (`New` / `Run` / `RunJob` / `Probe` /
+> **Status: released** — the [latest release](https://gitlab.com/phpboyscout/afmpeg/-/releases/permalink/latest)
+> is always current; [`CHANGELOG.md`](CHANGELOG.md) has the history. The runtime (`New` / `Run` / `RunJob` / `Probe` /
 > `Frames` / `Close`), the `Command` builder, and certified module acquisition
 > (`WithModuleRelease`) are all shipped and stable. It drives the companion
 > [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine over the structured job spec:
@@ -93,7 +94,7 @@ audio filters are all already LGPL-clean. See spec 0001 §10 (D-C).
 The foundations (specs 0001–0007) and the full feature-parity roadmap (0013–0021, 0024, 0027)
 shipped; the strategic tier on top — signed releases (0010), the **native backend** (0028),
 **HEVC/AV1 encode + AV1 decode** (0023), **analysis measurements**, and **live progress**
-(0031/0032) — is shipped as of **v0.11.0** (job-spec vocab v9). The
+(0031/0032) — is shipped (job-spec vocab v9). The
 **[implementation roadmap](docs/development/implementation-roadmap.md)** tracks per-spec status
 and the current build order; the design records live in
 [`docs/development/specs/`](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg).
