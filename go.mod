@@ -7,7 +7,7 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/tetratelabs/wazero v1.12.0
 	gitlab.com/phpboyscout/go/errors v0.3.0
-	gitlab.com/phpboyscout/go/signing v0.6.2
+	gitlab.com/phpboyscout/go/signing v0.8.0
 	golang.org/x/image v0.45.0
 )
 
@@ -21,7 +21,7 @@ require (
 	github.com/hashicorp/go-memdb v1.3.5 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
+	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 )
