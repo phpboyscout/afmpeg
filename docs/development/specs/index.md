@@ -48,10 +48,11 @@ conventions stay in `docs/`, because those change with the code.
 | [0036](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0036-engine-test-suite) | engine test suite (the instrument for the n9 bump) | `IMPLEMENTED` |
 | [0037](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0037-engine-parity-and-ipc-host) | engine test suite phase D — parity and the IPC host | `IMPLEMENTED` |
 | [0038](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0038-engine-on-ffmpeg-n9) | the engine on FFmpeg n9.0.1 | `IMPLEMENTED` |
-| [0039](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0039-native-driver-filesystem-boundary) | the native driver's filesystem boundary (routing path-taking filter/codec options over the IPC bridge) | `DRAFT` |
-| [0040](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0040-native-driver-sandbox) | the native driver sandbox (opt-in Landlock confinement, 0039's guarantee enforced by the kernel) | `DRAFT` |
+| [0039](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0039-native-driver-filesystem-boundary) | the native driver's filesystem boundary (the pre-pass; could not fail closed) | `REJECTED` |
+| [0040](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0040-native-driver-sandbox) | the native driver sandbox (opt-in Landlock; the case for optional did not survive review) | `REJECTED` |
 | [0041](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0041-ipc-protocol-primitives) | the IPC protocol's missing primitives (read failure, rename, and asking what exists) | `DRAFT` |
 | [0042](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0042-fontconfig-and-adaptive-demuxers) | fontconfig, the hls/dash demuxers, and the filesystem surface | `DRAFT` |
+| [0043](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0043-native-driver-filesystem-boundary) | the native driver's filesystem boundary — replaces 0039 and 0040 (patch the file protocol, Landlock on by default) | `DRAFT` |
 
 ## Referring to a spec
 

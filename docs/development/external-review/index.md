@@ -23,6 +23,7 @@ the same way the specs did.
 | [feature parity](https://gitlab.com/phpboyscout/afmpeg/-/wikis/external-review/feature-parity-review) · [supplementary](https://gitlab.com/phpboyscout/afmpeg/-/wikis/external-review/feature-parity-review-supplementary) | Feature gaps vs native FFmpeg |
 | [performance](https://gitlab.com/phpboyscout/afmpeg/-/wikis/external-review/performance-review) · [supplementary](https://gitlab.com/phpboyscout/afmpeg/-/wikis/external-review/performance-review-supplementary) | Perf characteristics and code-level bottlenecks |
 | [security](https://gitlab.com/phpboyscout/afmpeg/-/wikis/external-review/security-review) · [supplementary](https://gitlab.com/phpboyscout/afmpeg/-/wikis/external-review/security-review-supplementary) | Sandbox posture and hardening gaps |
+| [architecture review](https://gitlab.com/phpboyscout/afmpeg/-/wikis/reports/2026-08-architecture-review) · [cross-review](https://gitlab.com/phpboyscout/afmpeg/-/wikis/reports/2026-08-architecture-cross-review) | Two independent models on whether thirty-seven defects were mistakes or symptoms |
 
 Filenames were normalised to the wiki's kebab-case on the move: `ARCHITECTURE_REVIEW.md`
 became `architecture-review`, and each `*_supplementary.md` became `*-supplementary`.
