@@ -53,6 +53,7 @@ conventions stay in `docs/`, because those change with the code.
 | [0041](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0041-ipc-protocol-primitives) | the IPC protocol's missing primitives (read failure, rename, and asking what exists) | `DRAFT` |
 | [0042](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0042-fontconfig-and-adaptive-demuxers) | fontconfig, the hls/dash demuxers, and the filesystem surface | `DRAFT` |
 | [0043](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0043-native-driver-filesystem-boundary) | the native driver's filesystem boundary — replaces 0039 and 0040 (patch the file protocol, Landlock on by default) | `DRAFT` |
+| [0044](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0044-the-engine-must-finish) | the engine must finish — liveness as a dataflow invariant rather than a deadline; read before 0043, not after | `DRAFT` |
 
 ## Referring to a spec
 
