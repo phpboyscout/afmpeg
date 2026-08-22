@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.15.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.15.0)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.14.0...v0.15.0)
+
+### Features
+
+- **native**: serve IPC protocol v2 — Move, Exists, and a Read that can fail ([c4e5e7b](https://gitlab.com/phpboyscout/afmpeg/-/commit/c4e5e7b673233baa0bc57e7a707011072622c114))
+
+### Bug Fixes
+
+- **native**: split serveConn, and cover the frames v2 added ([23eb87e](https://gitlab.com/phpboyscout/afmpeg/-/commit/23eb87e5f6cef2dbb59508672d88ab3c8322868b))
+- **deps**: update module gitlab.com/phpboyscout/go/signing to v0.8.0 ([f18cb6e](https://gitlab.com/phpboyscout/afmpeg/-/commit/f18cb6ef30488b4610fc9ad2073d0777f6528298))
+- **deps**: update module gitlab.com/phpboyscout/go/errors to v0.3.0 ([404be5a](https://gitlab.com/phpboyscout/afmpeg/-/commit/404be5a1207bc0257bf36e5efdb11824ed7dac4c))
+
 ## [v0.14.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.14.0)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.13.2...v0.14.0)
