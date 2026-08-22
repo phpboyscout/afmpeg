@@ -41,6 +41,13 @@ type options struct {
 	runs         int    // timed repetitions per measurement (median reported)
 	batch        int    // jobs in the fleet-throughput experiment
 	out          string // report path ("" → stdout only)
+	// The fixture shape. It matters more than it looks: on a tiny clip the fixed
+	// costs (process spawn, module instantiation, socket setup) are a large share
+	// of every measurement, so ratios taken at 320x240/3s describe overhead more
+	// than throughput. Run it twice at different shapes to see which regime a
+	// workload is in.
+	fixtureSize string
+	fixtureSecs int
 }
 
 func parseFlags() options {
@@ -53,6 +60,8 @@ func parseFlags() options {
 	flag.IntVar(&o.runs, "runs", 3, "timed repetitions per measurement (median reported)")
 	flag.IntVar(&o.batch, "batch", 16, "number of jobs in the fleet-throughput experiment")
 	flag.StringVar(&o.out, "out", "", "write the markdown report here (default: stdout only)")
+	flag.StringVar(&o.fixtureSize, "fixture-size", "320x240", "source fixture frame size (e.g. 1280x720)")
+	flag.IntVar(&o.fixtureSecs, "fixture-seconds", 3, "source fixture duration in seconds")
 	flag.Parse()
 
 	return o
