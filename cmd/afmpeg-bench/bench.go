@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -24,8 +25,11 @@ type workload struct {
 	desc string
 	// twoInputs feeds the input file to the command twice (for xfade/amix).
 	twoInputs bool
-	filter    string
-	maps      []string
+	// copyStreams selects stream copy rather than a re-encode, so the encoder
+	// argument is ignored for this workload.
+	copyStreams bool
+	filter      string
+	maps        []string
 	// native returns the ffmpeg args (without the trailing output path).
 	nativeArgs func(enc, in string) []string
 }
@@ -39,6 +43,20 @@ var workloads = []workload{
 		maps:   []string{"[v]", "0:a"},
 		nativeArgs: func(enc, in string) []string {
 			return []string{"-i", in, "-filter_complex", "[0:v]scale=160:-2[v]", "-map", "[v]", "-map", "0:a", "-c:v", enc, "-c:a", "aac"}
+		},
+	},
+	{
+		// No encoding at all. Every other workload measures the encoder plus the
+		// lane; this one measures the lane alone, which is where the IPC bridge and
+		// the WASM boundary have nothing to hide behind. It is also the cheapest
+		// real job afmpeg does, so it is the shape most sensitive to fixed overhead.
+		name:        "remux",
+		desc:        "stream copy to mp4, no re-encode (I/O and container only)",
+		filter:      "",
+		maps:        []string{"0:v", "0:a"},
+		copyStreams: true,
+		nativeArgs: func(_, in string) []string {
+			return []string{"-i", in, "-map", "0:v", "-map", "0:a", "-c", "copy"}
 		},
 	},
 	{
@@ -61,16 +79,22 @@ func (w workload) command(enc string, opts map[string]string) afmpeg.Command {
 		inputs = append(inputs, afmpeg.Input{Path: inName})
 	}
 
+	out := afmpeg.Output{
+		Path:    outName,
+		Map:     w.maps,
+		Options: opts,
+	}
+
+	if w.copyStreams {
+		out.VideoCodec, out.AudioCodec = "copy", "copy"
+	} else {
+		out.VideoCodec, out.AudioCodec = enc, "aac"
+	}
+
 	return afmpeg.Command{
 		Inputs:        inputs,
 		FilterComplex: w.filter,
-		Outputs: []afmpeg.Output{{
-			Path:       outName,
-			Map:        w.maps,
-			VideoCodec: enc,
-			AudioCodec: "aac",
-			Options:    opts,
-		}},
+		Outputs:       []afmpeg.Output{out},
 	}
 }
 
@@ -175,12 +199,13 @@ func runNative(ctx context.Context, bin string, args []string, out string) error
 // makeFixture synthesises the source clip with native ffmpeg (testsrc2 + sine →
 // H.264/AAC mp4) and returns both its bytes (for afero) and a temp path (for the
 // native baseline). Caller removes the temp dir.
-func makeFixture(ctx context.Context, bin, dir string) (bytes []byte, path string, err error) {
+func makeFixture(ctx context.Context, bin, dir, size string, seconds int) (bytes []byte, path string, err error) {
 	path = filepath.Join(dir, "in.mp4")
+	dur := strconv.Itoa(seconds)
 	args := []string{
 		"-hide_banner", "-loglevel", "error", "-y",
-		"-f", "lavfi", "-i", "testsrc2=size=320x240:rate=25:duration=3",
-		"-f", "lavfi", "-i", "sine=frequency=440:duration=3",
+		"-f", "lavfi", "-i", "testsrc2=size=" + size + ":rate=25:duration=" + dur,
+		"-f", "lavfi", "-i", "sine=frequency=440:duration=" + dur,
 		"-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", path,
 	}
 
