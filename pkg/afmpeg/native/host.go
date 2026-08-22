@@ -9,11 +9,12 @@ import (
 	"gitlab.com/phpboyscout/go/errors"
 )
 
-// serveConn services one file session on conn against fs: it validates the
-// protocol version, reads the Open frame, opens the afero file, then serves
-// Read/Write/Seek/Size/Close until the driver closes the file or the connection.
-// One connection == one open file (the driver dials once per file its custom AVIO
-// opens).
+// serveConn services one session on conn against fs: it negotiates the protocol
+// version, then dispatches the one operation the connection carries.
+//
+// One connection == one operation. For Open that means one file, served until the
+// driver closes it (the driver dials once per file its custom AVIO opens); Move
+// and Exists answer and end.
 func serveConn(conn io.ReadWriteCloser, fs afero.Fs) (err error) {
 	defer func() {
 		if cerr := conn.Close(); cerr != nil && err == nil {
@@ -21,25 +22,9 @@ func serveConn(conn io.ReadWriteCloser, fs afero.Fs) (err error) {
 		}
 	}()
 
-	var ver [1]byte
-	if _, e := io.ReadFull(conn, ver[:]); e != nil {
-		return errors.Wrap(e, "native: read protocol version")
-	}
-
-	if ver[0] < protocolVersionMin || ver[0] > protocolVersion {
-		return errors.Newf("native: unsupported protocol version %d (want %d..%d)",
-			ver[0], protocolVersionMin, protocolVersion)
-	}
-
-	// The driver announces the highest version it speaks; the host answers with the
-	// version it will actually use, so a driver built against a newer contract can
-	// degrade rather than guess (spec 0041 D1). A v1 driver expects no answer and
-	// would read one as its Open status, so this is sent only from v2 up.
-	agreed := ver[0]
-	if agreed >= protocolVersionNegotiated {
-		if _, e := conn.Write([]byte{agreed}); e != nil {
-			return errors.Wrap(e, "native: write negotiated version")
-		}
+	agreed, err := negotiate(conn)
+	if err != nil {
+		return err
 	}
 
 	var tag [1]byte
@@ -47,26 +32,62 @@ func serveConn(conn io.ReadWriteCloser, fs afero.Fs) (err error) {
 		return errors.Wrap(e, "native: read session opcode")
 	}
 
-	switch tag[0] {
+	return dispatchSession(conn, fs, tag[0], agreed)
+}
+
+// negotiate reads the driver's version preamble and answers it.
+//
+// The driver announces the highest version it speaks; the host replies with the
+// version it will actually use, so a driver built against a newer contract can
+// degrade rather than guess (spec 0041 D1). A v1 driver expects no answer and
+// would read one as its Open status, so the reply goes only from v2 up — which is
+// what makes the negotiation additive rather than a break.
+func negotiate(conn io.ReadWriter) (byte, error) {
+	var ver [1]byte
+	if _, err := io.ReadFull(conn, ver[:]); err != nil {
+		return 0, errors.Wrap(err, "native: read protocol version")
+	}
+
+	if ver[0] < protocolVersionMin || ver[0] > protocolVersion {
+		return 0, errors.Newf("native: unsupported protocol version %d (want %d..%d)",
+			ver[0], protocolVersionMin, protocolVersion)
+	}
+
+	if ver[0] >= protocolVersionNegotiated {
+		if _, err := conn.Write(ver[:]); err != nil {
+			return 0, errors.Wrap(err, "native: write negotiated version")
+		}
+	}
+
+	return ver[0], nil
+}
+
+// dispatchSession routes the one operation this connection carries. Move and
+// Exists arrived with v2, so a v1 session that sends them is not speaking the
+// contract it announced.
+func dispatchSession(conn io.ReadWriter, fs afero.Fs, tag, agreed byte) error {
+	switch tag {
 	case opOpen:
-	case opMove:
+		return serveOpenSession(conn, fs, agreed)
+	case opMove, opExists:
 		if agreed < protocolVersionNegotiated {
-			return errors.Newf("native: Move needs protocol v%d, this session agreed v%d",
-				protocolVersionNegotiated, agreed)
+			return errors.Newf("native: %q needs protocol v%d, this session agreed v%d",
+				tag, protocolVersionNegotiated, agreed)
 		}
 
-		return serveMove(conn, fs)
-	case opExists:
-		if agreed < protocolVersionNegotiated {
-			return errors.Newf("native: Exists needs protocol v%d, this session agreed v%d",
-				protocolVersionNegotiated, agreed)
+		if tag == opMove {
+			return serveMove(conn, fs)
 		}
 
 		return serveExists(conn, fs)
 	default:
-		return errors.Newf("native: expected Open, Move or Exists, got %q", tag[0])
+		return errors.Newf("native: expected Open, Move or Exists, got %q", tag)
 	}
+}
 
+// serveOpenSession opens the named file and serves frames against it until the
+// driver closes it.
+func serveOpenSession(conn io.ReadWriter, fs afero.Fs, agreed byte) error {
 	name, mode, err := readOpen(conn)
 	if err != nil {
 		return err
@@ -74,6 +95,8 @@ func serveConn(conn io.ReadWriteCloser, fs afero.Fs) (err error) {
 
 	file, err := openFile(fs, name, mode)
 	if err != nil {
+		// Always reply, including on failure: a driver waiting for a status byte
+		// that never comes would hang rather than report.
 		_, _ = conn.Write([]byte{statusErr})
 
 		return errors.Wrapf(err, "native: open %q", name)

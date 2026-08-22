@@ -743,3 +743,86 @@ func TestServeConn_readFailureIsReportedNotSwallowed(t *testing.T) {
 		t.Fatalf("serveConn: %v", err)
 	}
 }
+
+// A Move frame that stops mid-way must be reported, not waited on. The host
+// reads two length-prefixed names, and a driver that dies between them would
+// otherwise leave the session blocked on a read that never completes.
+func TestServeConn_truncatedMoveFrame(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"no source length", "source length but no name", "no target"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			w, done := serveOver(afero.NewMemMapFs())
+			w.version()
+
+			b := []byte{opMove}
+			switch name {
+			case "source length but no name":
+				b = binary.LittleEndian.AppendUint32(b, 8)
+			case "no target":
+				b = binary.LittleEndian.AppendUint32(b, uint32(len("a.tmp")))
+				b = append(b, "a.tmp"...)
+			}
+			w.put(b)
+			_ = w.c.Close()
+
+			if err := <-done; err == nil {
+				t.Error("a truncated Move frame was accepted")
+			}
+		})
+	}
+}
+
+// The same for Exists, which reads one length-prefixed name.
+func TestServeConn_truncatedExistsFrame(t *testing.T) {
+	t.Parallel()
+
+	w, done := serveOver(afero.NewMemMapFs())
+	w.version()
+	w.put(binary.LittleEndian.AppendUint32([]byte{opExists}, 16)) // a length, no name
+	_ = w.c.Close()
+
+	if err := <-done; err == nil {
+		t.Error("a truncated Exists frame was accepted")
+	}
+}
+
+// Move and Exists are session-level, so they cannot follow an Open on the same
+// connection — one connection carries one operation.
+func TestServeConn_moveAfterOpenIsRefused(t *testing.T) {
+	t.Parallel()
+
+	fs := afero.NewMemMapFs()
+	if err := afero.WriteFile(fs, "in.mp4", []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	w, done := serveOver(fs)
+	w.version()
+
+	if st := w.open("in.mp4", modeRead); st != statusOK {
+		t.Fatalf("open status = %d, want ok", st)
+	}
+
+	w.put([]byte{opMove})
+	_ = w.c.Close()
+
+	if err := <-done; err == nil {
+		t.Error("a Move arrived after an Open on the same connection and was accepted")
+	}
+}
+
+// A version the host does not know is refused rather than guessed at.
+func TestServeConn_rejectsAFutureVersion(t *testing.T) {
+	t.Parallel()
+
+	w, done := serveOver(afero.NewMemMapFs())
+	w.put([]byte{protocolVersion + 1})
+	_ = w.c.Close()
+
+	if err := <-done; err == nil {
+		t.Error("a version newer than this host understands was accepted")
+	}
+}
