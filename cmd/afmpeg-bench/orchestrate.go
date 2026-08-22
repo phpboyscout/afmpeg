@@ -16,7 +16,6 @@ type results struct {
 	lgplModule   string
 	gplModule    string
 	nativeDriver string
-	fixture      string // the shape the numbers were taken at, e.g. "320x240 @25fps 3s"
 	runs         int
 	workloads    []workloadResult
 	presets      []presetRow
@@ -32,18 +31,10 @@ func (r *results) note(format string, a ...any) {
 }
 
 type workloadResult struct {
-	name, desc string
-	// One stat per (lane, encoder). Every lane carries BOTH encoders so a
-	// comparison never crosses them: reading the native driver's openh264 against
-	// the CLI's libx264 flatters the driver by the 1.5-1.7x that separates the two
-	// encoders, which is a mistake this rig previously made easy to make.
-	openh264, x264             stat // WASM
-	nativeOH, native           stat // ffmpeg CLI: libopenh264, libx264
-	nativeDrvOH, nativeDrvX264 stat // native driver: libopenh264, libx264
-
-	haveOpenh264, haveX264             bool
-	haveNativeOH, haveNative           bool
-	haveNativeDrvOH, haveNativeDrvX264 bool
+	name, desc                         string
+	openh264, x264, native, nativeDrv  stat
+	haveOpenh264, haveX264, haveNative bool
+	haveNativeDrv                      bool
 }
 
 type presetRow struct {
@@ -74,19 +65,13 @@ func newRuntime(ctx context.Context, module string) (*afmpeg.Runtime, error) {
 }
 
 func run(ctx context.Context, o options) error {
-	// A module is not required. The native driver against the ffmpeg CLI is a
-	// complete measurement on its own, and it is the only one affordable at a
-	// realistic fixture size: at 1280x720 for 10s the WASM libx264 reel runs for
-	// over an hour per repetition, which buys a number nobody is uncertain about.
-	if o.lgplModule == "" && o.gplModule == "" && o.nativeDriver == "" {
-		return fmt.Errorf("need at least one of -lgpl / -gpl (a built ffmpeg-wasi module) " +
-			"or -native-driver (the native ELF)")
+	if o.lgplModule == "" && o.gplModule == "" {
+		return fmt.Errorf("need at least one of -lgpl / -gpl (a built ffmpeg-wasi module)")
 	}
 
 	res := results{
 		env: gatherEnv(ctx, o.nativeBin), lgplModule: o.lgplModule,
 		gplModule: o.gplModule, nativeDriver: o.nativeDriver, runs: o.runs,
-		fixture: fmt.Sprintf("%s @25fps %ds", o.fixtureSize, o.fixtureSecs),
 	}
 
 	dir, err := os.MkdirTemp("", "afmpeg-bench-")
@@ -95,10 +80,9 @@ func run(ctx context.Context, o options) error {
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
 
-	fmt.Fprintf(os.Stderr, "synthesising fixture (testsrc2 %s @25fps %ds + sine → H.264/AAC)…\n",
-		o.fixtureSize, o.fixtureSecs)
+	fmt.Fprintln(os.Stderr, "synthesising fixture (testsrc2 640x480 4s + sine → H.264/AAC)…")
 
-	fixture, nativeIn, err := makeFixture(ctx, o.nativeBin, dir, o.fixtureSize, o.fixtureSecs)
+	fixture, nativeIn, err := makeFixture(ctx, o.nativeBin, dir)
 	if err != nil {
 		return err
 	}
@@ -158,32 +142,18 @@ func run(ctx context.Context, o options) error {
 		if s, err := measure(o.runs, func() error {
 			return runNative(ctx, o.nativeBin, w.nativeArgs("libx264", nativeIn), nativeOut("mp4"))
 		}); err != nil {
-			res.note("native x264 %s: %v", w.name, err)
+			res.note("native %s: %v", w.name, err)
 		} else {
 			wr.native, wr.haveNative = s, true
 		}
 
-		if s, err := measure(o.runs, func() error {
-			return runNative(ctx, o.nativeBin, w.nativeArgs("libopenh264", nativeIn), nativeOut("mp4"))
-		}); err != nil {
-			res.note("native openh264 %s: %v", w.name, err)
-		} else {
-			wr.nativeOH, wr.haveNativeOH = s, true
-		}
-
-		// The native backend runs the same jobs over the afero-IPC bridge, on both
-		// encoders, so it can be read against the CLI without crossing encoders.
+		// The native backend runs the same job over the afero-IPC bridge (openh264,
+		// matching the WASM openh264 column for an apples-to-apples wasm-vs-native).
 		if nat != nil {
 			if s, err := measureWASM(ctx, nat, fixture, w.command("libopenh264", nil), o.runs); err != nil {
-				res.note("native driver openh264 %s: %v", w.name, err)
+				res.note("native driver %s: %v", w.name, err)
 			} else {
-				wr.nativeDrvOH, wr.haveNativeDrvOH = s, true
-			}
-
-			if s, err := measureWASM(ctx, nat, fixture, w.command("libx264", nil), o.runs); err != nil {
-				res.note("native driver x264 %s: %v", w.name, err)
-			} else {
-				wr.nativeDrvX264, wr.haveNativeDrvX264 = s, true
+				wr.nativeDrv, wr.haveNativeDrv = s, true
 			}
 		}
 
