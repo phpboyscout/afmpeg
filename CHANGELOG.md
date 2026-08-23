@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.15.1](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.15.1)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.15.0...v0.15.1)
+
+### Bug Fixes
+
+- **ci**: stop the coverage gate passing without measuring anything ([860dc15](https://gitlab.com/phpboyscout/afmpeg/-/commit/860dc158af1a16e7d166eb73e4f322a999c10c14))
+
 ## [v0.15.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.15.0)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.14.0...v0.15.0)
