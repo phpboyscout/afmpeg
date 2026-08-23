@@ -27,10 +27,11 @@ cmd := afmpeg.Command{
     Inputs:        []afmpeg.Input{{Path: "in.mkv"}},
     FilterComplex: "[0:v]scale=1280:-2[vout]",
     Outputs: []afmpeg.Output{{
-        Path:       "out.mp4",
-        Map:        []string{"[vout]"},
-        VideoCodec: "libx264",
-        Options:    map[string]string{"crf": "23", "movflags": "+faststart"},
+        Path:          "out.mp4",
+        Map:           []string{"[vout]"},
+        VideoCodec:    "libx264",
+        Options:       map[string]string{"crf": "23"},
+        FormatOptions: map[string]string{"movflags": "+faststart"},
     }},
 }
 ```
@@ -73,17 +74,26 @@ encoder options. See [obtain a module](obtain-a-module.md) for the ffmpeg-wasi r
 
 ## Encoder options
 
-Any encoder setting goes in an output's `Options` map (struct) or via `WithOption` (builder)
-— nothing is blocked:
+Any encoder setting goes in an output's `Options` map (struct) or via `WithOption` (builder).
+Nothing is filtered by afmpeg — the dictionary reaches the encoder as it stands:
 
 ```go
-// a single-frame thumbnail
 cmd := afmpeg.NewCommand(
     afmpeg.WithInput("in.mp4"),
-    afmpeg.WithFilterComplex("[0:v]thumbnail[v]"),
-    afmpeg.WithOutput("thumb.png", afmpeg.Map("[v]"), afmpeg.WithOption("frames:v", "1")),
+    afmpeg.WithFilterComplex("[0:v]scale=1280:-2[v]"),
+    afmpeg.WithOutput("out.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264"),
+        afmpeg.WithOption("crf", "23"), afmpeg.WithOption("preset", "slow")),
 )
 ```
+
+These are **libav option names**, not ffmpeg command-line ones. `-b:v 300k` on the command line is
+`WithOption("b", "300k")` here: the CLI parses the `:v` suffix itself and libav never sees it. A
+name no encoder has fails the job rather than being ignored.
+
+!!! note "Not everything on an ffmpeg command line is an encoder option"
+    `-movflags` is a **muxer** option — `FormatOption` / `FormatOptions`, as above. `-frames:v` is
+    a command-line output limit with no libav equivalent; for stills, use the
+    [frames op](extract-frames.md) rather than a `process` job.
 
 ## Where do trims, frame rate and pixel format go?
 
