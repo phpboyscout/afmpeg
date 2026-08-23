@@ -54,6 +54,7 @@ conventions stay in `docs/`, because those change with the code.
 | [0042](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0042-fontconfig-and-adaptive-demuxers) | fontconfig, the hls/dash demuxers, and the filesystem surface | `APPROVED` |
 | [0043](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0043-native-driver-filesystem-boundary) | the native driver's filesystem boundary — replaces 0039 and 0040 (patch the file protocol, Landlock on by default) | `APPROVED` |
 | [0044](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0044-the-engine-must-finish) | the engine must finish — liveness as a dataflow invariant rather than a deadline; read before 0043, not after | `APPROVED` |
+| [0045](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0045-which-encoder-an-option-is-for) | which encoder an option is for — per-kind encoder option maps, and the CLI option names the docs teach that the engine has never had | `DRAFT` |
 
 ## Referring to a spec
 
