@@ -103,7 +103,7 @@ variables:
 # belt-and-braces guard. AT v1.0 THIS BECOMES A BLOCKING GATE.
 apidiff:
   stage: test
-  image: golang:1.26-bookworm
+  image: registry.gitlab.com/phpboyscout/images/go-tools:v0.1.1
   needs: []
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -121,7 +121,7 @@ apidiff:
 # with a rationale.
 coverage-policy:
   stage: test
-  image: golang:1.26-bookworm
+  image: registry.gitlab.com/phpboyscout/images/go-tools:v0.1.1
   needs: []
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'

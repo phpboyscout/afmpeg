@@ -70,8 +70,33 @@ is_excluded() {
 }
 
 echo "coverage-policy: running unit coverage over ./... (this can take a few minutes)"
-cover_out=$(go test ./... -cover 2>/dev/null | grep "coverage:")
 
+# Keep the run's own output. Discarding stderr here is what let this script
+# report OK 12ms into a run that takes minutes: `go test` failed, the reason went
+# to /dev/null, grep matched nothing, and a loop over nothing found no violations
+# and exited 0. An advisory job that cannot fail is worse than no job, because it
+# reads as a green gate.
+raw=$(go test ./... -cover 2>&1)
+status=$?
+
+cover_out=$(printf '%s\n' "$raw" | grep "coverage:" || true)
+
+if [ "$status" -ne 0 ]; then
+	printf '%s\n' "$raw" >&2
+	echo "coverage-policy: \`go test\` exited ${status}; nothing was measured." >&2
+	exit 2
+fi
+
+# Even on a clean exit, a result nothing could be parsed out of means the
+# measurement did not happen — a changed output format, a build that produced no
+# packages. Reporting OK from that is the same lie by a different route.
+if [ -z "$cover_out" ]; then
+	printf '%s\n' "$raw" >&2
+	echo "coverage-policy: \`go test\` reported no coverage for any package, so there was nothing to check." >&2
+	exit 2
+fi
+
+measured=0
 violations=0
 while IFS= read -r line; do
 	[ -z "$line" ] && continue
@@ -80,6 +105,7 @@ while IFS= read -r line; do
 	rel=${pkg#"${MODULE}/"}
 	pct=$(printf '%s\n' "$line" | grep -oE 'coverage: [0-9.]+%' | grep -oE '[0-9.]+')
 	[ -z "$pct" ] && continue
+	measured=$((measured + 1))
 
 	# Above threshold → fine.
 	if awk "BEGIN{exit !($pct >= $threshold)}"; then
@@ -94,11 +120,17 @@ while IFS= read -r line; do
 done <<< "$cover_out"
 
 echo ""
+# The last way to pass without checking: every line skipped for its own reason.
+if [ "$measured" -eq 0 ]; then
+	echo "coverage-policy: parsed no package coverage out of \`go test\`'s output, so this run checked nothing." >&2
+	exit 2
+fi
+
 if [ "$violations" -gt 0 ]; then
 	echo "coverage-policy: ${violations} package(s) below ${threshold}% and not excluded."
 	echo "  Fix: add tests to reach ${threshold}%, OR add the package to .coverage-policy.yaml 'excluded:' with a rationale."
 	exit 1
 fi
 
-echo "coverage-policy: OK — every countable package is ≥ ${threshold}% or explicitly excluded."
+echo "coverage-policy: OK — ${measured} package(s) measured, every countable one ≥ ${threshold}% or explicitly excluded."
 exit 0
