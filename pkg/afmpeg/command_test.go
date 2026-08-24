@@ -18,7 +18,7 @@ func TestRunJob(t *testing.T) {
 	cmd := afmpeg.NewCommand(
 		afmpeg.WithInput("in.mp4"),
 		afmpeg.WithFilterComplex("[0:v]null[v]"),
-		afmpeg.WithOutput("out.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264"), afmpeg.WithOption("crf", "23")),
+		afmpeg.WithOutput("out.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264"), afmpeg.VideoOption("crf", "23")),
 	)
 
 	res, err := newTestRuntime(t).RunJob(context.Background(), afero.NewMemMapFs(), cmd)
@@ -397,7 +397,7 @@ func TestNewCommand_Options(t *testing.T) {
 		afmpeg.WithFilterComplex("[0:v]null[v]"),
 		afmpeg.WithOutput("out.mp4",
 			afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264"),
-			afmpeg.AudioCodec("aac"), afmpeg.WithOption("crf", "23")),
+			afmpeg.AudioCodec("aac"), afmpeg.VideoOption("crf", "23")),
 	)
 
 	if len(cmd.Inputs) != 2 || cmd.Inputs[1].Path != "b.mp3" {
@@ -414,7 +414,14 @@ func TestNewCommand_Options(t *testing.T) {
 
 	o := cmd.Outputs[0]
 	if o.Path != "out.mp4" || o.VideoCodec != "libx264" || o.AudioCodec != "aac" ||
-		len(o.Map) != 1 || o.Map[0] != "[v]" || o.Options["crf"] != "23" {
+		len(o.Map) != 1 || o.Map[0] != "[v]" || o.VideoOptions["crf"] != "23" {
 		t.Errorf("output = %+v", o)
+	}
+
+	// crf must NOT have landed in the common map: this output opens an aac
+	// encoder too, and aac has no crf — so a common crf fails the whole job
+	// (spec 0045). The point of VideoOption is that it does not go there.
+	if _, ok := o.Options["crf"]; ok {
+		t.Errorf("VideoOption put crf in Options, where it would reach the aac encoder: %+v", o.Options)
 	}
 }

@@ -47,7 +47,7 @@ cmd := afmpeg.NewCommand(
     afmpeg.WithFilterComplex("[0:v]fps=25[v]"),
     afmpeg.WithOutput("stream.m3u8", afmpeg.Map("[v]"),
         afmpeg.OutputFormat("hls"), afmpeg.VideoCodec("libopenh264"),
-        afmpeg.WithOption("g", "100"), // 25fps × hls_time=4 — see below
+        afmpeg.VideoOption("g", "100"), // 25fps × hls_time=4 — see below
         afmpeg.FormatOption("hls_time", "4"),
         afmpeg.FormatOption("hls_segment_filename", "seg_%03d.ts"),
         afmpeg.FormatOption("hls_list_size", "0")),
@@ -84,7 +84,7 @@ too — set `g` unless one fragment is what you want:
 
 ```go
 afmpeg.WithOutput("frag.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libopenh264"),
-    afmpeg.WithOption("g", "100"),
+    afmpeg.VideoOption("g", "100"),
     afmpeg.FormatOption("movflags", "+frag_keyframe+empty_moov+default_base_moof"))
 ```
 

@@ -67,10 +67,34 @@ const (
 // to mux, the encoders, and their options.
 type Output struct {
 	Path       string
-	Map        []string          // graph pads ("[vout]") and/or copied input streams ("0:v")
-	VideoCodec string            // the video encoder (e.g. "libx264"), or CodecCopy to remux
-	AudioCodec string            // the audio encoder (e.g. "aac"), or CodecCopy to remux
-	Options    map[string]string // encoder options (e.g. {"crf": "23"})
+	Map        []string // graph pads ("[vout]") and/or copied input streams ("0:v")
+	VideoCodec string   // the video encoder (e.g. "libx264"), or CodecCopy to remux
+	AudioCodec string   // the audio encoder (e.g. "aac"), or CodecCopy to remux
+
+	// Options are offered to EVERY encoder this output opens. On an output with
+	// both VideoCodec and AudioCodec, {"crf": "23"} is offered to the audio
+	// encoder too — and aac refuses it, failing the job. Reserve this for what
+	// the encoders genuinely share ("threads", "flags") and address the rest with
+	// the three maps below (spec 0045 D2).
+	//
+	// These are libav AVOption names, not ffmpeg command-line flags: the CLI's
+	// `-b:v 300k` is {"b": "300k"} here, because the CLI parses the `:v` suffix
+	// itself and libav never sees it. An option no encoder consumes fails the job
+	// rather than being dropped.
+	Options map[string]string
+
+	// VideoOptions, AudioOptions and SubtitleOptions reach only that kind's
+	// encoder and win over Options on a key collision (spec 0045 D1). An output
+	// names at most one encoder per kind, so this is as precise as the codec
+	// selection itself.
+	//
+	// The scoping cannot be inferred further down: every encoder inherits the
+	// generic AVCodecContext option table, so a video-only generic option (`g`,
+	// `bf`, `refs`) set on an audio encoder is accepted and silently does
+	// nothing. Saying the kind here is what prevents that.
+	VideoOptions    map[string]string
+	AudioOptions    map[string]string
+	SubtitleOptions map[string]string
 
 	// SubtitleCodec transcodes a subtitle stream named in Map by an "N:s"
 	// specifier (spec 0019) to this encoder (e.g. "srt", "webvtt", "mov_text"),
@@ -163,6 +187,9 @@ type jobOutput struct {
 	VideoCodec       string                `json:"video_codec,omitempty"`
 	AudioCodec       string                `json:"audio_codec,omitempty"`
 	Options          map[string]string     `json:"options,omitempty"`
+	VideoOptions     map[string]string     `json:"video_options,omitempty"`
+	AudioOptions     map[string]string     `json:"audio_options,omitempty"`
+	SubtitleOptions  map[string]string     `json:"subtitle_options,omitempty"`
 	SubtitleCodec    string                `json:"subtitle_codec,omitempty"`
 	BitstreamFilters map[string]string     `json:"bitstream_filters,omitempty"`
 	Duration         float64               `json:"duration,omitempty"`

@@ -105,14 +105,48 @@ func AudioCodec(codec string) OutputOption {
 	return func(out *Output) { out.AudioCodec = codec }
 }
 
-// WithOption sets one encoder option on an output (e.g. WithOption("crf", "23")).
-func WithOption(key, value string) OutputOption {
+// EncoderOption sets one option on EVERY encoder the output opens — its video,
+// audio and subtitle encoders alike (spec 0045 D2). Reserve it for what they
+// genuinely share, such as "threads" or "flags"; an option only one of them has
+// fails the job when it reaches the others. For one kind, use VideoOption,
+// AudioOption or SubtitleOption.
+//
+// These are libav AVOption names, not ffmpeg command-line flags: the CLI's
+// "-b:v 300k" is EncoderOption("b", "300k") or VideoOption("b", "300k") here,
+// because the CLI parses the ":v" suffix itself and libav never sees it.
+func EncoderOption(key, value string) OutputOption {
+	return setOpt(func(out *Output) *map[string]string { return &out.Options }, key, value)
+}
+
+// VideoOption sets one option on the output's video encoder only (spec 0045 D1)
+// — e.g. VideoOption("crf", "23"). It overrides EncoderOption on the same key.
+func VideoOption(key, value string) OutputOption {
+	return setOpt(func(out *Output) *map[string]string { return &out.VideoOptions }, key, value)
+}
+
+// AudioOption sets one option on the output's audio encoder only — e.g.
+// AudioOption("b", "128000"). It overrides EncoderOption on the same key.
+func AudioOption(key, value string) OutputOption {
+	return setOpt(func(out *Output) *map[string]string { return &out.AudioOptions }, key, value)
+}
+
+// SubtitleOption sets one option on the output's subtitle encoder only. It
+// overrides EncoderOption on the same key.
+func SubtitleOption(key, value string) OutputOption {
+	return setOpt(func(out *Output) *map[string]string { return &out.SubtitleOptions }, key, value)
+}
+
+// setOpt writes one key into the map the picker selects, allocating it on first
+// use. Four option setters differing only in which field they fill is four
+// chances to write the wrong one.
+func setOpt(pick func(*Output) *map[string]string, key, value string) OutputOption {
 	return func(out *Output) {
-		if out.Options == nil {
-			out.Options = make(map[string]string)
+		m := pick(out)
+		if *m == nil {
+			*m = make(map[string]string)
 		}
 
-		out.Options[key] = value
+		(*m)[key] = value
 	}
 }
 

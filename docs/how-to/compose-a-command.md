@@ -49,7 +49,7 @@ cmd := afmpeg.NewCommand(
     afmpeg.WithInput("logo.png"),
     afmpeg.WithFilterComplex("[0:v][1:v]overlay=10:10[v]"),
     afmpeg.WithOutput("out.mp4",
-        afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264"), afmpeg.WithOption("crf", "23")),
+        afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264"), afmpeg.VideoOption("crf", "23")),
 )
 ```
 
@@ -74,21 +74,35 @@ encoder options. See [obtain a module](obtain-a-module.md) for the ffmpeg-wasi r
 
 ## Encoder options
 
-Any encoder setting goes in an output's `Options` map (struct) or via `WithOption` (builder).
-Nothing is filtered by afmpeg — the dictionary reaches the encoder as it stands:
+Encoder settings are addressed to the encoder they configure. `VideoOption`, `AudioOption` and
+`SubtitleOption` each reach one; `EncoderOption` reaches every encoder the output opens. Nothing is
+filtered by afmpeg — the dictionaries reach the encoders as they stand:
 
 ```go
 cmd := afmpeg.NewCommand(
     afmpeg.WithInput("in.mp4"),
-    afmpeg.WithFilterComplex("[0:v]scale=1280:-2[v]"),
-    afmpeg.WithOutput("out.mp4", afmpeg.Map("[v]"), afmpeg.VideoCodec("libx264"),
-        afmpeg.WithOption("crf", "23"), afmpeg.WithOption("preset", "slow")),
+    afmpeg.WithFilterComplex("[0:v]scale=1280:-2[v];[0:a]anull[a]"),
+    afmpeg.WithOutput("out.mp4", afmpeg.Map("[v]"), afmpeg.Map("[a]"),
+        afmpeg.VideoCodec("libx264"), afmpeg.AudioCodec("aac"),
+        afmpeg.VideoOption("crf", "23"), afmpeg.VideoOption("preset", "slow"),
+        afmpeg.AudioOption("b", "128000"),
+        afmpeg.EncoderOption("threads", "2")),
 )
 ```
 
+**Use `EncoderOption` only for what the encoders genuinely share.** `crf` belongs to libx264 and
+`aac` does not have it, so `EncoderOption("crf", "23")` on this output is offered to `aac` as well
+and fails the job. `threads` is fine because both take it.
+
 These are **libav option names**, not ffmpeg command-line ones. `-b:v 300k` on the command line is
-`WithOption("b", "300k")` here: the CLI parses the `:v` suffix itself and libav never sees it. A
-name no encoder has fails the job rather than being ignored.
+`VideoOption("b", "300k")` here: the CLI parses the `:v` suffix itself and libav never sees it. A
+name the encoder does not have fails the job rather than being ignored.
+
+!!! warning "The check catches wrong names, not wrong kinds"
+    Every encoder inherits libav's generic option table, so `VideoOption("g", "12")` is correct but
+    `AudioOption("g", "12")` is **accepted and does nothing** — `g` is a GOP size and `aac` ignores
+    it. Addressing an option to the right kind is the only thing that prevents this; no error will
+    tell you.
 
 !!! note "Not everything on an ffmpeg command line is an encoder option"
     `-movflags` is a **muxer** option — `FormatOption` / `FormatOptions`, as above. `-frames:v` is

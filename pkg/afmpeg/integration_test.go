@@ -1692,7 +1692,7 @@ func TestIntegration_Segmenting_HLS(t *testing.T) {
 			afmpeg.OutputFormat("hls"), afmpeg.VideoCodec("libopenh264"),
 			// One keyframe per second at 25fps, matching hls_time — without this
 			// the segmenter has nowhere to cut. See the note above.
-			afmpeg.WithOption("g", strconv.Itoa(hlsFPS*hlsSegmentSec)),
+			afmpeg.VideoOption("g", strconv.Itoa(hlsFPS*hlsSegmentSec)),
 			afmpeg.FormatOption("hls_time", strconv.Itoa(hlsSegmentSec)),
 			afmpeg.FormatOption("hls_segment_filename", "seg_%03d.ts"),
 			afmpeg.FormatOption("hls_list_size", "0")),

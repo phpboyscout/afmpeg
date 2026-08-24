@@ -109,7 +109,8 @@ type Output struct {
 | `VideoCodec` | `VideoCodec(name)` | engine default for the container | The video encoder (`libopenh264`, `libx264`, …) or `CodecCopy` to remux. |
 | `AudioCodec` | `AudioCodec(name)` | engine default for the container | The audio encoder (`aac`, `libopus`, …) or `CodecCopy`. |
 | `SubtitleCodec` | — (set the field) | none | Encoder for a subtitle stream mapped as `N:s` (`srt`, `webvtt`, `mov_text`), or `CodecCopy`. Works alone (a sidecar `.srt`) or alongside video and audio (an embedded track). |
-| `Options` | `WithOption(k, v)` | nil | **Encoder** options, by their **libav** names — `crf`, `preset`, `b`, `g`, … An option no encoder on this output has fails the job (it is not silently dropped). See [option names](#option-names) below. |
+| `Options` | `EncoderOption(k, v)` | nil | Options offered to **every encoder this output opens**, by their **libav** names. Reserve it for what they share (`threads`, `flags`); an option only one of them has fails the job when it reaches the others. See [option names](#option-names) below. |
+| `VideoOptions` / `AudioOptions` / `SubtitleOptions` | `VideoOption(k, v)` / `AudioOption(k, v)` / `SubtitleOption(k, v)` | nil | Options for that kind's encoder only, winning over `Options` on a key collision. An output names at most one encoder per kind, so this is as precise as the codec selection itself. |
 | `BitstreamFilters` | `BitstreamFilter(mapKey, name)` | auto | Override the bitstream filter for one copied stream, keyed by its `Map` entry. `"none"` force-disables. Absent, the muxer inserts whatever the container requires. |
 | `Duration` | `Duration(sec)` | 0 (to the end) | Stop after this many seconds (ffmpeg's `-t`). |
 | `End` | `End(sec)` | 0 (to the end) | Stop at this position (ffmpeg's `-to`). |
@@ -136,16 +137,16 @@ ffmpeg command-line flags, and the two vocabularies differ in ways that are easy
 | `-frames:v 1` | no equivalent — it is a CLI output limit; use [`FrameJob`](#framejob) for stills |
 
 An option name that no encoder on the output has **fails the job** rather than being ignored, so a
-misspelling is loud. Two caveats that check cannot cover:
+misspelling is loud. Two things that check cannot cover:
 
 - **`Options` reaches every encoder the output opens.** On an output with both `VideoCodec` and
   `AudioCodec`, `{"crf": "23"}` is offered to the audio encoder too, and `aac` refuses it — so the
-  job fails even though the option was meant for the video encoder. Until per-kind maps land
-  ([spec 0045](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0045-which-encoder-an-option-is-for)),
-  split such work across two outputs or set only options both encoders accept.
+  job fails even though the option was meant for the video encoder. Address it with `VideoOptions`
+  instead ([spec 0045](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0045-which-encoder-an-option-is-for)).
 - **A generic option set on the wrong kind is accepted and does nothing.** Every encoder inherits
-  the whole generic `AVCodecContext` table, so `g` (a GOP size) on an audio encoder passes the check
-  and has no effect. The check catches unknown *names*, not wrong *kinds*.
+  the whole generic `AVCodecContext` table, so `g` (a GOP size) in `AudioOptions` passes the check
+  and has no effect. The check catches unknown *names*, not wrong *kinds* — addressing the option
+  to the right map is the only thing that prevents it.
 
 ### StreamMeta
 

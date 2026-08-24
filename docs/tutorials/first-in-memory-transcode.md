@@ -173,7 +173,7 @@ An afmpeg job is data: inputs, an optional filtergraph, outputs. Add this next:
 		afmpeg.WithOutput("out/clip.mp4",
 			afmpeg.Map("[v]"),
 			afmpeg.VideoCodec("libopenh264"),
-			afmpeg.WithOption("b", "300k"),
+			afmpeg.VideoOption("b", "300k"),
 		),
 	)
 ```
@@ -186,10 +186,12 @@ Reading that in order:
   fails rather than producing garbage.
 - **The filtergraph** scales to 160 pixels wide, `-2` meaning "whatever keeps the aspect ratio
   and stays even". `[0:v]` is the video stream of input 0; `[v]` is the name of what comes out.
-- **`Map("[v]")`** says which graph output to mux. **`WithOption("b", "300k")`** is an encoder
-  option: the bitrate, 300 kbit/s. These are **libav option names**, not ffmpeg command-line ones,
+- **`Map("[v]")`** says which graph output to mux. **`VideoOption("b", "300k")`** sets the video
+  encoder's bitrate to 300 kbit/s. These are **libav option names**, not ffmpeg command-line ones,
   so it is `b` and not `-b:v` — the CLI parses that `:v` suffix itself and libav never sees it. A
-  name no encoder has fails the job rather than being ignored, so a typo here is loud.
+  name the encoder does not have fails the job rather than being ignored, so a typo here is loud.
+  `EncoderOption` is the same thing addressed to *every* encoder the output opens, which is what
+  you want for something like `threads` and almost never what you want for a bitrate.
 
 The container comes from the `.mp4` extension. You never write an ffmpeg command line.
 
@@ -380,7 +382,7 @@ func run(ctx context.Context) error {
 		afmpeg.WithOutput("out/clip.mp4",
 			afmpeg.Map("[v]"),
 			afmpeg.VideoCodec("libopenh264"),
-			afmpeg.WithOption("b", "300k"),
+			afmpeg.VideoOption("b", "300k"),
 		),
 	)
 

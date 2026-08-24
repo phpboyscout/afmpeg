@@ -35,11 +35,17 @@ import (
 //	    on a process job; a v9+ engine then streams NDJSON progress records over
 //	    the /dev/afmpeg-progress device. Additive/opt-in — a v9 engine still runs
 //	    any earlier spec unchanged.
+//	10 — per-encoder option maps (spec 0045): Output.VideoOptions /
+//	    AudioOptions / SubtitleOptions, each reaching only that kind's encoder
+//	    and winning over Output.Options on a key collision. The engine's subtitle
+//	    encoder becomes configurable at all. Output.Options keeps its v9 meaning
+//	    — every encoder the output opens — so a v9 spec runs unchanged on a v10
+//	    engine.
 //
 // Every process/probe spec is stamped with it; the engine rejects a spec whose
 // version exceeds what it supports, so a new field can never be silently dropped
 // by an older engine (it fails the whole spec instead).
-const vocabVersion = 9
+const vocabVersion = 10
 
 // engineVocab is the engine's reply to the op:"version" query — its highest
 // supported vocabulary version and the FFmpeg build it links.
