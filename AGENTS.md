@@ -56,15 +56,20 @@ wazero the guest only sees the `afero.Fs` plus a synthetic `/tmp` and
 channels through which libav still reaches the host filesystem. Until 0043
 lands, do not write the guarantee as backend-independent.
 
-**The published speed figures are several different quantities.** The 48 to 58x
-comes from the 0028 spike (WASM openh264 against our native driver, 320x240),
-spec 0030 rests on a different 13 to 63x from the dav1d spike, and ffmpeg-wasi#9
-is open to re-measure against the current engine. Attribute a figure to the
-report it came from with its comparison attached, rather than restating it as a
-current property of the software or running the ranges together. Fresh numbers
-need care too: `cmd/afmpeg-bench` puts a lane that cannot use a second core
-against one that can, so a run taken under contention reads exactly like a valid
-one. Pass `-native-driver` and pin `-native` deliberately.
+**The published speed figures are several different quantities.** The docs now
+say ~50x (openh264) to ~170x (libx264) for software encode, re-measured on
+n9.0.1 in
+[the 2026-08 report](https://gitlab.com/phpboyscout/afmpeg/-/wikis/reports/2026-08-native-vs-wasm-speed).
+Two things that report settles and neither is obvious: the **encoder** moves the
+ratio by 3.5x, and the **FFmpeg version** does not move it at all (n8.1.2 and
+n9.0.1 agree to within noise), so it does not need re-measuring every bump. Spec
+0030 rests on a different 13 to 63x from the dav1d spike — a separate quantity,
+do not run the ranges together. Attribute a figure to the report it came from
+with its comparison attached. Fresh numbers need care too: `cmd/afmpeg-bench`
+puts a lane that cannot use a second core against one that can, so a run taken
+under contention reads exactly like a valid one. Pass `-native-driver`, pin
+`-native` deliberately, and sample twice — the reel ratio's denominator is a
+sub-300ms measurement and swings 13% between runs.
 
 ## The quality gate
 

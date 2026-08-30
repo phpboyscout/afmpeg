@@ -18,8 +18,10 @@ licensed, and all I/O still crosses your `afero.Fs`, never the host disk.
 
 Reach for it when you want:
 
-- **Native-speed software encode** — threads + SIMD make H.264/VP9/etc. **48–58× faster** than
-  the single-threaded WASM build.
+- **Native-speed software encode** — threads + SIMD make H.264/VP9/etc. **~50× faster with
+  openh264 and ~170× with libx264** than the single-threaded WASM build. The encoder matters
+  more than the FFmpeg version does
+  ([measured](https://gitlab.com/phpboyscout/afmpeg/-/wikis/reports/2026-08-native-vs-wasm-speed)).
 - **HEVC or AV1 encode** — the heavy `libx265` / `libsvtav1` encoders are impractical in WASM,
   so they ship **only** in the native driver's **full** profile.
 

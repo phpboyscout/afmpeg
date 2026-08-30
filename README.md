@@ -15,7 +15,8 @@ thing cross-compiles to a single static binary.
 > transcode, remux/stream-copy, seeking & clips, multi-input `filter_complex`,
 > subtitles & burn-in, metadata/chapters, frame extraction, analysis measurements, and
 > **live progress** (`WithProgress`). A **native backend** (`WithBackend` /
-> `native.NewFromRelease`) drives ffmpeg-wasi's native driver for **48–58× faster**
+> `native.NewFromRelease`) drives ffmpeg-wasi's native driver for **~50× faster (openh264) to
+> ~170× (libx264)**
 > software encode plus HEVC/AV1 encode — still CGO-free. The design record lives
 > in [`docs/development/specs/`](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg); the current build
 > order is the [implementation roadmap](docs/development/implementation-roadmap.md).
@@ -62,7 +63,8 @@ Three layers — the middle one is the novel engineering:
 
 A second **native backend** (spec 0028) swaps layer 1 for ffmpeg-wasi's native driver, run
 out-of-process with the same `afero.Fs` served over a seekable AVIO-over-IPC socket — same API,
-same no-host-disk guarantee, **48–58× faster** software encode (and HEVC/AV1). Select it with
+same no-host-disk guarantee, **~50× faster (openh264) to ~170× (libx264)** software encode (and
+HEVC/AV1). Select it with
 `WithBackend` / `native.NewFromRelease`; WASM stays the default.
 
 ```go
@@ -106,7 +108,7 @@ and the current build order; the design records live in
 | [0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api) | `New` / `Run` / `RunJob` / `Probe` / `Close` — the public API |
 | [0007](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0007-libav-direct-engine) | The libav-direct engine + structured job spec (supersedes the CLI-string design) |
 | [0010](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0010-signed-release-acquisition) | Signature-verified module acquisition (`WithModuleRelease`) |
-| [0028](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0028-native-subprocess-backend) | The native subprocess backend — 48–58× faster software encode, HEVC/AV1, still CGO-free |
+| [0028](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0028-native-subprocess-backend) | The native subprocess backend — ~50× (openh264) to ~170× (libx264) faster software encode, HEVC/AV1, still CGO-free |
 | [0031](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0031-job-progress-reporting) / [0032](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0032-engine-progress-side-channel) | Live job progress (`WithProgress`) — observed-fs (phase A) + engine side-channel (phase B) |
 | [0034](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0034-fraction-source-precedence) | Which source `Progress.Fraction` derives from — engine time over input bytes, and `-1` rather than a false "done" |
 

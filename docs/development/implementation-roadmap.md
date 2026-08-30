@@ -122,7 +122,8 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
 ### Phase 5 — Strategic / native (largely SHIPPED, 2026-07-05)
 - **[0028](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0028-native-subprocess-backend) native backend (Backend B)** — **SHIPPED**. The
   native `driver.c` ELF + seekable AVIO-over-IPC, wired via `WithBackend` / `native.NewFromRelease`;
-  48–58× faster software encode than WASM. WASM stays default; CGO-free.
+  ~50× (openh264) to ~170× (libx264) faster software encode than WASM. WASM stays
+  default; CGO-free.
 - **[0022](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0022-build-size-matrix) native matrix** — **linux/amd64 SHIPPED** (lean/
   intermediate/full × lgpl/gpl, signed). `linux/arm64` + `darwin/arm64` remain (the cross-build cost).
 - **[0023](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0023-hevc-and-av1) HEVC/AV1** — **SHIPPED**: encode via x265 (HEVC, gpl/full) +
@@ -180,7 +181,7 @@ grab (most-ready first). A future session should confirm the trigger still holds
 | Spec | What it adds | Trigger / gate | Rough cost | Ready to pull? |
 |------|--------------|----------------|------------|----------------|
 | **[0009](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0009-afmpeg-cli) afmpeg CLI** | A standalone `afmpeg` command-line binary over the library | None — pure Go, no hardware, no consumer needed. The only net-new user-facing surface not otherwise blocked | Medium | **Yes** — spec it → approve → build. Best candidate if the goal is to keep shipping value |
-| **[0030](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0030-wasm-threading-strategy) WASM threading** | Multi-threaded in-browser WASM encode | Wanting *WASM* speed specifically — the native backend already gives 48–58× off-browser, so this only matters for the pure-browser path | Large | Only if a browser-perf need appears; strategy spec exists, impl does not |
+| **[0030](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0030-wasm-threading-strategy) WASM threading** | Multi-threaded in-browser WASM encode | Wanting *WASM* speed specifically — the native backend already gives ~50–170× off-browser, so this only matters for the pure-browser path | Large | Only if a browser-perf need appears; strategy spec exists, impl does not |
 | **[0022](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0022-build-size-matrix) arm64/darwin native** | Native Backend-B on `linux/arm64` + `darwin/arm64` | A consumer needing the native backend off `linux/amd64` (e.g. Apple Silicon). The real cost is the cross-build toolchains/runners, not the artifact count | Large | Only on a platform need |
 | **HW-accel encode** | NVENC/VAAPI/QSV/… (the full profile's remaining members) | **Blocked** — needs a GPU/accel device; not available on the headless dev box | Medium once a device exists | No — environment-blocked |
 | **[0026](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0026-engine-hot-path-performance) hot-path micro-opts** | Engine perf tuning | **Measure-first** — pair with the `0008` rig (`cmd/afmpeg-bench`); only land a change with a measured win | Small–Medium | Only with a profile showing a hotspot |

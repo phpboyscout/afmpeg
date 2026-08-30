@@ -55,7 +55,7 @@ Available:
   (invocations serialise one-at-a-time per `Runtime`).
 - **[Use the native backend](use-the-native-backend.md)** — swap the sandboxed WASM module for
   the signed **native driver** (`native.NewFromRelease` + `WithBackend`): native-speed software
-  encode (48–58×) and the **full** profile's HEVC/AV1 encoders. linux/amd64, opt-in, CGO-free.
+  encode (~50× openh264, ~170× libx264) and the **full** profile's HEVC/AV1 encoders. linux/amd64, opt-in, CGO-free.
 
 New to afmpeg? Do **[your first in-memory transcode](../tutorials/first-in-memory-transcode.md)**
 first — these guides assume you already have a `Runtime`.
