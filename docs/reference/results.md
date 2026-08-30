@@ -1,6 +1,6 @@
 ---
 title: Results, probes and progress values
-description: Every value afmpeg hands back — Result, ProcessResult, Probe, FramesResult and Progress — field by field, including when each is zero.
+description: Every value afmpeg hands back (Result, ProcessResult, Probe, FramesResult and Progress), field by field, including when each is zero.
 date: 2026-08-02
 tags: [reference, results, probe, progress]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -17,7 +17,7 @@ This distinction runs through every call, so it is worth stating once:
 - **A non-zero engine exit is not a Go error.** `Run`/`RunJob` return a `Result` with the exit
   code and the captured output, and a `nil` error. A bad codec name, an unparseable filtergraph
   or a missing input all arrive this way.
-- **Only host-side failures return a non-nil error** — module instantiation, the filesystem
+- **Only host-side failures return a non-nil error**: module instantiation, the filesystem
   bridge, a cancelled or expired context, a driver that would not start.
 - **The typed helpers invert this for convenience.** `Probe`, `ProbeInput` and `Frames` turn a
   non-zero exit into an error, because there is no useful typed value to return. The error
@@ -68,11 +68,11 @@ type OutputStream struct {
 |---|---|
 | `Outputs[].Path` | The output that was written. For a segmenting muxer (`hls`, `dash`, `segment`) this is the playlist or manifest, not the segments. |
 | `Outputs[].Segmented` | True when the output is a segment set rather than a single file. |
-| `Outputs[].Streams[].Codec` | The encoder the engine used — worth logging, because it confirms which H.264 encoder a module actually has. |
+| `Outputs[].Streams[].Codec` | The encoder the engine used, worth logging because it confirms which H.264 encoder a module actually has. |
 | `Analysis` | Measurements emitted by analysis filters. Empty unless the graph contains one. |
 
 `ParseResult` on an empty `Stdout` returns a zero `ProcessResult` and **no error**, so it is safe
-to call on any result. It does not look at the exit code — check that first, because the engine
+to call on any result. It does not look at the exit code, so check that first, because the engine
 only emits this JSON on success.
 
 ### Measurement
@@ -86,7 +86,7 @@ type Measurement struct {
 ```
 
 Keys arrive as the filter names them minus the `lavfi.` prefix: `cropdetect.w`, `r128.I`,
-`silence_start`, `black_start`. Values are the filters' raw strings — parse the numeric ones
+`silence_start`, `black_start`. Values are the filters' raw strings, so parse the numeric ones
 yourself.
 
 Two behaviours to plan for:
@@ -94,7 +94,7 @@ Two behaviours to plan for:
 - **The series is consecutive-deduplicated per key.** A stable measurement such as `cropdetect`
   appears once; discrete events such as `silence_start` / `silence_end` each appear.
 - **Some filters log without emitting metadata.** `ebur128` and `astats` need their `metadata=1`
-  option before anything reaches `Analysis` — for example `ebur128=metadata=1`.
+  option before anything reaches `Analysis`: for example `ebur128=metadata=1`.
 
 ## Probe
 
@@ -111,7 +111,7 @@ type Probe struct {
 
 | Field | Meaning |
 |---|---|
-| `Format` | The demuxer name as libav reports it. Often a comma-separated family rather than one name — an MP4 probes as `mov,mp4,m4a,3gp,3g2,mj2`. Match on a substring, not on equality. |
+| `Format` | The demuxer name as libav reports it. Often a comma-separated family rather than one name, so an MP4 probes as `mov,mp4,m4a,3gp,3g2,mj2`. Match on a substring, not on equality. |
 | `DurationSec` | Container duration in seconds. |
 | `StartSec` | The container's start time. Non-zero after, for instance, a `CopyTS` trim. |
 | `Streams` | One entry per stream, in container order. |
@@ -143,7 +143,7 @@ The video and audio fields are mutually irrelevant: `Width`/`Height` are zero on
 stream, `SampleRate`/`Channels` are zero on a video stream. `Language` is commonly `und`.
 
 `Probe(ctx, fs, path)` auto-probes. A headerless or raw input only opens with a forced demuxer,
-so use `ProbeInput(ctx, fs, Input{Path: …, Format: …, Options: …})` for those — it forwards
+so use `ProbeInput(ctx, fs, Input{Path: …, Format: …, Options: …})` for those, because it forwards
 `Format` and `Options` exactly as a process job would.
 
 Probing needs the ffmpeg-wasi engine: it is the engine's `probe` op, not something afmpeg
@@ -187,7 +187,7 @@ type Progress struct {
 
 | Field | Meaning | Zero when |
 |---|---|---|
-| `Fraction` | Completion in `[0,1]`, or **`-1`** when it cannot be determined. Never decreases across a run. | — (it is `-1`, not `0`, when unknown) |
+| `Fraction` | Completion in `[0,1]`, or **`-1`** when it cannot be determined. Never decreases across a run. | (it is `-1`, not `0`, when unknown) |
 | `Source` | How `Fraction` was derived. `SourceUnknown` exactly when `Fraction` is `-1`. | — |
 | `Elapsed` | Since the invocation began. | — |
 | `InputBytes` | Input bytes read so far, counted at the filesystem bridge. | — |
@@ -214,20 +214,20 @@ twice and `OutputBytes` finishes a little above the file length.
 Deliberately, in five situations. Each is a case where a number could be produced but would be
 wrong within a second or two:
 
-1. **The first moment of a job** on a backend that can deliver engine records — up to a 2-second
-   grace period — rather than showing a byte ratio the engine is about to contradict.
+1. **The first moment of a job** on a backend that can deliver engine records (up to a 2-second
+   grace period), rather than showing a byte ratio the engine is about to contradict.
 2. **Every declared input byte has been read while the job is still encoding.** A render whose
    inputs are small next to its output exhausts them early; `-1` beats a full bar for the rest of
    the run.
 3. **A purely generative input** with no file to measure, on an engine that reports no duration.
-4. **The engine's `out_time` has overrun the duration it reported** by more than 2% — the job is
+4. **The engine's `out_time` has overrun the duration it reported** by more than 2%, so the job is
    demonstrably longer than predicted, so the ratio is withheld rather than pinned at 1.0.
 5. **No statable input at all** and no engine duration.
 
-`Fraction == 1` is not a completion signal either way — use the invocation's return.
+`Fraction == 1` is not a completion signal either way. Use the invocation's return.
 
 ## See also
 
-- [Watch job progress](../how-to/watch-job-progress.md) — the task-shaped guide, with a worked loop
+- [Watch job progress](../how-to/watch-job-progress.md): the task-shaped guide, with a worked loop
 - [Read analysis-filter measurements](../how-to/read-analysis-measurements.md)
-- [Error catalogue](../explanation/components/errors.md) — the sentinel errors and how to match them
+- [Error catalogue](../explanation/components/errors.md): the sentinel errors and how to match them
