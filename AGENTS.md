@@ -70,12 +70,12 @@ n9.0.1 in
 Two things that report settles and neither is obvious: the **encoder** moves the
 ratio by 3.5x, and the **FFmpeg version** does not move it at all (n8.1.2 and
 n9.0.1 agree to within noise), so it does not need re-measuring every bump. Spec
-0030 rests on a different 13 to 63x from the dav1d spike — a separate quantity,
+0030 rests on a different 13 to 63x from the dav1d spike, a separate quantity:
 do not run the ranges together. Attribute a figure to the report it came from
 with its comparison attached. Fresh numbers need care too: `cmd/afmpeg-bench`
 puts a lane that cannot use a second core against one that can, so a run taken
 under contention reads exactly like a valid one. Pass `-native-driver`, pin
-`-native` deliberately, and sample twice — the reel ratio's denominator is a
+`-native` deliberately, and sample twice, because the reel ratio's denominator is a
 sub-300ms measurement and swings 13% between runs.
 
 ## The quality gate
