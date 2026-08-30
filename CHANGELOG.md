@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.16.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.16.0)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.15.1...v0.16.0)
+
+### Features
+
+- **command**: address an encoder option to one encoder ([94615c7](https://gitlab.com/phpboyscout/afmpeg/-/commit/94615c703c24b3b46f9fb1b496fae81661710239))
+
+### Bug Fixes
+
+- **deps**: update module gitlab.com/phpboyscout/go/signing to v0.8.1 ([9bdc5e4](https://gitlab.com/phpboyscout/afmpeg/-/commit/9bdc5e4e41dec4f7e044fd27f3986ca84366b7b9))
+
 ## [v0.15.1](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.15.1)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.15.0...v0.15.1)
