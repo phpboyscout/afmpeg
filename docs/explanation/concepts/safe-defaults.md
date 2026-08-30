@@ -1,6 +1,6 @@
 ---
 title: Why a Runtime is capped, deadlined and serialised
-description: The reasoning behind afmpeg's three out-of-the-box constraints — a 512 MB guest memory cap, a one-hour invocation deadline, and one job at a time — and what they do not protect.
+description: The reasoning behind afmpeg's three out-of-the-box constraints: a 512 MB guest memory cap, a one-hour invocation deadline, and one job at a time, plus what they do not protect.
 date: 2026-08-02
 tags: [explanation, hardening, defaults, concurrency]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -19,7 +19,7 @@ The values themselves, and how to change them, are in
 ## Why the defaults are on rather than opt-in
 
 afmpeg's purpose is processing media you did not create. A user upload, a file fetched from a
-URL, an artifact from a pipeline someone else owns — that is the normal case, not the paranoid
+URL, an artifact from a pipeline someone else owns. That is the normal case, not the paranoid
 one.
 
 A library whose safe configuration is opt-in gets deployed unsafely, because the person wiring
@@ -38,7 +38,7 @@ A media file declares its own dimensions, and a decoder allocates from what it i
 has decoded a single pixel. A file claiming enormous frame dimensions asks libav to allocate
 gigabytes, and it will try.
 
-Without a cap that allocation lands in the host process. Go cannot recover from it — the process
+Without a cap that allocation lands in the host process. Go cannot recover from it, and the process
 is killed by the kernel, taking every other request in flight with it. One bad upload becomes an
 outage.
 
@@ -50,20 +50,20 @@ That is the entire trade: turning a host-level crash into a job-level failure.
 It is worth being clear about what the number is and is not. 512 MB is a working ceiling
 generous enough for ordinary decode and encode work and far below the multi-gigabyte demand a
 crafted file makes. It is not a measurement of *your* workload. Large frames, many parallel
-filter buffers, or a filtergraph holding several streams in flight can legitimately need more —
+filter buffers, or a filtergraph holding several streams in flight can legitimately need more,
 raise it deliberately rather than removing it, so the ceiling still exists.
 
 ## Why an hour, and why your deadline always wins
 
 The deadline addresses a different failure: not allocating too much, but never finishing. A
 decode loop that does not terminate holds the invocation slot forever. Because a `Runtime`
-serialises, that is not one stuck job — it is every subsequent job on that `Runtime`, queued
+serialises, that is not one stuck job. It is every subsequent job on that `Runtime`, queued
 behind something that will never end.
 
 An hour is not a guess at how long your jobs take. It is deliberately far longer than any
 reasonable job, because the default exists to catch *pathological* runs, not slow ones. A
 default tight enough to be useful as a job timeout would break legitimate long encodes, and the
-people who need a real timeout have a much better tool for it — their own context.
+people who need a real timeout have a much better tool for it: their own context.
 
 Which is why the caller's deadline is never overridden. If the context you pass already carries
 one, afmpeg uses it exactly as given: you know what your job should cost and afmpeg does not.
@@ -78,7 +78,7 @@ job ahead of it.
 
 ## Why one invocation at a time
 
-This one is not a safety default in the same sense — it is a property of what a `Runtime` is.
+This one is not a safety default in the same sense. It is a property of what a `Runtime` is.
 
 The expensive thing afmpeg does is compile the WebAssembly module, which is why you build a
 `Runtime` once and keep it. What is shared is that compiled module and the wazero runtime around
@@ -92,7 +92,7 @@ inside one runtime.
 
 The consequence is the thing to internalise: **a `Runtime` is safe to share and does not give
 you parallelism.** Calling it from ten goroutines is correct, and it is also ten jobs in a
-queue. Parallelism comes from building more than one `Runtime` — each pays the compile cost
+queue. Parallelism comes from building more than one `Runtime`, and each pays the compile cost
 once, and after that they are independent. The queue is context-aware, so a caller with a short
 deadline is not stuck behind a long job; it gives up while queued rather than blocking for the
 job in front.
@@ -116,6 +116,6 @@ Being explicit about the edges matters more than the reassurance:
 
 ## See also
 
-- [Runtime options](../../reference/runtime-options.md) — the exact values and how to change them
-- [Reuse a Runtime across many invocations](../../how-to/reuse-a-runtime.md) — the long-lived pattern
-- [Limitations](../../reference/limitations.md) — the other boundaries
+- [Runtime options](../../reference/runtime-options.md): the exact values and how to change them
+- [Reuse a Runtime across many invocations](../../how-to/reuse-a-runtime.md): the long-lived pattern
+- [Limitations](../../reference/limitations.md): the other boundaries

@@ -1,6 +1,6 @@
 ---
 title: Extract a clip (seek and time ranges)
-description: Cut a time window out of a source — a cheap keyframe cut, a frame-accurate one, or a no-re-encode copy-trim — without decoding from the start of the file.
+description: Cut a time window out of a source: a cheap keyframe cut, a frame-accurate one, or a no-re-encode copy-trim, without decoding from the start of the file.
 date: 2026-07-03
 tags: [how-to, command, seek, clip]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -10,12 +10,12 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 "Give me 5 seconds from 0:12" should not cost a decode of the first 12 seconds. `Input.Seek`
 jumps the demuxer straight to the target (mirroring ffmpeg's `-ss`), and `Output.Duration` /
-`Output.End` stop the output early (`-t` / `-to`) — so a clip costs roughly its own length,
+`Output.End` stop the output early (`-t` / `-to`), so a clip costs roughly its own length,
 not the whole file (spec [0014](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0014-seeking-and-time-ranges)).
 
-## The cheap cut (fast seek — the default)
+## The cheap cut (fast seek, the default)
 
-A fast seek lands on the **keyframe at-or-before** the requested start — nothing before it is
+A fast seek lands on the **keyframe at-or-before** the requested start, so nothing before it is
 even read. The clip may start a fraction of a second early (up to one GOP); the output is
 zero-based on the keyframe actually landed on:
 
@@ -32,7 +32,7 @@ cmd := afmpeg.NewCommand(
 ## The exact cut (accurate seek)
 
 `SeekAccurateTo` starts the clip at **exactly** the requested time: a fast seek plus
-decode-and-discard of the keyframe-to-target gap (a fraction of a GOP — still nowhere near
+decode-and-discard of the keyframe-to-target gap (a fraction of a GOP, still nowhere near
 decoding from the file start):
 
 ```go
@@ -42,7 +42,7 @@ afmpeg.WithInput("in.mp4", afmpeg.SeekAccurateTo(12.5))
 ## The free cut (copy-trim, no re-encode)
 
 Compose a fast seek with [stream copy](remux-without-re-encoding.md) and the cut costs no
-decode *or* encode — the packets from the landing keyframe onward are passed straight through:
+decode *or* encode: the packets from the landing keyframe onward are passed straight through:
 
 ```go
 cmd := afmpeg.Command{
@@ -55,17 +55,17 @@ cmd := afmpeg.Command{
 }
 ```
 
-A copy can **only cut on keyframes** — that's physics, not a limitation of the API: producing
+A copy can **only cut on keyframes**. That's physics, not a limitation of the API: producing
 an exact frame would require the re-encode the copy path skips. Asking for an accurate seek on
 a copied stream is therefore a validation error, not a silently-fudged cut.
 
 ## Duration vs End, and the timeline
 
-- **`Duration(5)`** — stop after 5 seconds of output (`-t`).
-- **`End(17.5)`** — stop at position 17.5 (`-to`). Mutually exclusive with Duration.
-- By default the output is **zero-based** — the clip starts at t=0, which is what players and
+- **`Duration(5)`**: stop after 5 seconds of output (`-t`).
+- **`End(17.5)`**: stop at position 17.5 (`-to`). Mutually exclusive with Duration.
+- By default the output is **zero-based**: the clip starts at t=0, which is what players and
   consumers expect. On that timeline `End` and `Duration` coincide (the output starts at 0).
-- **`CopyTS()`** preserves the source timestamps instead — the clip starts at the seek point's
+- **`CopyTS()`** preserves the source timestamps instead, so the clip starts at the seek point's
   PTS, and `End` becomes an absolute source position. Use it when timelines must stay aligned
   across multiple outputs. `Probe`'s `StartSec` reports the resulting start offset.
 

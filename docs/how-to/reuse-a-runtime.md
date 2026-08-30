@@ -1,6 +1,6 @@
 ---
 title: Reuse a Runtime across many invocations
-description: Compile the wasm module once at startup and share one afmpeg.Runtime for the process lifetime — and how its one-at-a-time serialisation affects throughput.
+description: Compile the wasm module once at startup and share one afmpeg.Runtime for the process lifetime, and how its one-at-a-time serialisation affects throughput.
 date: 2026-06-29
 tags: [how-to, runtime, performance, concurrency]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -8,7 +8,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 # Reuse a Runtime across many invocations
 
-`afmpeg.New` **compiles** the wasm module — the single most expensive step. Do it **once**,
+`afmpeg.New` **compiles** the wasm module, the single most expensive step. Do it **once**,
 keep the `*Runtime`, and run as many jobs through it as you like. Re-creating a `Runtime` per
 job recompiles the module every time and throws away the win.
 
@@ -18,7 +18,7 @@ end-to-end run see [run over an in-memory filesystem](run-in-memory.md).
 
 ## Build once at startup, hold for the process lifetime
 
-Compile during startup and store the `Runtime` on whatever owns your service's lifetime — a
+Compile during startup and store the `Runtime` on whatever owns your service's lifetime: a
 struct field, a long-lived value, etc. `Run`, `RunJob`, and `Probe` are all safe to call
 concurrently from many goroutines on the same `Runtime`.
 
@@ -64,7 +64,7 @@ share the engine.
 
 ## Safe by default: memory ceiling and invocation deadline
 
-Because afmpeg's job is to process **untrusted** media, a `Runtime` is hardened out of the box —
+Because afmpeg's job is to process **untrusted** media, a `Runtime` is hardened out of the box:
 you do not have to opt in
 ([why](../explanation/concepts/safe-defaults.md)):
 
@@ -72,7 +72,7 @@ you do not have to opt in
   libav try to allocate gigabytes; the cap turns that into a clean guest-side failure (a non-zero
   exit) instead of an OOM-kill of your host process.
 - **Every invocation runs under a 1-hour deadline.** A pathological, non-terminating decode
-  cannot hang forever and wedge the `Runtime` — the invocation aborts and the engine stays usable.
+  cannot hang forever and wedge the `Runtime`; the invocation aborts and the engine stays usable.
 
 Tune or remove either bound explicitly:
 
@@ -87,12 +87,12 @@ engine, err := afmpeg.New(ctx,
 The deadline is a **default**, not an override: if the context you pass to `Run`/`RunJob`/`Probe`
 already carries a deadline, afmpeg honours yours and never extends it. The imposed default only
 applies when your context has none (e.g. `context.Background()`). Pass `WithMemoryLimit(0)` or
-`WithTimeout(0)` to remove a bound entirely — for the rare consumer who knowingly wants the
+`WithTimeout(0)` to remove a bound entirely, for the rare consumer who knowingly wants the
 unbounded behaviour.
 
 ## Throughput: invocations serialise
 
-A `Runtime` runs **one invocation at a time** — `Run`/`RunJob`/`Probe`/`Frames` take a single
+A `Runtime` runs **one invocation at a time**: `Run`/`RunJob`/`Probe`/`Frames` take a single
 invocation slot, so concurrent callers queue rather than execute in parallel. That keeps the
 engine safe to share, but it means a single `Runtime` does **not** give you parallelism.
 
@@ -102,7 +102,7 @@ for the whole job in front of it. The invocation deadline only starts once the s
 so queueing does not eat the budget.
 
 To actually run jobs in parallel, build **more than one** `Runtime` and hand work out across
-them — each compiles the module once:
+them, and each compiles the module once:
 
 ```go
 // A fixed fleet of engines for parallel work.

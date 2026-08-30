@@ -13,23 +13,23 @@ implements. The specs are the authoritative decision record; the code is downstr
 them.
 
 > **Picking up implementation?** Start at the
-> [implementation roadmap](implementation-roadmap.md) — the phased build order across all
+> [implementation roadmap](implementation-roadmap.md): the phased build order across all
 > specs (0013–0034) with dependencies and prerequisites, and its **Pick-up menu** of the remaining
-> trigger-gated work. Phases 0–4 are shipped (through **vocab v9** — job progress), and Phase 5
+> trigger-gated work. Phases 0–4 are shipped (through **vocab v9**, job progress), and Phase 5
 > (the native backend + matrix, HEVC/AV1, perf) is **largely shipped** too. Current anchors:
 > afmpeg **v0.16.0**, ffmpeg-wasi **n9.0.1-3**, job-spec **vocab v10**. What remains
-> is all optional/trigger-gated — `0009` CLI, `0030` WASM threads, arm64/darwin native, HW-accel
+> is all optional/trigger-gated: `0009` CLI, `0030` WASM threads, arm64/darwin native, HW-accel
 > encode, `0025`/`0026`.
 
 ## Contributor docs
 
-- [CI security scanning](ci-security-scanning.md) — how the MR security gate works
+- [CI security scanning](ci-security-scanning.md): how the MR security gate works
   (govulncheck / osv-scanner / trivy / gitleaks), and the recorded decisions behind the
   osv-scanner ignore + job overrides (incl. the unfixable, unreachable x/crypto advisory).
 
 ## Specs
 
-The source of truth. They live in the [project wiki](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/home) — see the
+The source of truth. They live in the [project wiki](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/home), see the
 [register](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/home) for all of them, in number order, with their current status.
 
 Start with [`0001-afmpeg`](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg), the thesis; it decomposes into the
@@ -41,7 +41,7 @@ what does change with the code.
 
 | Also | Scope |
 |------|-------|
-| [external review — validation & disposition](https://gitlab.com/phpboyscout/afmpeg/-/wikis/external-review/home) | The commissioned external review + our per-finding validation verdicts and spec mapping |
+| [external review: validation and disposition](https://gitlab.com/phpboyscout/afmpeg/-/wikis/external-review/home) | The commissioned external review + our per-finding validation verdicts and spec mapping |
 
 ## Method
 
@@ -55,7 +55,7 @@ what does change with the code.
   dedicated `doc.go` (not scattered above a random file's `package` clause), so the
   package's purpose is discoverable in one place and on `pkg.go.dev`.
 - **Docs land with the code, not after.** A change that adds or reshapes a component
-  ships its [Diátaxis](https://diataxis.fr/) documentation in the same MR — an
+  ships its [Diátaxis](https://diataxis.fr/) documentation in the same MR, an
   explanation page for a new component, a how-to for a new task, reference for a new
   config/CLI surface. Docs are part of "done", never an afterthought.
 - **Verify before PR:** `just ci` (tidy, generate, test, race, lint).
@@ -83,8 +83,8 @@ capability profile (spec [0022](https://gitlab.com/phpboyscout/afmpeg/-/wikis/sp
 | `AFMPEG_TEST_FFMPEG_WASI_INTERMEDIATE` | an **intermediate** build |
 
 Profiles are cumulative but not interchangeable. Roughly a third of the suite exercises
-mpegts, HLS, libopus/libmp3lame/libvpx, yadif, loudnorm, libass burn-in or AV1 decode —
-none of which a lean build carries — so those tests need the intermediate module and skip
+mpegts, HLS, libopus/libmp3lame/libvpx, yadif, loudnorm, libass burn-in or AV1 decode,
+none of which a lean build carries, so those tests need the intermediate module and skip
 without it, naming the variable to set. An intermediate build satisfies a lean test, so
 setting only the intermediate variable runs everything too.
 
@@ -105,7 +105,7 @@ Both are published on every [ffmpeg-wasi release](https://gitlab.com/phpboyscout
 #### Backend B (the native driver)
 
 The `pkg/afmpeg/native` tests drive a native **driver binary** rather than a WASM module, and
-a driver varies on two independent axes — the capability profile *and* the licence variant:
+a driver varies on two independent axes: the capability profile *and* the licence variant:
 
 | Variable | Driver |
 |---|---|
@@ -121,13 +121,13 @@ picks the least-rich adequate one supplied. In practice **one intermediate/gpl d
 every native test**, because gpl is a superset of lgpl and intermediate of lean.
 
 The variant axis is not cosmetic: `cropdetect` carries `cropdetect_filter_deps="gpl"`
-upstream, so it is absent from every lgpl build no matter how rich the profile — as is the
+upstream, so it is absent from every lgpl build no matter how rich the profile, as is the
 `libx264` encoder. A test needing either skips on an lgpl driver rather than failing with a
 message about a missing filter.
 
 Put these in a `.env` (the justfile sets `dotenv-load`) and `just test-integration` picks
 them up. Full is native-only, per spec
-[0022](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0022-capability-profiles) §4 —
+[0022](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0022-capability-profiles) §4:
 there is no WASM-full module.
 
 The runtime provides the `env` setjmp/longjmp host module and the WebAssembly feature set a
