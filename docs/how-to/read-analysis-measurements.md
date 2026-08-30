@@ -8,11 +8,11 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 # Read analysis-filter measurements
 
-FFmpeg's analysis filters — `cropdetect`, `blackdetect`, `silencedetect`, `ebur128`,
-`signalstats`, `astats`, … — measure the media as it flows through the graph. afmpeg
+FFmpeg's analysis filters (`cropdetect`, `blackdetect`, `silencedetect`, `ebur128`,
+`signalstats`, `astats`, …) measure the media as it flows through the graph. afmpeg
 surfaces those measurements as **structured data** on the result (spec 0017 §Q): put the
 filter in your graph, run the job, and read `ProcessResult.Analysis` via
-[`afmpeg.ParseResult`](../reference/index.md) — no scraping stderr.
+[`afmpeg.ParseResult`](../reference/index.md), with no scraping of stderr.
 
 ## Detect the content crop
 
@@ -35,7 +35,7 @@ for _, m := range pr.Analysis {
 }
 ```
 
-Each `Measurement` is `{Time float64, Key string, Value string}` — the `lavfi.` prefix
+Each `Measurement` is `{Time float64, Key string, Value string}`; the `lavfi.` prefix
 dropped, values as the filters' own strings (parse the numeric ones with `strconv`). The
 series is **consecutive-deduplicated per key**, so a stable measurement (a fixed crop)
 records once, while discrete events each record on their own.
@@ -62,13 +62,13 @@ key is the final measurement; for event filters, each `*_start`/`*_end` pair is 
 
 !!! note "Put the analysis filter late in the chain"
     Measurements are read off the frames **at the sink**, so the analysis filter should sit
-    at (or near) the end of its branch — a later filter that replaces frame metadata would
+    at (or near) the end of its branch, because a later filter that replaces frame metadata would
     drop them. If you only want the numbers and not the re-encoded output, encode the branch
     to a small throwaway output; the measurements ride along regardless.
 
 ## Capability
 
-The analysis filters live in the **intermediate** profile (and up) — see the
+The analysis filters live in the **intermediate** profile (and up); see the
 [ffmpeg-wasi filter reference](https://ffmpeg-wasi.phpboyscout.uk/reference/filters/). Works
 on both the WASM module and the [native backend](use-the-native-backend.md); `Analysis` is
 empty (nil) when the job ran no analysis filter.

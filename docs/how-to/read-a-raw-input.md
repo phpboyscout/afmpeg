@@ -8,7 +8,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 # Read a raw or headerless input (forced format & demuxer options)
 
-Some inputs carry no header for the demuxer to probe — raw `.yuv` video, raw `.pcm` audio, a
+Some inputs carry no header for the demuxer to probe: raw `.yuv` video, raw `.pcm` audio, a
 stream with a misleading extension. For those, name the demuxer with `InputFormat` and hand it
 the geometry it can't infer through `DemuxerOption` (spec
 [0024](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0024-input-options-and-formats)).
@@ -31,7 +31,7 @@ cmd := afmpeg.NewCommand(
 
 ## Raw audio
 
-Raw PCM is the same shape — a sample format demuxer (`s16le`, `f32le`, …) plus the rate and
+Raw PCM is the same shape: a sample format demuxer (`s16le`, `f32le`, …) plus the rate and
 channel layout:
 
 ```go
@@ -42,7 +42,7 @@ afmpeg.WithInput("tone.pcm", afmpeg.InputFormat("s16le"),
 
 ## Forcing the demuxer for a mislabelled file
 
-`InputFormat` also overrides auto-probing when a container's extension would mislead it — an mp4
+`InputFormat` also overrides auto-probing when a container's extension would mislead it, such as an mp4
 served as `clip.bin`, say:
 
 ```go
@@ -51,7 +51,7 @@ afmpeg.WithInput("clip.bin", afmpeg.InputFormat("mp4"))
 
 ## Options are checked, not swallowed
 
-A `DemuxerOption` the demuxer doesn't recognise is a **typed error**, not a silent no-op — a typo
+A `DemuxerOption` the demuxer doesn't recognise is a **typed error**, not a silent no-op, so a typo
 or a wrong-demuxer option fails loudly rather than producing quietly-wrong output. That is the
 same "exactly as capable as it claims" posture the whole job spec takes.
 

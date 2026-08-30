@@ -29,7 +29,7 @@ for _, s := range p.Streams {
 
 ## Write container tags
 
-Set `Output.Metadata` — a copy is enough, no re-encode needed:
+Set `Output.Metadata`; a copy is enough, no re-encode needed:
 
 ```go
 cmd := afmpeg.Command{
@@ -68,7 +68,7 @@ Outputs: []afmpeg.Output{{
 
 ## Carry chapters across
 
-`Output.Chapters` is a passthrough directive — `"copy"` carries the first input's chapters
+`Output.Chapters` is a passthrough directive: `"copy"` carries the first input's chapters
 onto the output, an input index (`"1"`) picks another input, and `""` / `"none"` drops them.
 Authoring chapters inline is not supported.
 
@@ -84,5 +84,5 @@ Outputs: []afmpeg.Output{{
 
 ## See also
 
-- [Compose a command with the builder](compose-a-command.md) — the `Command`/`Output` shape.
-- [Remux without re-encoding](remux-without-re-encoding.md) — the copy path these examples build on.
+- [Compose a command with the builder](compose-a-command.md): the `Command`/`Output` shape.
+- [Remux without re-encoding](remux-without-re-encoding.md): the copy path these examples build on.

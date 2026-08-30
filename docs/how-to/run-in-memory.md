@@ -1,6 +1,6 @@
 ---
 title: Run ffmpeg over an in-memory filesystem
-description: Transcode with afmpeg using an afero.MemMapFs — inputs and outputs stay in RAM, no host disk.
+description: Transcode with afmpeg using an afero.MemMapFs, so inputs and outputs stay in RAM, no host disk.
 date: 2026-06-27
 tags: [how-to, runtime, afero, in-memory]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -9,8 +9,8 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 # Run ffmpeg over an in-memory filesystem
 
 This guide runs an ffmpeg invocation whose inputs and outputs live entirely in an
-in-memory [`afero.Fs`](https://github.com/spf13/afero) — no host disk, no temp
-files. It assumes you already have a wasm FFmpeg module — a released
+in-memory [`afero.Fs`](https://github.com/spf13/afero), with no host disk and no temp
+files. It assumes you already have a wasm FFmpeg module: a released
 [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine (see
 [obtain a module](obtain-a-module.md)) or another build. It is deliberately **not**
 embedded in the package; see the
@@ -62,7 +62,7 @@ if res.ExitCode != 0 {
 out, _ := afero.ReadFile(fs, "out/reel.mp4") // the encoded mp4, in memory
 ```
 
-A **non-zero exit is not a Go error** — it is reported in `res.ExitCode` with the
+A **non-zero exit is not a Go error**. It is reported in `res.ExitCode` with the
 error tail in `res.Stderr`. Only host-side failures return a non-nil `error`.
 (`RunJob` is sugar for `Run(ctx, fs, string(spec))` where `spec` is `cmd.JobSpec()`.)
 
@@ -90,7 +90,7 @@ _, err := rt.Run(ctx, fs, /* … */) // returns a context error if it overruns
 
 Not in parallel. A `Runtime` runs **one invocation at a time**: concurrent `Run` calls are safe
 and they serialise, so calling from ten goroutines gives you ten queued jobs rather than ten
-running ones. For parallel renders, construct more than one `Runtime` — see
+running ones. For parallel renders, construct more than one `Runtime`; see
 [reuse a Runtime](reuse-a-runtime.md), and
 [why it works that way](../explanation/concepts/safe-defaults.md#why-one-invocation-at-a-time).
 There is no built-in pool.

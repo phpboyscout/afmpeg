@@ -8,7 +8,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 # Architecture
 
-afmpeg is three layers. The middle one is the novel engineering — everything else is
+afmpeg is three layers. The middle one is where the work is; everything else is
 wiring around it.
 
 ```
@@ -28,7 +28,7 @@ wiring around it.
 
 FFmpeg and its dependencies (openh264/x264, …) compiled to `wasm32-wasi`, configured down to
 only the codecs/filters real workflows need. It is produced by a reproducible build pipeline
-and — per the licensing decision — shipped as a **separate downloadable artifact, not
+and, per the licensing decision, shipped as a **separate downloadable artifact, not
 `//go:embed`-ed**, so the GPL obligation stays at arm's length from the permissively
 licensed Go package. See spec
 [0002](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0002-wasm-build-pipeline).
@@ -36,7 +36,7 @@ licensed Go package. See spec
 ## 2. The afero ↔ wazero vfs bridge (the heart)
 
 ffmpeg-in-the-guest issues WASI filesystem syscalls. wazero routes them to a mounted
-`experimental/sys.FS`. afmpeg implements that `sys.FS` **backed by an `afero.Fs`** — so
+`experimental/sys.FS`. afmpeg implements that `sys.FS` **backed by an `afero.Fs`**, so
 the guest's reads and writes hit the caller's filesystem (e.g. an in-memory `MemMapFs`)
 with no host disk touched. It also provides a writable `/tmp` and `/dev/null` the guest
 needs, and must handle seek-on-write (the mp4 muxer rewrites the `moov` atom under
@@ -61,21 +61,21 @@ See specs [0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtim
 WASM path above (wazero + the vfs bridge). An opt-in **native backend** (`pkg/afmpeg/native`,
 wired with `WithBackend`) satisfies the same seam differently: it spawns the *same* libav-direct
 engine compiled to a **native ELF** as a subprocess and serves the caller's `afero.Fs` to it over
-a Unix-socket IPC bridge — a framed read/write/**seek** protocol that carries even the muxer's
+a Unix-socket IPC bridge, a framed read/write/**seek** protocol that carries even the muxer's
 backward seeks, so I/O still never touches host disk. It is **CGO-free** (a subprocess, not a
 linked library, so the licensing arm's-length holds) and gives threads + SIMD: native-speed
 software encode, and the full profile's HEVC/AV1 encoders that are impractical in WASM. The Go
-API, the job spec, and the results are identical — only the runtime underneath changes. The
+API, the job spec, and the results are identical; only the runtime underneath changes. The
 signed driver is acquired and verified with `native.NewFromRelease`, exactly as `WithModuleRelease`
 verifies a `.wasm`. See the [native backend how-to](../../how-to/use-the-native-backend.md).
 
 ## Why this shape
 
-The alternatives — purego/dlopen bindings (immature, still need host libav), CGO libav
+The alternatives (purego/dlopen bindings, immature and still needing host libav; CGO libav
 bindings (break a clean static cross-compile), and the stock wazero binding (missing
-filters/AAC, not filesystem-virtualised) — each failed at least one of *pure-Go*,
+filters/AAC, not filesystem-virtualised) each failed at least one of *pure-Go*,
 *in-memory*, or *has-the-codecs-we-need*. afmpeg is the synthesis that holds all three.
 When native speed or HW-class codecs (HEVC/AV1) *are* required, the **native subprocess
-backend** (§4) is the sanctioned escape hatch — the same engine, out-of-process and signed,
+backend** (§4) is the sanctioned escape hatch: the same engine, out-of-process and signed,
 rather than reaching for the CGO libav binding this design set out to avoid. The full reasoning
 is in spec [0001](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg) §11.

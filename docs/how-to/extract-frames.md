@@ -1,6 +1,6 @@
 ---
 title: Extract frames and thumbnails
-description: Pull still images from a video with afmpeg's frames op — a single frame, an interval, scene changes, or thumbnails.
+description: Pull still images from a video with afmpeg's frames op: a single frame, an interval, scene changes, or thumbnails.
 date: 2026-07-04
 tags: [how-to, frames, thumbnails]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -73,11 +73,11 @@ job := afmpeg.FrameJob{
 }
 ```
 
-Set **exactly one** selector — `Timestamp`, `Timestamps`, `Interval`, `SceneThreshold`, or
+Set **exactly one** selector: `Timestamp`, `Timestamps`, `Interval`, `SceneThreshold`, or
 `Thumbnail`. Setting none or more than one is a validation error before the engine runs.
 
 ## See also
 
-- [Obtain a module](obtain-a-module.md) — the scene/thumbnail selectors need the intermediate profile.
-- [Read a raw or headerless input](read-a-raw-input.md) — `FrameJob.Format`/`Options` force the
+- [Obtain a module](obtain-a-module.md): the scene/thumbnail selectors need the intermediate profile.
+- [Read a raw or headerless input](read-a-raw-input.md): `FrameJob.Format`/`Options` force the
   demuxer, same as `Input`.

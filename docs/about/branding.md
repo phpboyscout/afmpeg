@@ -27,7 +27,7 @@ petrol-teal over cream and charcoal.
 
 ### Vector (recommended)
 
-Scales indefinitely without quality loss — use it for the web, print and
+Scales indefinitely without quality loss, so use it for the web, print and
 high-resolution displays.
 
 - [Transparent (logo_transparent.svg)](../images/branding/logo_transparent.svg)

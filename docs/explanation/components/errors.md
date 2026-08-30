@@ -8,8 +8,8 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 # Error catalogue
 
-afmpeg standardises on a single error library — [`cockroachdb/errors`](https://github.com/cockroachdb/errors)
-— for creation and wrapping, with user-facing hints where useful. Every **exported
+afmpeg standardises on a single error library, [`cockroachdb/errors`](https://github.com/cockroachdb/errors),
+for creation and wrapping, with user-facing hints where useful. Every **exported
 sentinel error** (`var ErrX = errors.New(...)` in `pkg/`) is documented here; this is
 enforced advisorily by `scripts/lint-docs-errors.sh` (the `just check` target), which
 fails if a sentinel in `pkg/` is missing from this page.
@@ -25,7 +25,7 @@ mandatory. Callers match with `errors.Is(err, afmpeg.ErrNoModule)`.
 
 ### `ErrChecksumMismatch`
 
-Returned when a module's bytes do not match the expected SHA-256 — either a
+Returned when a module's bytes do not match the expected SHA-256: either a
 `WithModuleURL` + `WithSHA256` download, or a `WithModuleRelease` module or
 `provenance.json` whose digest disagrees with the signed `checksums.txt`. The bytes
 are rejected rather than executed. Callers match with
@@ -34,13 +34,13 @@ are rejected rather than executed. Callers match with
 ### `ErrProvenanceMismatch`
 
 Returned by `WithModuleRelease` when a verified release's `provenance.json` does not
-name the requested variant/profile — its signature and checksums are valid, but the
+name the requested variant/profile; its signature and checksums are valid, but the
 `variants` entry is absent or points at a different module file. The module is not
 run. Callers match with `errors.Is(err, afmpeg.ErrProvenanceMismatch)`.
 
 ## Convention
 
-- A **non-zero ffmpeg exit is not a Go error by itself** — `Run` returns a `Result`
+- A **non-zero ffmpeg exit is not a Go error by itself**: `Run` returns a `Result`
   carrying the exit code + stderr tail, and a nil error. Host-side failures (module
   instantiation, the vfs bridge, context cancellation) return a non-nil error. A consumer
   that prefers an error on failure inspects `Result.ExitCode` and wraps it with the
@@ -50,7 +50,7 @@ run. Callers match with `errors.Is(err, afmpeg.ErrProvenanceMismatch)`.
 
 ## Errors that are not sentinels
 
-Plenty of failures are unwrapped messages rather than matchable sentinels — an unknown variant or
+Plenty of failures are unwrapped messages rather than matchable sentinels: an unknown variant or
 profile, a module that will not compile, an engine too old for the job spec, a job spec whose
 `Duration` and `End` conflict. Those are listed with their exact text and their cause in
 [runtime options](../../reference/runtime-options.md#errors-new-can-return) and the

@@ -3,7 +3,7 @@
 Specs live in the [project wiki](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/home),
 not in this repository.
 
-A spec is a point-in-time decision record — written once, true of a moment, read
+A spec is a point-in-time decision record: written once, true of a moment, read
 later for its conclusions. Keeping them here buried the living documentation they
 sat beside, so they moved. Contributor guides, engineering standards and testing
 conventions stay in `docs/`, because those change with the code.
@@ -18,7 +18,7 @@ conventions stay in `docs/`, because those change with the code.
 | [0006](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0006-hardening-roadmap) | hardening roadmap (deferred) | `IMPLEMENTED` |
 | [0007](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0007-libav-direct-engine) | the libav-direct engine + the ffmpeg-wasi project | `IMPLEMENTED` |
 | [0008](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0008-performance-strategy) | performance strategy (spike) | `IMPLEMENTED` |
-| [0009](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0009-afmpeg-cli) | `cmd/afmpeg` CLI (deferred — value unproven) | `DRAFT` · blocked |
+| [0009](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0009-afmpeg-cli) | `cmd/afmpeg` CLI (deferred, value unproven) | `DRAFT` · blocked |
 | [0010](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0010-signed-release-acquisition) | signed, release-aware module acquisition | `IMPLEMENTED` |
 | [0011](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0011-wkd-attestation) | WKD key distribution + the embedded↔WKD cross-check | `IMPLEMENTED` |
 | [0012](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0012-feature-parity-roadmap) | feature-parity roadmap (toward a complete standalone offering) | `APPROVED` |
@@ -46,19 +46,19 @@ conventions stay in `docs/`, because those change with the code.
 | [0034](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0034-fraction-source-precedence) | Fraction source precedence (progress correctness) | `IMPLEMENTED` |
 | [0035](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0035-engine-builds-on-a-merge-request) | engine builds on a merge request (ffmpeg-wasi CI evidence before the tag) | `IMPLEMENTED` |
 | [0036](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0036-engine-test-suite) | engine test suite (the instrument for the n9 bump) | `IMPLEMENTED` |
-| [0037](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0037-engine-parity-and-ipc-host) | engine test suite phase D — parity and the IPC host | `IMPLEMENTED` |
+| [0037](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0037-engine-parity-and-ipc-host) | engine test suite phase D: parity and the IPC host | `IMPLEMENTED` |
 | [0038](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0038-engine-on-ffmpeg-n9) | the engine on FFmpeg n9.0.1 | `IMPLEMENTED` |
 | [0039](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0039-native-driver-filesystem-boundary) | the native driver's filesystem boundary (the pre-pass; could not fail closed) | `REJECTED` |
 | [0040](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0040-native-driver-sandbox) | the native driver sandbox (opt-in Landlock; the case for optional did not survive review) | `REJECTED` |
 | [0041](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0041-ipc-protocol-primitives) | the IPC protocol's missing primitives (read failure, rename, and asking what exists) | `IMPLEMENTED` |
 | [0042](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0042-fontconfig-and-adaptive-demuxers) | fontconfig, the hls/dash demuxers, and the filesystem surface | `IMPLEMENTED` |
-| [0043](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0043-native-driver-filesystem-boundary) | the native driver's filesystem boundary — replaces 0039 and 0040 (patch the file protocol, Landlock on by default) | `IMPLEMENTED` |
-| [0044](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0044-the-engine-must-finish) | the engine must finish — liveness as a dataflow invariant rather than a deadline; read before 0043, not after | `IMPLEMENTED` |
-| [0045](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0045-which-encoder-an-option-is-for) | which encoder an option is for — per-kind encoder option maps, and the CLI option names the docs teach that the engine has never had | `IMPLEMENTED` |
+| [0043](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0043-native-driver-filesystem-boundary) | the native driver's filesystem boundary, replacing 0039 and 0040 (patch the file protocol, Landlock on by default) | `IMPLEMENTED` |
+| [0044](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0044-the-engine-must-finish) | the engine must finish: liveness as a dataflow invariant rather than a deadline; read before 0043, not after | `IMPLEMENTED` |
+| [0045](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0045-which-encoder-an-option-is-for) | which encoder an option is for: per-kind encoder option maps, and the CLI option names the docs teach that the engine has never had | `IMPLEMENTED` |
 
 ## Referring to a spec
 
-By **number and name** — "0020, the explainable-cull spec" — never by date. The
+By **number and name**, "0020, the explainable-cull spec", never by date. The
 number is a stable handle; a date is not something anyone remembers.
 
 ## Writing a new one
