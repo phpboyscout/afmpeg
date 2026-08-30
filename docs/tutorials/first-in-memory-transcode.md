@@ -1,6 +1,6 @@
 ---
 title: Your first in-memory transcode
-description: Build a working Go program that fetches a verified FFmpeg engine, encodes video you generate in code, and reads the MP4 back — without ever touching the disk.
+description: Build a working Go program that fetches a verified FFmpeg engine, encodes video you generate in code, and reads the MP4 back, without ever touching the disk.
 date: 2026-08-02
 tags: [tutorial, getting-started, in-memory, transcode]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -20,7 +20,7 @@ after that starts in well under a second.
 - **Go 1.26 or newer.** afmpeg is a library; there is nothing to install separately.
 - **Network access for the first run only.** afmpeg fetches the engine from GitLab and caches it
   under your user cache directory (`~/.cache/afmpeg` on Linux).
-- **No FFmpeg.** If you have one installed it will be ignored — afmpeg never shells out to it.
+- **No FFmpeg.** If you have one installed it will be ignored, because afmpeg never shells out to it.
 
 You do not need to know FFmpeg's command-line syntax. afmpeg doesn't accept it; jobs are
 described as Go values.
@@ -94,7 +94,7 @@ engine: FFmpeg n9.0.1 (build n9.0.1-3)
 Quite a lot happened in that one call. afmpeg downloaded the release's checksum manifest and its
 OpenPGP signature, checked the signature against keys compiled into your binary, checked the
 module's digest against the signed manifest, confirmed the release's provenance names the
-variant you asked for — and only then compiled the module. There is no flag to skip any of it.
+variant you asked for, and only then compiled the module. There is no flag to skip any of it.
 
 Compiling is the expensive part, which is why `rt` is built once and reused. Hold onto it for the
 life of your program rather than building one per job.
@@ -106,7 +106,7 @@ life of your program rather than building one per job.
 
 ## Make some video to encode
 
-Real inputs come from somewhere — an upload, an object store, a git worktree in RAM. To keep
+Real inputs come from somewhere: an upload, an object store, a git worktree in RAM. To keep
 this self-contained you'll generate raw frames in Go instead, which also shows how afmpeg reads
 input that has no container or header at all.
 
@@ -139,7 +139,7 @@ func makeRawYUV420p(w, h, frames int) []byte {
 }
 ```
 
-That's two seconds of 320×240 video at 25 fps once you ask for 50 frames — about 5.8 MB of raw
+That's two seconds of 320×240 video at 25 fps once you ask for 50 frames, about 5.8 MB of raw
 bytes, which is exactly why nobody stores video this way.
 
 ## Put the input in an in-memory filesystem
@@ -154,7 +154,7 @@ and nothing reaches the disk. Add this to `run`, after the engine is built:
 	}
 ```
 
-Any afero backend works here — `OsFs` for real files, `BasePathFs` to sandbox a directory. The
+Any afero backend works here: `OsFs` for real files, `BasePathFs` to sandbox a directory. The
 job doesn't change; only where the bytes live does.
 
 ## Describe the job
@@ -188,7 +188,7 @@ Reading that in order:
   and stays even". `[0:v]` is the video stream of input 0; `[v]` is the name of what comes out.
 - **`Map("[v]")`** says which graph output to mux. **`VideoOption("b", "300k")`** sets the video
   encoder's bitrate to 300 kbit/s. These are **libav option names**, not ffmpeg command-line ones,
-  so it is `b` and not `-b:v` — the CLI parses that `:v` suffix itself and libav never sees it. A
+  so it is `b` and not `-b:v`, because the CLI parses that `:v` suffix itself and libav never sees it. A
   name the encoder does not have fails the job rather than being ignored, so a typo here is loud.
   `EncoderOption` is the same thing addressed to *every* encoder the output opens, which is what
   you want for something like `threads` and almost never what you want for a bitrate.
@@ -221,11 +221,11 @@ out/clip.mp4: 84560 bytes
 ```
 
 Note the two error checks, because they mean different things. A **non-zero exit code is not a Go
-error** — that's the engine rejecting the job, and `res.Stderr` says why. A non-`nil` `err` is a
+error**: that's the engine rejecting the job, and `res.Stderr` says why. A non-`nil` `err` is a
 host-side failure: a broken module, a cancelled context, a filesystem that wouldn't cooperate.
 Checking only one of them will eventually bite you.
 
-`out` is an ordinary `[]byte`. Write it to disk, put it in an HTTP response, upload it —
+`out` is an ordinary `[]byte`. Write it to disk, put it in an HTTP response, upload it.
 whichever, the encode itself never needed a file.
 
 ## Confirm it's really an MP4
@@ -251,7 +251,7 @@ format=mov,mp4,m4a,3gp,3g2,mj2 duration=1.96s
 ```
 
 That's H.264 in an MP4 container, two seconds long, scaled to 160×120 as asked. `Format` is a
-comma-separated family rather than a single name — that's how libav reports the MP4 demuxer, so
+comma-separated family rather than a single name. That's how libav reports the MP4 demuxer, so
 match on a substring rather than comparing for equality.
 
 If you want to watch it, write `out` to a file and open it in any player.
@@ -259,7 +259,7 @@ If you want to watch it, write `out` to a file and open it in any player.
 ## Watch it happen
 
 Two seconds of video encodes fast. A real job runs for minutes, and you'll want a progress bar.
-Attach a channel to the call's context — not to the runtime, since progress is per-invocation:
+Attach a channel to the call's context, not to the runtime, since progress is per-invocation:
 
 ```go
 	ch := make(chan afmpeg.Progress, 64)
@@ -289,7 +289,7 @@ like:
 ```
 
 Two things to expect rather than debug. `Fraction` is `-1` for the first moments while afmpeg
-waits for the engine's first report — showing a byte-based guess it would immediately contradict
+waits for the engine's first report, rather than showing a byte-based guess it would immediately contradict
 is worse than showing nothing. And the last sample you see is usually a little under 1.0, because
 the engine stops reporting before the muxer finishes. **Use the return of `RunJob` to know a job
 finished, never `Fraction == 1`.**
@@ -300,16 +300,16 @@ either.
 
 ## Where to go next
 
-You've now done the whole loop — acquire a verified engine, describe a job, run it over a
+You've now done the whole loop: acquire a verified engine, describe a job, run it over a
 filesystem you control, and read the result. From here:
 
-- **[Compose a command with the builder](../how-to/compose-a-command.md)** — inputs, graphs and
+- **[Compose a command with the builder](../how-to/compose-a-command.md)**: inputs, graphs and
   outputs in their general form.
-- **[Reuse a Runtime across many invocations](../how-to/reuse-a-runtime.md)** — the pattern for a
+- **[Reuse a Runtime across many invocations](../how-to/reuse-a-runtime.md)**: the pattern for a
   long-lived service, and why one runtime doesn't give you parallelism.
-- **[Runtime options](../reference/runtime-options.md)** — every option to `New`, what it defaults
+- **[Runtime options](../reference/runtime-options.md)**: every option to `New`, what it defaults
   to, and what happens when it's wrong.
-- **[Limitations](../reference/limitations.md)** — worth reading early. It's a short list, and it
+- **[Limitations](../reference/limitations.md)**: worth reading early. It's a short list, and it
   will save you an afternoon.
 
 ## The whole program

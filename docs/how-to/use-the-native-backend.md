@@ -1,6 +1,6 @@
 ---
 title: Use the native backend (native-speed encode, HEVC/AV1)
-description: Drive afmpeg with the signed native driver instead of the WASM module — for native-speed software encode and the full profile's HEVC/AV1 encoders.
+description: Drive afmpeg with the signed native driver instead of the WASM module, for native-speed software encode and the full profile's HEVC/AV1 encoders.
 date: 2026-07-05
 tags: [how-to, native, backend, hevc, av1]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -9,20 +9,20 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 # Use the native backend
 
 By default afmpeg runs the [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine as a
-sandboxed WebAssembly module — portable, arch-independent, single-threaded. For consumers who
+sandboxed WebAssembly module: portable, arch-independent, single-threaded. For consumers who
 are encode- or throughput-bound, afmpeg also has an **opt-in native backend** (spec
 [0028](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0028-native-subprocess-backend), "Backend B"): the *same*
 libav-direct engine compiled to a native ELF, driven over an in-memory IPC bridge. It is
-**CGO-free** — a subprocess, not a linked library — so afmpeg's Go package stays permissively
+**CGO-free** (a subprocess, not a linked library), so afmpeg's Go package stays permissively
 licensed, and all I/O still crosses your `afero.Fs`, never the host disk.
 
 Reach for it when you want:
 
-- **Native-speed software encode** — threads + SIMD make H.264/VP9/etc. **~50× faster with
+- **Native-speed software encode**: threads + SIMD make H.264/VP9/etc. **~50× faster with
   openh264 and ~170× with libx264** than the single-threaded WASM build. The encoder matters
   more than the FFmpeg version does
   ([measured](https://gitlab.com/phpboyscout/afmpeg/-/wikis/reports/2026-08-native-vs-wasm-speed)).
-- **HEVC or AV1 encode** — the heavy `libx265` / `libsvtav1` encoders are impractical in WASM,
+- **HEVC or AV1 encode**: the heavy `libx265` / `libsvtav1` encoders are impractical in WASM,
   so they ship **only** in the native driver's **full** profile.
 
 !!! note "Platform"
@@ -68,15 +68,15 @@ profiles](https://ffmpeg-wasi.phpboyscout.uk/reference/variants/); select one wi
 | Profile | Adds over the previous | Asset |
 |---|---|---|
 | `ProfileLean` | H.264 encode (openh264; libx264 in gpl) at native speed | `ffmpeg-wasi-driver-linux-amd64-<variant>` |
-| `ProfileIntermediate` | the full software batch — Opus/MP3/Vorbis/WebP/VP8-9 + subtitles, and **AV1 *decode*** (`libdav1d`) | `…-driver-linux-amd64-intermediate-<variant>` |
+| `ProfileIntermediate` | the full software batch: Opus/MP3/Vorbis/WebP/VP8-9 + subtitles, and **AV1 *decode*** (`libdav1d`) | `…-driver-linux-amd64-intermediate-<variant>` |
 | `ProfileFull` | AV1 *encode* (`libsvtav1`, both variants), **HEVC** encode (`libx265`, **gpl only**) | `…-driver-linux-amd64-full-<variant>` |
 
-AV1 **decode** (via `libdav1d`) is in the intermediate profile on **both** runtimes — the WASM
+AV1 **decode** (via `libdav1d`) is in the intermediate profile on **both** runtimes. The WASM
 module decodes AV1 too (a single-threaded dav1d build; correct but slower than the threaded native
 driver). AV1 **encode** needs the full profile (native only).
 
 `ProfileFull` is the only way to reach HEVC/AV1 encode. HEVC (`libx265`) is GPL, so it is present
-**only in the `gpl` variant** — the `lgpl` full driver encodes AV1 but rejects `libx265`. See the
+**only in the `gpl` variant**: the `lgpl` full driver encodes AV1 but rejects `libx265`. See the
 [HEVC/AV1 licence &amp; patent posture](https://ffmpeg-wasi.phpboyscout.uk/explanation/licensing/#hevc--av1-encode--the-full-native-profile-only).
 
 ```go
@@ -102,7 +102,7 @@ res, err := rt.RunJob(ctx, fs, cmd) // encodes HEVC over the IPC bridge, into fs
 
 If you have already built or downloaded the driver (e.g. via
 `ffmpeg-wasi`'s [`build/Dockerfile.native`](https://ffmpeg-wasi.phpboyscout.uk/how-to/build-from-source/)),
-point the backend straight at it — no fetch, no verification (you supply the bytes, you accept
+point the backend straight at it, with no fetch and no verification (you supply the bytes, you accept
 them):
 
 ```go
@@ -110,22 +110,22 @@ backend := native.New(native.WithNativeBinary("/path/to/driver"))
 rt, err := afmpeg.New(ctx, afmpeg.WithBackend(backend))
 ```
 
-This is the bring-your-own path — the analogue of `WithModuleFile`. For the project's own
+This is the bring-your-own path, the analogue of `WithModuleFile`. For the project's own
 releases prefer `NewFromRelease`, which verifies the binary before it runs.
 
 ## How it works
 
 `WithBackend` swaps afmpeg's execution seam: instead of instantiating the WASM module in
 wazero, the native backend spawns the driver as a subprocess and serves your `afero.Fs` to it
-over a Unix socket (a framed read/write/**seek** protocol — so even a muxer's backward seeks,
+over a Unix socket (a framed read/write/**seek** protocol, so even a muxer's backward seeks,
 like an MP4 `moov` patch, round-trip through the filesystem you passed, never host disk). The
 job spec, the `Command`/`Probe`/`Frames` API, and the results are **identical** to the WASM
-path — only the runtime underneath changes. See the
+path. Only the runtime underneath changes. See the
 [architecture overview](../explanation/concepts/architecture.md) and spec
 [0028](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0028-native-subprocess-backend) for the full design.
 
 !!! warning "Trust boundary"
-    The native driver is a **native subprocess**, not a WASM sandbox — it runs with your
+    The native driver is a **native subprocess**, not a WASM sandbox, so it runs with your
     process's privileges. Load it only from a source you trust: `NewFromRelease` gives you the
     signature-verified project artifact; `WithNativeBinary` trusts whatever path you supply.
 
@@ -136,7 +136,7 @@ the call site:
 
 - **`WithMemoryLimit` has no effect.** The cap is a wazero setting and there is no wazero. The
   driver is bounded by the operating system, like any other subprocess. `WithTimeout` does still
-  apply — `Run` imposes it above the backend seam.
+  apply, because `Run` imposes it above the backend seam.
 - **Engine progress goes quiet.** `Frame`, `OutTime` and `Speed` stay zero and `Fraction` falls
   back to the byte-observed source, because `/dev/afmpeg-progress` is served by the WASM backend
   only.

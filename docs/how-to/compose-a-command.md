@@ -1,6 +1,6 @@
 ---
 title: Compose a command with the builder
-description: Assemble a media job — inputs, a filtergraph, outputs — as typed data, then run it on the ffmpeg-wasi engine.
+description: Assemble a media job (inputs, a filtergraph, outputs) as typed data, then run it on the ffmpeg-wasi engine.
 date: 2026-06-27
 tags: [how-to, command, builder]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -9,7 +9,7 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 # Compose a command with the builder
 
 `afmpeg.Command` is a declarative description of a media job for the
-[ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine — a sequence of inputs, an
+[ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine: a sequence of inputs, an
 optional filtergraph, and a sequence of outputs. It is use-case-agnostic: it models the
 *structure* of a job, so it expresses any workflow (transcode, scale, overlay, concat,
 thumbnail, audio extract, …). `JobSpec()` renders it to the engine's job spec; `RunJob`
@@ -17,9 +17,9 @@ runs it.
 
 There are two equally valid ways to build one.
 
-## As a struct — explicit, inspectable data
+## As a struct: explicit, inspectable data
 
-Fill the struct directly when you want full control (it's copyable and serialisable — a
+Fill the struct directly when you want full control (it's copyable and serialisable, so a
 pipeline can come from YAML/JSON):
 
 ```go
@@ -38,10 +38,10 @@ cmd := afmpeg.Command{
 
 !!! note "Which H.264 encoder?"
     `libx264` needs the **GPL** module. The default **LGPL** module encodes H.264 via
-    `"libopenh264"` instead — swap `VideoCodec` accordingly. Both emit H.264/mp4; libx264 is
+    `"libopenh264"` instead, so swap `VideoCodec` accordingly. Both emit H.264/mp4; libx264 is
     higher quality, openh264 is permissively licensed. See ffmpeg-wasi's variant docs.
 
-## With NewCommand — functional options
+## With NewCommand, using functional options
 
 ```go
 cmd := afmpeg.NewCommand(
@@ -76,7 +76,7 @@ encoder options. See [obtain a module](obtain-a-module.md) for the ffmpeg-wasi r
 
 Encoder settings are addressed to the encoder they configure. `VideoOption`, `AudioOption` and
 `SubtitleOption` each reach one; `EncoderOption` reaches every encoder the output opens. Nothing is
-filtered by afmpeg — the dictionaries reach the encoders as they stand:
+filtered by afmpeg: the dictionaries reach the encoders as they stand:
 
 ```go
 cmd := afmpeg.NewCommand(
@@ -100,24 +100,24 @@ name the encoder does not have fails the job rather than being ignored.
 
 !!! warning "The check catches wrong names, not wrong kinds"
     Every encoder inherits libav's generic option table, so `VideoOption("g", "12")` is correct but
-    `AudioOption("g", "12")` is **accepted and does nothing** — `g` is a GOP size and `aac` ignores
+    `AudioOption("g", "12")` is **accepted and does nothing**, because `g` is a GOP size and `aac` ignores
     it. Addressing an option to the right kind is the only thing that prevents this; no error will
     tell you.
 
 !!! note "Not everything on an ffmpeg command line is an encoder option"
-    `-movflags` is a **muxer** option — `FormatOption` / `FormatOptions`, as above. `-frames:v` is
+    `-movflags` is a **muxer** option: `FormatOption` / `FormatOptions`, as above. `-frames:v` is
     a command-line output limit with no libav equivalent; for stills, use the
     [frames op](extract-frames.md) rather than a `process` job.
 
 ## Where do trims, frame rate and pixel format go?
 
-- Output **duration and start** are first-class options — `Duration`, `End`, and input-side
-  `SeekTo`/`SeekAccurateTo` ([extract a clip](extract-a-clip.md)) — not a filtergraph `trim`.
+- Output **duration and start** are first-class options (`Duration`, `End`, and input-side
+  `SeekTo`/`SeekAccurateTo` [extract a clip](extract-a-clip.md)), not a filtergraph `trim`.
   Pixel/sample format and output framerate live in the **filtergraph** (e.g. `format=yuv420p`,
   `fps=30`); the engine derives the container from the output path and the pixel/sample format
   from the graph + encoder.
 - A higher-level workflow (a "reel", a thumbnail sheet, …) is *your* code composed on this
-  builder — afmpeg ships no opinionated workflow types.
+  builder; afmpeg ships no opinionated workflow types.
 
 Every field, its default and the combinations that are rejected are in the
 [command reference](../reference/command.md).
