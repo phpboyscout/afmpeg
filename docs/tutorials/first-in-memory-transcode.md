@@ -60,7 +60,7 @@ func run(ctx context.Context) error {
 	var prov afmpeg.Provenance
 
 	rt, err := afmpeg.New(ctx,
-		afmpeg.WithModuleRelease("n9.0.1-1", afmpeg.VariantLGPL,
+		afmpeg.WithModuleRelease("n9.0.1-3", afmpeg.VariantLGPL,
 			afmpeg.WithReleaseProvenance(&prov)),
 	)
 	if err != nil {
@@ -88,7 +88,7 @@ go run .
 ```
 
 ```
-engine: FFmpeg n9.0.1 (build n9.0.1-1)
+engine: FFmpeg n9.0.1 (build n9.0.1-3)
 ```
 
 Quite a lot happened in that one call. afmpeg downloaded the release's checksum manifest and its
@@ -216,7 +216,7 @@ The container comes from the `.mp4` extension. You never write an ffmpeg command
 ```
 
 ```
-engine: FFmpeg n9.0.1 (build n9.0.1-1)
+engine: FFmpeg n9.0.1 (build n9.0.1-3)
 out/clip.mp4: 84560 bytes
 ```
 
@@ -356,7 +356,7 @@ func run(ctx context.Context) error {
 	var prov afmpeg.Provenance
 
 	rt, err := afmpeg.New(ctx,
-		afmpeg.WithModuleRelease("n9.0.1-1", afmpeg.VariantLGPL,
+		afmpeg.WithModuleRelease("n9.0.1-3", afmpeg.VariantLGPL,
 			afmpeg.WithReleaseProvenance(&prov)),
 	)
 	if err != nil {

@@ -30,7 +30,7 @@ for:
 ```go
 var prov afmpeg.Provenance
 rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
-    "n9.0.1-1", afmpeg.VariantLGPL,
+    "n9.0.1-3", afmpeg.VariantLGPL,
     afmpeg.WithReleaseProvenance(&prov), // optional: what was loaded
 ))
 // prov.FFmpegVersion, prov.Variants[...] — verified, not just downloaded.
@@ -74,7 +74,7 @@ Over the WASM path, `WithReleaseProfile` selects `ProfileLean` (default) or `Pro
 
 ```go
 rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
-    "n9.0.1-1", afmpeg.VariantLGPL,
+    "n9.0.1-3", afmpeg.VariantLGPL,
     afmpeg.WithReleaseProfile(afmpeg.ProfileIntermediate),
 ))
 ```
@@ -107,8 +107,8 @@ Because the module is executable code, pair it with `WithSHA256`:
 
 ```go
 rt, err := afmpeg.New(ctx, afmpeg.WithModuleURL(
-    "https://gitlab.com/api/v4/projects/83847809/packages/generic/ffmpeg-wasi/n9.0.1-1/ffmpeg-wasi-lgpl.wasm",
-    afmpeg.WithSHA256("0c4bf74a01317f9c2aa8e76033b3a7f22f6ba7821adbe37fab031ba64873fa5a"),
+    "https://gitlab.com/api/v4/projects/83847809/packages/generic/ffmpeg-wasi/n9.0.1-3/ffmpeg-wasi-lgpl.wasm",
+    afmpeg.WithSHA256("5378b7d1f60591b6a4d92182ea576c309c1c8c95135b8aa9dcb1e1a9f47b1f3c"),
 ))
 ```
 
@@ -125,7 +125,7 @@ never executed.
   modules, each with a checksum and provenance. **Both encode H.264** — the `lgpl` module via
   openh264, the `gpl` module via libx264. Pin a release asset + its SHA-256 (the example above
   is the `lgpl` module from
-  [`n9.0.1-1`](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases/n9.0.1-1)). It speaks the
+  [`n9.0.1-3`](https://gitlab.com/phpboyscout/ffmpeg-wasi/-/releases/n9.0.1-3)). It speaks the
   structured job spec — drive it with [`Command.JobSpec()` / `RunJob`](compose-a-command.md)
   and [`Probe`](run-in-memory.md).
 

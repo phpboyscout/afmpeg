@@ -1,7 +1,7 @@
 # afmpeg
 
-**A pure-Go FFmpeg binding that runs on a virtual / in-memory filesystem.** No CGO,
-no host FFmpeg install, no temp files: FFmpeg is supplied as a separate WebAssembly
+**A pure-Go FFmpeg binding that runs on a virtual / in-memory filesystem.** No CGO and
+no host FFmpeg install: FFmpeg is supplied as a separate WebAssembly
 module and executed via [wazero](https://wazero.io/) (a zero-dependency, pure-Go WASM
 runtime), with its I/O bridged to an [`afero.Fs`](https://github.com/spf13/afero) — so
 inputs and outputs can live entirely in memory (or any afero backend), and the whole
@@ -16,8 +16,7 @@ thing cross-compiles to a single static binary.
 > subtitles & burn-in, metadata/chapters, frame extraction, analysis measurements, and
 > **live progress** (`WithProgress`). A **native backend** (`WithBackend` /
 > `native.NewFromRelease`) drives ffmpeg-wasi's native driver for **~50× faster (openh264) to
-> ~170× (libx264)**
-> software encode plus HEVC/AV1 encode — still CGO-free. The design record lives
+> ~170× (libx264)** software encode plus HEVC/AV1 encode, still CGO-free. The design record lives
 > in [`docs/development/specs/`](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg); the current build
 > order is the [implementation roadmap](docs/development/implementation-roadmap.md).
 
@@ -33,21 +32,22 @@ options and found none viable:
 - **purego/dlopen bindings** (e.g. `ffgo`) — immature, and still need host libav libs.
 - **CGO libav bindings** (e.g. `go-astiav`) — mature and in-memory-capable, but **CGO**
   breaks a clean static cross-compile.
-- **wazero + embedded ffmpeg.wasm** (e.g. `go-ffmpreg`) — the right *posture* (pure Go,
-  no host deps, embeddable), but the stock builds lack the filters/codecs many
-  workflows need (e.g. `xfade`, AAC) and aren't filesystem-virtualised.
+- **wazero + embedded ffmpeg.wasm** (e.g. `go-ffmpreg`) — pure Go and no host deps,
+  which is the right shape. The spike found the stock builds short of the filters and
+  codecs keryx needed (it names `xfade` and AAC) and not filesystem-virtualised.
 
-`afmpeg` is the **"wazero + WASM done right"** synthesis: a maintained FFmpeg-WASM build
-with the codecs/filters we need, a first-class **afero virtual-filesystem** I/O layer,
-and a clean Go API — so a consumer (keryx, or anyone) can transcode / filter / mux
-**entirely in memory, pure Go**.
+`afmpeg` is the third option with both gaps closed: an FFmpeg-WASM build we maintain and
+configure (`xfade` and `aac` are in the lean profile, and `--capabilities` will tell you
+what else is), and an I/O layer that answers the guest's filesystem calls out of an
+`afero.Fs` you hand it. A consumer can transcode, filter and mux entirely in memory, in
+pure Go.
 
 afmpeg now supplies that binding, and keryx renders reels through it — **in-memory,
 pure Go**, no local checkout required.
 
 ## How it works
 
-Three layers — the middle one is the novel engineering:
+Three layers. The middle one is where the work is:
 
 1. **The FFmpeg-WASM module** — current FFmpeg compiled to `wasm32-wasi` (H.264 encode via
    openh264 on the LGPL default, or libx264 on the GPL variant), configured down to the
@@ -68,7 +68,7 @@ HEVC/AV1). Select it with
 `WithBackend` / `native.NewFromRelease`; WASM stays the default.
 
 ```go
-rt, _ := afmpeg.New(ctx, afmpeg.WithModuleRelease("n9.0.1-1", afmpeg.VariantLGPL)) // compile once, reuse
+rt, _ := afmpeg.New(ctx, afmpeg.WithModuleRelease("n9.0.1-3", afmpeg.VariantLGPL)) // compile once, reuse
 defer rt.Close(ctx)
 
 fs := afero.NewMemMapFs()            // or the caller's in-memory worktree
@@ -96,7 +96,7 @@ audio filters are all already LGPL-clean. See spec 0001 §10 (D-C).
 The foundations (specs 0001–0007) and the full feature-parity roadmap (0013–0021, 0024, 0027)
 shipped; the strategic tier on top — signed releases (0010), the **native backend** (0028),
 **HEVC/AV1 encode + AV1 decode** (0023), **analysis measurements**, and **live progress**
-(0031/0032) — is shipped (job-spec vocab v9). The
+(0031/0032) — is shipped (job-spec vocab v10). The
 **[implementation roadmap](docs/development/implementation-roadmap.md)** tracks per-spec status
 and the current build order; the design records live in
 [`docs/development/specs/`](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0001-afmpeg).

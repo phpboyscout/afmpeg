@@ -50,11 +50,18 @@ variable and the MR pipeline sets none of them, so those tests skip in CI,
 always. Run `just test-integration` with both the lean and intermediate profiles
 before believing an engine-facing change.
 
-**"No host disk touched" is a property of the WASM backend, not of afmpeg.** On
-wazero the guest only sees the `afero.Fs` plus a synthetic `/tmp` and
-`/dev/null`. On the native backend it is currently untrue: spec 0043 records the
-channels through which libav still reaches the host filesystem. Until 0043
-lands, do not write the guarantee as backend-independent.
+**"No host disk touched" holds on both backends now, but it is conditional.** On
+wazero the guest sees the `afero.Fs` plus a synthetic `/tmp` and `/dev/null`,
+and nothing else. On the native backend it was untrue until spec 0043 landed
+(`n9.0.1-2`): the driver now routes libav's file access through the IPC bridge
+and takes a Landlock floor, and `TestAnImageSequenceCannotReachHostDisk` asserts
+it by starting the driver in a directory the host does not serve and requiring
+that directory to stay empty. It passes on all six native artefacts.
+
+The condition is `AFMPEG_NATIVE_SOCKET`. A driver invoked without it is an
+ordinary process with ordinary filesystem access, so the guarantee belongs to
+*afmpeg driving the driver*, not to the binary. Say which backend and say the
+condition; do not write it as an unqualified property of the ELF.
 
 **The published speed figures are several different quantities.** The docs now
 say ~50x (openh264) to ~170x (libx264) for software encode, re-measured on

@@ -47,7 +47,7 @@ import (
     "gitlab.com/phpboyscout/afmpeg/pkg/afmpeg/native"
 )
 
-backend, err := native.NewFromRelease(ctx, "n9.0.1-1", afmpeg.VariantLGPL)
+backend, err := native.NewFromRelease(ctx, "n9.0.1-3", afmpeg.VariantLGPL)
 if err != nil { /* ... */ }
 
 rt, err := afmpeg.New(ctx, afmpeg.WithBackend(backend))
@@ -81,7 +81,7 @@ driver). AV1 **encode** needs the full profile (native only).
 
 ```go
 // The full/gpl driver: HEVC (x265) + AV1 (SVT-AV1) at native speed.
-backend, err := native.NewFromRelease(ctx, "n9.0.1-1", afmpeg.VariantGPL,
+backend, err := native.NewFromRelease(ctx, "n9.0.1-3", afmpeg.VariantGPL,
     afmpeg.WithReleaseProfile(afmpeg.ProfileFull))
 
 rt, err := afmpeg.New(ctx, afmpeg.WithBackend(backend))
