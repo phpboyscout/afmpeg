@@ -50,10 +50,10 @@ conventions stay in `docs/`, because those change with the code.
 | [0038](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0038-engine-on-ffmpeg-n9) | the engine on FFmpeg n9.0.1 | `IMPLEMENTED` |
 | [0039](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0039-native-driver-filesystem-boundary) | the native driver's filesystem boundary (the pre-pass; could not fail closed) | `REJECTED` |
 | [0040](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0040-native-driver-sandbox) | the native driver sandbox (opt-in Landlock; the case for optional did not survive review) | `REJECTED` |
-| [0041](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0041-ipc-protocol-primitives) | the IPC protocol's missing primitives (read failure, rename, and asking what exists) | `APPROVED` |
-| [0042](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0042-fontconfig-and-adaptive-demuxers) | fontconfig, the hls/dash demuxers, and the filesystem surface | `APPROVED` |
-| [0043](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0043-native-driver-filesystem-boundary) | the native driver's filesystem boundary — replaces 0039 and 0040 (patch the file protocol, Landlock on by default) | `APPROVED` |
-| [0044](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0044-the-engine-must-finish) | the engine must finish — liveness as a dataflow invariant rather than a deadline; read before 0043, not after | `APPROVED` |
+| [0041](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0041-ipc-protocol-primitives) | the IPC protocol's missing primitives (read failure, rename, and asking what exists) | `IMPLEMENTED` |
+| [0042](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0042-fontconfig-and-adaptive-demuxers) | fontconfig, the hls/dash demuxers, and the filesystem surface | `IMPLEMENTED` |
+| [0043](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0043-native-driver-filesystem-boundary) | the native driver's filesystem boundary — replaces 0039 and 0040 (patch the file protocol, Landlock on by default) | `APPROVED` · D4's output-close leg outstanding (ffmpeg-wasi#63) |
+| [0044](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0044-the-engine-must-finish) | the engine must finish — liveness as a dataflow invariant rather than a deadline; read before 0043, not after | `IMPLEMENTED` |
 | [0045](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0045-which-encoder-an-option-is-for) | which encoder an option is for — per-kind encoder option maps, and the CLI option names the docs teach that the engine has never had | `IMPLEMENTED` |
 
 ## Referring to a spec
