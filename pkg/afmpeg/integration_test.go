@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -1641,9 +1642,32 @@ func TestIntegration_MuxerSelection(t *testing.T) {
 	}
 }
 
+// hlsFPS is the frame rate bootstrapClipMP4 writes; hlsSegmentSec is the segment
+// length asked of the muxer. The GOP is their product, which is the standard way
+// to align keyframes to segment boundaries.
+const (
+	hlsFPS        = 25
+	hlsSegmentSec = 1
+)
+
 // TestIntegration_Segmenting_HLS proves R-0015-1: one outputs[] entry with
 // format:"hls" writes a set of .ts segment files + an .m3u8 playlist to the
 // mounted fs (no network), driven by format_options.
+//
+// # Why this sets a GOP, and why it did not used to
+//
+// An HLS segmenter can only cut on a keyframe. This test passed for a long time
+// without asking for one, and it was passing because of a defect: until
+// ffmpeg-wasi#61 the engine handed the decoder's picture types to the encoder,
+// so re-encoding a keyframe-rich source produced IDRs everywhere and the
+// segmenter could cut wherever it liked. #61 stopped that — correctly, since
+// forcing picture types was the bug — and the encoder now picks its own GOP,
+// which for openh264 is far longer than this two-second clip. One keyframe, one
+// segment.
+//
+// So the GOP below is not test scaffolding. It is what any HLS caller must do,
+// and `g = fps * hls_time` is the standard way to do it. Bisected across
+// released modules: n8.1.2-12 passes without it, n9.0.1-2 and n9.0.1-3 do not.
 func TestIntegration_Segmenting_HLS(t *testing.T) {
 	t.Parallel()
 
@@ -1666,7 +1690,10 @@ func TestIntegration_Segmenting_HLS(t *testing.T) {
 		afmpeg.WithFilterComplex("[0:v]null[v]"),
 		afmpeg.WithOutput("stream.m3u8", afmpeg.Map("[v]"),
 			afmpeg.OutputFormat("hls"), afmpeg.VideoCodec("libopenh264"),
-			afmpeg.FormatOption("hls_time", "1"),
+			// One keyframe per second at 25fps, matching hls_time — without this
+			// the segmenter has nowhere to cut. See the note above.
+			afmpeg.WithOption("g", strconv.Itoa(hlsFPS*hlsSegmentSec)),
+			afmpeg.FormatOption("hls_time", strconv.Itoa(hlsSegmentSec)),
 			afmpeg.FormatOption("hls_segment_filename", "seg_%03d.ts"),
 			afmpeg.FormatOption("hls_list_size", "0")),
 	)
@@ -1693,6 +1720,37 @@ func TestIntegration_Segmenting_HLS(t *testing.T) {
 	}
 	if segs < 2 {
 		t.Fatalf("hls produced %d segment files, want >= 2", segs)
+	}
+
+	// The discrimination proof. Without the GOP the same job produces a single
+	// segment, so the assertion above is testing the GOP rather than passing for
+	// some unrelated reason — and the day someone deletes that line, this says
+	// exactly what broke instead of leaving a mystery.
+	noGOP := afmpeg.NewCommand(
+		afmpeg.WithInput("src.mp4"),
+		afmpeg.WithFilterComplex("[0:v]null[v]"),
+		afmpeg.WithOutput("nogop.m3u8", afmpeg.Map("[v]"),
+			afmpeg.OutputFormat("hls"), afmpeg.VideoCodec("libopenh264"),
+			afmpeg.FormatOption("hls_time", strconv.Itoa(hlsSegmentSec)),
+			afmpeg.FormatOption("hls_segment_filename", "nogop_%03d.ts"),
+			afmpeg.FormatOption("hls_list_size", "0")),
+	)
+
+	if res, err := rt.RunJob(ctx, fs, noGOP); err != nil || res.ExitCode != 0 {
+		t.Fatalf("hls without a gop: res=%+v err=%v", res, err)
+	}
+
+	bare := 0
+	for i := range 10 {
+		if ok, _ := afero.Exists(fs, fmt.Sprintf("nogop_%03d.ts", i)); ok {
+			bare++
+		}
+	}
+
+	if bare >= segs {
+		t.Errorf("hls without a GOP produced %d segments and with one produced %d — "+
+			"the GOP is not what is driving the segmentation, so the assertion above "+
+			"proves nothing", bare, segs)
 	}
 }
 
