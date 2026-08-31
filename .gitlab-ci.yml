@@ -1,11 +1,11 @@
 # .gitlab-ci.yml — pipeline assembled from phpboyscout/cicd components.
 #
 #   merge_request_event → lint, test, security        (the merge gate)
-#   default branch      → releaser-pleaser, zensical-pages deploy
+#   default branch      → colophon, zensical-pages deploy
 #   schedule            → renovate
 #
 # Quality gates live exclusively at the MR level — pushing to main runs
-# nothing except releaser-pleaser (which itself opens an MR that gets the
+# nothing except colophon (which itself opens an MR that gets the
 # full gate) and the docs deploy, so by the time anything lands on main it
 # has already been vetted.
 #
@@ -48,9 +48,8 @@ include:
   # Release MR machinery — our wrapper over apricote/releaser-pleaser
   # (carries the schedule-never guard, so it does not fire on the Renovate
   # schedule).
-  - component: gitlab.com/phpboyscout/cicd/releaser-pleaser@v0.39.4
+  - component: gitlab.com/phpboyscout/cicd/colophon@v0.42.0
     inputs:
-      token: $RELEASER_PLEASER_TOKEN
       branch: main
       stage: release
 
@@ -77,7 +76,7 @@ stages:
   - renovate
 
 # Pipeline-source gating: MR pipelines are primary; main pipelines exist
-# only so releaser-pleaser can maintain its MR. The `never` rule suppresses
+# only so colophon can maintain its MR. The `never` rule suppresses
 # duplicate branch pipelines when a feature branch already has an open MR.
 workflow:
   rules:
@@ -89,7 +88,7 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
 
 variables:
-  # releaser-pleaser walks the full commit history.
+  # colophon walks the full commit history.
   GIT_DEPTH: "0"
 
 # ----------------------------------------------------------------------
