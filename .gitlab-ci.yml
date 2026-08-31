@@ -48,7 +48,7 @@ include:
   # Release MR machinery — our wrapper over apricote/releaser-pleaser
   # (carries the schedule-never guard, so it does not fire on the Renovate
   # schedule).
-  - component: gitlab.com/phpboyscout/cicd/colophon@v0.42.0
+  - component: gitlab.com/phpboyscout/cicd/colophon@v0.42.1
     inputs:
       branch: main
       stage: release
