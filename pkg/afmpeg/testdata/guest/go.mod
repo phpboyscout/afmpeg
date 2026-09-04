@@ -4,4 +4,4 @@
 // the vfs mount through a real WASI host.
 module afmpegtestguest
 
-go 1.27.0
+go 1.27.1

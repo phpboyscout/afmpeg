@@ -1,13 +1,13 @@
 module gitlab.com/phpboyscout/afmpeg
 
-go 1.27.0
+go 1.27.1
 
 require (
 	github.com/cucumber/godog v0.16.0
 	github.com/spf13/afero v1.15.0
 	github.com/tetratelabs/wazero v1.12.0
 	gitlab.com/phpboyscout/go/errors v0.3.0
-	gitlab.com/phpboyscout/go/signing v0.8.1
+	gitlab.com/phpboyscout/go/signing v0.8.2
 	golang.org/x/image v0.45.0
 )
 
