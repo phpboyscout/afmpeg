@@ -2,8 +2,8 @@
 #
 # coverage-policy.sh — enforce the per-package ≥90% coverage policy advisorily.
 #
-# Reads .coverage-policy.yaml (the machine-readable form of the rule) and runs
-# unit coverage over the whole module. A package is FLAGGED when it is below the
+# Reads .coverage-policy.yaml (the machine-readable form of the rule) and the
+# coverage profile the test run already produced. A package is FLAGGED when it is below the
 # threshold AND is neither in the `excluded` list nor matched by a `not_counted`
 # prefix.
 #
@@ -69,30 +69,71 @@ is_excluded() {
 	return 1
 }
 
-echo "coverage-policy: running unit coverage over ./... (this can take a few minutes)"
+COVER="${COVER_PROFILE:-cover.out}"
 
-# Keep the run's own output. Discarding stderr here is what let this script
-# report OK 12ms into a run that takes minutes: `go test` failed, the reason went
-# to /dev/null, grep matched nothing, and a loop over nothing found no violations
-# and exited 0. An advisory job that cannot fail is worse than no job, because it
-# reads as a green gate.
-raw=$(go test ./... -cover 2>&1)
-status=$?
+# The profile is read, not regenerated. go-test has already run
+# `go test -race -coverprofile=cover.out ./...` and publishes it, so running the
+# suite again here cost a second full run of the module for a number that already
+# existed (60 runs, 229 runner minutes across afmpeg and go-tool-base over the 21
+# days to 2026-09-03, at a 177 s median).
+#
+# Every way this can measure nothing still fails loudly. Discarding stderr is
+# what let this script report OK 12ms into a run that takes minutes: `go test`
+# failed, the reason went to /dev/null, grep matched nothing, and a loop over
+# nothing found no violations and exited 0. An advisory job that cannot fail is
+# worse than no job, because it reads as a green gate. An artifact can be absent,
+# empty, or another module's, which is the same lie by a newer route.
+if [ ! -f "$COVER" ]; then
+	if [ -n "${CI:-}" ]; then
+		echo "coverage-policy: ${COVER} is missing; it comes from the go-test job's artifact (needs: go-test, artifacts: true)." >&2
+		echo "coverage-policy: nothing was measured." >&2
+		exit 2
+	fi
+	echo "coverage-policy: ${COVER} not found, generating it (this can take a few minutes)"
+	raw=$(go test -race -coverprofile="$COVER" ./... 2>&1)
+	status=$?
+	if [ "$status" -ne 0 ]; then
+		printf '%s\n' "$raw" >&2
+		echo "coverage-policy: \`go test\` exited ${status}; nothing was measured." >&2
+		exit 2
+	fi
+fi
 
-cover_out=$(printf '%s\n' "$raw" | grep "coverage:" || true)
-
-if [ "$status" -ne 0 ]; then
-	printf '%s\n' "$raw" >&2
-	echo "coverage-policy: \`go test\` exited ${status}; nothing was measured." >&2
+if [ ! -s "$COVER" ]; then
+	echo "coverage-policy: ${COVER} is empty, so there was nothing to check." >&2
 	exit 2
 fi
 
-# Even on a clean exit, a result nothing could be parsed out of means the
-# measurement did not happen — a changed output format, a build that produced no
-# packages. Reporting OK from that is the same lie by a different route.
+if ! grep -q "^${MODULE}/" "$COVER"; then
+	echo "coverage-policy: ${COVER} carries no line for ${MODULE}; it is empty of this module or belongs to another one." >&2
+	exit 2
+fi
+
+echo "coverage-policy: reading ${COVER} ($(grep -c . "$COVER") profile lines)"
+
+# Aggregate per package the way `go test -cover` does: covered statements over
+# total statements, a block counted once however many times it ran. Emitted in
+# `go test` output shape, so the loop below is unchanged.
+cover_out=$(awk '
+	/^mode:/ { next }
+	{
+		split($1, a, ":")
+		file = a[1]
+		idx = match(file, /\/[^\/]*$/)
+		if (idx == 0) next
+		pkg = substr(file, 1, idx - 1)
+		total[pkg] += $2
+		if ($3 + 0 > 0) covered[pkg] += $2
+	}
+	END {
+		for (p in total)
+			if (total[p] > 0)
+				printf "ok  \t%s\tcoverage: %.1f%% of statements\n", p, 100 * covered[p] / total[p]
+	}
+' "$COVER")
+
 if [ -z "$cover_out" ]; then
-	printf '%s\n' "$raw" >&2
-	echo "coverage-policy: \`go test\` reported no coverage for any package, so there was nothing to check." >&2
+	echo "coverage-policy: ${COVER} parsed to no package results, so there was nothing to check." >&2
 	exit 2
 fi
 
@@ -122,7 +163,7 @@ done <<< "$cover_out"
 echo ""
 # The last way to pass without checking: every line skipped for its own reason.
 if [ "$measured" -eq 0 ]; then
-	echo "coverage-policy: parsed no package coverage out of \`go test\`'s output, so this run checked nothing." >&2
+	echo "coverage-policy: parsed no package coverage out of ${COVER}, so this run checked nothing." >&2
 	exit 2
 fi
 
