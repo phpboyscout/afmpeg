@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.16.1](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.16.1)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.16.0...v0.16.1)
+
+### Bug Fixes
+
+- **deps**: update go modules ([a637898](https://gitlab.com/phpboyscout/afmpeg/-/commit/a6378986495d74643064e96f967a9976bee8a789))
+
+### Performance Improvements
+
+- **ci**: read the coverage profile go-test already produced ([fa9a0c6](https://gitlab.com/phpboyscout/afmpeg/-/commit/fa9a0c63ebd7bb10737d48ba566350d2555a81e1))
+
 ## [v0.16.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.16.0)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.15.1...v0.16.0)
