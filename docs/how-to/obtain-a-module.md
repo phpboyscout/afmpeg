@@ -1,6 +1,6 @@
 ---
 title: Obtain an ffmpeg.wasm module
-description: How to supply afmpeg with its WebAssembly ffmpeg module: from a file, bytes, an afero fs, or a URL with caching.
+description: "How to supply afmpeg with its WebAssembly ffmpeg module: from a file, bytes, an afero fs, or a URL with caching."
 date: 2026-06-27
 tags: [how-to, module, wasm]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

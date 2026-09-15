@@ -1,6 +1,6 @@
 ---
 title: Watch job progress
-description: Receive live progress for a running job on a channel with WithProgress: a best-effort completion fraction and byte counters observed at the filesystem boundary, plus frame/time/speed from a v9+ engine's progress side-channel.
+description: "Receive live progress for a running job on a channel with WithProgress: a best-effort completion fraction and byte counters observed at the filesystem boundary, plus frame/time/speed from a v9+ engine's progress side-channel."
 date: 2026-07-16
 tags: [how-to, runtime, progress]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

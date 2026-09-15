@@ -1,6 +1,6 @@
 ---
 title: Command, Input, Output and FrameJob fields
-description: Every field of afmpeg's job types: what it means, what it defaults to, the builder option that sets it, and what is rejected.
+description: "Every field of afmpeg's job types: what it means, what it defaults to, the builder option that sets it, and what is rejected."
 date: 2026-08-02
 tags: [reference, command, job-spec, fields]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

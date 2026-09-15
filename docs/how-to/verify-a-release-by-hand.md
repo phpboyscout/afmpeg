@@ -1,6 +1,6 @@
 ---
 title: Verify a release by hand
-description: Check an ffmpeg-wasi release without afmpeg: fetch the signing key from WKD, verify the OpenPGP signature over checksums.txt, then sha256sum -c.
+description: "Check an ffmpeg-wasi release without afmpeg: fetch the signing key from WKD, verify the OpenPGP signature over checksums.txt, then sha256sum -c."
 date: 2026-06-30
 tags: [how-to, security, releases, signing]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

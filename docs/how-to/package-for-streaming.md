@@ -1,6 +1,6 @@
 ---
 title: Package for streaming (MPEG-TS, HLS, fragmented MP4)
-description: Write broadcast and adaptive-streaming containers: an MPEG-TS remux, an HLS segment set, a fragmented MP4, all to an in-memory filesystem, no network.
+description: "Write broadcast and adaptive-streaming containers: an MPEG-TS remux, an HLS segment set, a fragmented MP4, all to an in-memory filesystem, no network."
 date: 2026-07-03
 tags: [how-to, command, containers, hls, streaming]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

@@ -1,6 +1,6 @@
 ---
 title: Why a Runtime is capped, deadlined and serialised
-description: The reasoning behind afmpeg's three out-of-the-box constraints: a 512 MB guest memory cap, a one-hour invocation deadline, and one job at a time, plus what they do not protect.
+description: "The reasoning behind afmpeg's three out-of-the-box constraints: a 512 MB guest memory cap, a one-hour invocation deadline, and one job at a time, plus what they do not protect."
 date: 2026-08-02
 tags: [explanation, hardening, defaults, concurrency]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

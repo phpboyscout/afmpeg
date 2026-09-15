@@ -1,6 +1,6 @@
 ---
 title: Extract frames and thumbnails
-description: Pull still images from a video with afmpeg's frames op: a single frame, an interval, scene changes, or thumbnails.
+description: "Pull still images from a video with afmpeg's frames op: a single frame, an interval, scene changes, or thumbnails."
 date: 2026-07-04
 tags: [how-to, frames, thumbnails]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

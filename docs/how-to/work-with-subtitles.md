@@ -1,6 +1,6 @@
 ---
 title: Work with subtitle tracks
-description: Extract, convert, copy, and burn in subtitle streams with afmpeg: sidecar files, embedded tracks, and hard-subs.
+description: "Extract, convert, copy, and burn in subtitle streams with afmpeg: sidecar files, embedded tracks, and hard-subs."
 date: 2026-07-04
 tags: [how-to, subtitles]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

@@ -1,6 +1,6 @@
 ---
-title: Limitations: what afmpeg does not do
-description: The things afmpeg cannot do, will not do, or does only under conditions: combinations that are rejected, capabilities that live in one backend only, and absences that are deliberate.
+title: "Limitations: what afmpeg does not do"
+description: "The things afmpeg cannot do, will not do, or does only under conditions: combinations that are rejected, capabilities that live in one backend only, and absences that are deliberate."
 date: 2026-08-02
 tags: [reference, limitations, constraints, unsupported]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

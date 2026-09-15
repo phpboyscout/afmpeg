@@ -1,6 +1,6 @@
 ---
 title: Reference
-description: Accurate, structured facts: every option and its default, every job field, every result, the release artifacts, and the limits.
+description: "Accurate, structured facts: every option and its default, every job field, every result, the release artifacts, and the limits."
 date: 2026-06-26
 tags: [reference]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

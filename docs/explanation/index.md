@@ -1,6 +1,6 @@
 ---
 title: Explanation
-description: Understanding-oriented material: the architecture, design philosophy, and the why.
+description: "Understanding-oriented material: the architecture, design philosophy, and the why."
 date: 2026-06-26
 tags: [explanation]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

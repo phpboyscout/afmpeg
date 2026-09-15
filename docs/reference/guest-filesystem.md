@@ -1,6 +1,6 @@
 ---
 title: The guest filesystem
-description: What the engine sees: how paths resolve, which locations are synthetic, which syscalls are supported, and what the bridge does not implement.
+description: "What the engine sees: how paths resolve, which locations are synthetic, which syscalls are supported, and what the bridge does not implement."
 date: 2026-08-02
 tags: [reference, vfs, filesystem, paths]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

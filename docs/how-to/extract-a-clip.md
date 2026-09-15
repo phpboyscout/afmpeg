@@ -1,6 +1,6 @@
 ---
 title: Extract a clip (seek and time ranges)
-description: Cut a time window out of a source: a cheap keyframe cut, a frame-accurate one, or a no-re-encode copy-trim, without decoding from the start of the file.
+description: "Cut a time window out of a source: a cheap keyframe cut, a frame-accurate one, or a no-re-encode copy-trim, without decoding from the start of the file."
 date: 2026-07-03
 tags: [how-to, command, seek, clip]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

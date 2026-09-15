@@ -1,6 +1,6 @@
 ---
-title: Engine releases: variants, profiles, asset names and caches
-description: The ffmpeg-wasi artifacts afmpeg loads: exact filenames, provenance keys, trust keys, cache locations, and the vocabulary version each afmpeg requires.
+title: "Engine releases: variants, profiles, asset names and caches"
+description: "The ffmpeg-wasi artifacts afmpeg loads: exact filenames, provenance keys, trust keys, cache locations, and the vocabulary version each afmpeg requires."
 date: 2026-08-02
 tags: [reference, releases, artifacts, variants, profiles]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

@@ -1,6 +1,6 @@
 ---
 title: Runtime options
-description: Every option afmpeg.New accepts: what it does, what it defaults to, and what happens when it is wrong or omitted.
+description: "Every option afmpeg.New accepts: what it does, what it defaults to, and what happens when it is wrong or omitted."
 date: 2026-08-02
 tags: [reference, runtime, options, defaults]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]

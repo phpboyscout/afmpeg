@@ -1,6 +1,6 @@
 ---
 title: Verifying a release
-description: How afmpeg certifies an ffmpeg-wasi release: the OpenPGP-signed checksums, the embedded signing key, the WKD second anchor, and what each layer does and does not defend.
+description: "How afmpeg certifies an ffmpeg-wasi release: the OpenPGP-signed checksums, the embedded signing key, the WKD second anchor, and what each layer does and does not defend."
 date: 2026-06-30
 tags: [explanation, security, releases, signing]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
