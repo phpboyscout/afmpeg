@@ -6,8 +6,78 @@ site_url = "https://afmpeg.phpboyscout.uk"
 repo_url = "https://gitlab.com/phpboyscout/afmpeg"
 repo_name = "afmpeg"
 copyright = "Copyright &copy; 2026 Matt Cockayne"
+
+# Curated navigation, ordered by the Diataxis quadrants
+# (tutorial -> how-to -> reference -> explanation), with the contributor
+# material under Development. Without this the tabs are derived from the
+# directory listing and come out alphabetical.
+nav = [
+  { Home = "index.md" },
+  { Tutorials = [
+    { Overview = "tutorials/index.md" },
+    { "Your first in-memory transcode" = "tutorials/first-in-memory-transcode.md" },
+  ] },
+  { "How-to guides" = [
+    { Overview = "how-to/index.md" },
+    { "Obtain an ffmpeg.wasm module" = "how-to/obtain-a-module.md" },
+    { "Verify a release by hand" = "how-to/verify-a-release-by-hand.md" },
+    { "Run ffmpeg over an in-memory filesystem" = "how-to/run-in-memory.md" },
+    { "Reuse a Runtime across many invocations" = "how-to/reuse-a-runtime.md" },
+    { "Compose a command with the builder" = "how-to/compose-a-command.md" },
+    { "Watch job progress" = "how-to/watch-job-progress.md" },
+    { "Remux without re-encoding" = "how-to/remux-without-re-encoding.md" },
+    { "Extract a clip" = "how-to/extract-a-clip.md" },
+    { "Extract frames and thumbnails" = "how-to/extract-frames.md" },
+    { "Read a raw or headerless input" = "how-to/read-a-raw-input.md" },
+    { "Read analysis-filter measurements" = "how-to/read-analysis-measurements.md" },
+    { "Read and write metadata and chapters" = "how-to/edit-metadata-and-chapters.md" },
+    { "Work with subtitle tracks" = "how-to/work-with-subtitles.md" },
+    { "Package for streaming" = "how-to/package-for-streaming.md" },
+    { "Use the native backend" = "how-to/use-the-native-backend.md" },
+  ] },
+  { Reference = [
+    { Overview = "reference/index.md" },
+    { "Runtime options" = "reference/runtime-options.md" },
+    { "Command, Input, Output and FrameJob fields" = "reference/command.md" },
+    { "Results, probes and progress values" = "reference/results.md" },
+    { "The guest filesystem" = "reference/guest-filesystem.md" },
+    { "Engine releases" = "reference/release-artifacts.md" },
+    { "Limitations" = "reference/limitations.md" },
+  ] },
+  { Explanation = [
+    { Overview = "explanation/index.md" },
+    { Concepts = [
+      { Architecture = "explanation/concepts/architecture.md" },
+      { "Why a Runtime is capped, deadlined and serialised" = "explanation/concepts/safe-defaults.md" },
+      { "Verifying a release" = "explanation/concepts/release-verification.md" },
+    ] },
+    { Components = [
+      { "The vfs bridge" = "explanation/components/vfs-bridge.md" },
+      { "Error catalogue" = "explanation/components/errors.md" },
+    ] },
+  ] },
+  { Development = [
+    { Overview = "development/index.md" },
+    { "Implementation roadmap" = "development/implementation-roadmap.md" },
+    { "CI security scanning" = "development/ci-security-scanning.md" },
+    { "External review" = "development/external-review/index.md" },
+    { Specs = "development/specs/index.md" },
+    { Spikes = [
+      { "0008 performance rig" = "development/spikes/0008-perf/README.md" },
+      { "0008 performance report" = "development/spikes/0008-perf/REPORT.md" },
+      { "0008 findings and go/no-go" = "development/spikes/0008-perf/FINDINGS.md" },
+      { "0028 custom-AVIO/IPC bridge" = "development/spikes/0028-custom-avio-bridge/README.md" },
+      { "0028 native performance report" = "development/spikes/0028-perf/REPORT-native.md" },
+      { "0031 observed-filesystem progress" = "development/spikes/0031-progress-observed-fs/README.md" },
+    ] },
+  ] },
+  { About = [
+    { Overview = "about/index.md" },
+    { Branding = "about/branding.md" },
+  ] },
+]
 extra_css = ["stylesheets/extra.css"]
-extra_javascript = ["javascripts/nav-specs.js"]
+extra_javascript = ["javascripts/nav-specs.js", "javascripts/copy-install.js"]
 
 [project.theme]
 logo = "images/branding/logo_transparent.svg"

@@ -1,43 +1,221 @@
-/* afmpeg docs — brand palette + homepage hero.
- * The shared phpboyscout palette (see the Branding page): Petrol Teal + Amber,
- * so the site reads as one family with the logo. Kept minimal; the Material
- * theme defaults carry the rest. */
+/* afmpeg docs: its own brand, not the house teal and amber.
+ *
+ * The palette is the one on docs/about/branding.md. Everything below reads
+ * from these variables, so changing the brand means changing this block. The
+ * hero structure follows sigillum and colophon, the pattern for a top-level
+ * project rather than a toolkit module. */
 
 :root {
-  --md-primary-fg-color: #14534f;        /* Petrol Teal */
-  --md-primary-fg-color--light: #1c6f69;
-  --md-primary-fg-color--dark: #0f3f3c;
-  --md-accent-fg-color: #e8912a;         /* Amber */
+  --af-brand: #1a66f5;        /* electric blue */
+  --af-brand-deep: #1250c9;
+  --af-sun: #fbd52e;          /* sunflower */
+  --af-sun-deep: #e5bd12;
+  --af-ink: #161a2d;          /* midnight ink */
+  --af-ink-soft: #262c4a;
+  --af-cream: #f1ebe0;        /* bone */
+  --af-charcoal: #211e1a;
+
+  --md-primary-fg-color: var(--af-ink);
+  --md-primary-fg-color--light: var(--af-ink-soft);
+  --md-primary-fg-color--dark: #0c0e1c;
+  --md-accent-fg-color: var(--af-brand);
+  --md-accent-fg-color--transparent: rgba(26, 102, 245, 0.1);
 }
+/* The palette sets the link colour with a two-attribute selector on body,
+   which outranks :root and a single attribute alike. */
+[data-md-color-scheme="default"][data-md-color-primary] { --md-typeset-a-color: var(--af-brand-deep); }
+[data-md-color-scheme="slate"][data-md-color-primary] { --md-typeset-a-color: #7aa4ff; }
 
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #14534f;
-  --md-accent-fg-color: #e8912a;
-  /* Links need a lighter teal to stay readable on the dark background. */
-  --md-typeset-a-color: #4db3aa;
+  --af-brand: #4d86ff;
+  --af-brand-deep: #1a66f5;
+  --md-primary-fg-color: #0c0e1c;
+  --md-accent-fg-color: var(--af-brand);
+  --md-default-bg-color: #12152a;
+  --md-default-bg-color--light: #181c33;
+  --md-code-bg-color: #0c0e1c;
 }
 
-/* --- Homepage hero -------------------------------------------------------- */
-.md-typeset .hero {
-  text-align: center;
-  margin: 1.2rem auto 2.6rem;
+/* Header and tabs: an ink bar with cream text. zensical's modern stylesheet
+   draws the header as a light bar in default-fg text, so the colour has to be
+   set here alongside the background or the text vanishes on the ink. */
+.md-header, .md-tabs { background-color: var(--af-ink); color: var(--af-cream); }
+.md-header__button, .md-header__topic, .md-header__title, .md-tabs__link { color: inherit; }
+.md-tabs__link { opacity: 0.75; }
+.md-tabs__link--active, .md-tabs__link:hover { color: var(--af-sun); opacity: 1; }
+/* The search trigger is a button whose icon is a mask painted in default-fg,
+   so it needs its own colours on the ink bar, in both schemes. */
+.md-search__button { color: var(--af-cream); background-color: rgba(241, 235, 224, 0.12); }
+.md-search__button:hover, .md-search__button:focus { color: var(--af-cream); background-color: rgba(241, 235, 224, 0.22); }
+.md-search__button::before { background-color: var(--af-cream); }
+.md-search__button::after { color: var(--af-ink); background: rgba(241, 235, 224, 0.85); }
+.md-typeset a:hover { color: var(--af-brand-deep); }
+
+/* ---------------------------------------------------------------- hero ---- */
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 3rem;
+  margin: 1rem auto 3.5rem;
+  padding: 2.5rem 2.25rem;
+  border-radius: 18px;
+  color: var(--af-cream);
+  background:
+    radial-gradient(circle at 85% 20%, rgba(26, 102, 245, 0.32), transparent 50%),
+    radial-gradient(circle at 10% 90%, rgba(251, 213, 46, 0.14), transparent 45%),
+    linear-gradient(150deg, var(--af-ink-soft) 0%, var(--af-ink) 100%);
+  border: 1px solid rgba(26, 102, 245, 0.35);
 }
 
-.md-typeset .hero img {
-  width: 176px;
-  max-width: 42%;
+.hero-mark { flex: 0 0 auto; width: 210px; height: 210px; }
+
+.hero-mark img {
+  width: 100%;
   height: auto;
-  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.45));
 }
 
-.md-typeset .hero h1 {
-  margin: 0.2rem 0 0.4rem;
+.hero-body { flex: 1; min-width: 0; }
+
+.hero-eyebrow {
+  margin: 0 0 0.6rem;
+  font-family: var(--md-code-font-family, "JetBrains Mono", monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--af-sun);
+}
+
+.md-typeset .hero-title {
+  font-size: 3.2rem !important;
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  margin: 0 0 0.45rem !important;
+  color: var(--af-cream) !important;
+}
+
+.hero-tagline {
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0 0 1rem;
+  color: var(--af-brand);
+}
+
+.hero-description {
+  font-size: 1.02rem;
+  line-height: 1.65;
+  margin: 0 0 1.5rem;
+  color: rgba(245, 242, 234, 0.84);
+}
+.hero-description a { color: var(--af-cream); text-decoration: underline; }
+.hero-description code { background: rgba(245, 242, 234, 0.12); color: var(--af-cream); }
+
+/* -------------------------------------------------------- install box ---- */
+
+.install-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  max-width: 560px;
+  margin: 0 0 1.6rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(245, 242, 234, 0.16);
+  font-family: var(--md-code-font-family, "JetBrains Mono", monospace);
+  font-size: 0.8rem;
+}
+.install-box::before { content: "$"; color: var(--af-sun); opacity: 0.9; }
+
+.install-command {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  color: var(--af-cream);
+}
+
+.install-copy {
+  flex: 0 0 auto;
+  cursor: pointer;
+  border: 0;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.78rem;
   font-weight: 700;
+  background: var(--af-sun);
+  color: var(--af-ink);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.install-copy:hover { background: var(--af-sun-deep); transform: translateY(-1px); }
+.install-copy.copied { background: var(--af-cream); color: var(--af-ink); }
+
+/* ------------------------------------------------------------ buttons ---- */
+
+.hero-buttons { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+.md-typeset .btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.65rem 1.2rem;
+  font-size: 0.92rem;
+  border-radius: 8px;
+  font-weight: 700;
+  text-decoration: none !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.md-typeset .btn-primary { background: var(--af-brand); color: var(--af-cream) !important; }
+.md-typeset .btn-primary:hover { background: var(--af-brand-deep); transform: translateY(-2px); box-shadow: 0 6px 18px rgba(26, 102, 245, 0.4); }
+.md-typeset .btn-secondary { background: transparent; color: var(--af-cream) !important; border: 1.5px solid rgba(245, 242, 234, 0.5); }
+.md-typeset .btn-secondary:hover { background: rgba(245, 242, 234, 0.1); border-color: var(--af-cream); transform: translateY(-2px); }
+.hero-alt { margin: 1rem 0 0; font-size: 0.9rem; color: rgba(245, 242, 234, 0.7); }
+.hero-alt a { color: var(--af-cream); text-decoration: underline; }
+
+/* ------------------------------------------------------- capability grid - */
+
+.cap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 2.5rem;
 }
 
-.md-typeset .hero .hero-tagline {
-  max-width: 42rem;
-  margin: 0 auto;
-  font-size: 1.05rem;
-  color: var(--md-default-fg-color--light);
+.cap {
+  padding: 1.15rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-top: 4px solid var(--af-brand);
+  background: var(--md-default-bg-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.cap:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(21, 25, 51, 0.15); }
+.md-typeset .cap h3 { margin: 0 0 0.35rem; font-size: 1.05rem; font-weight: 700; color: var(--af-ink); }
+[data-md-color-scheme="slate"] .md-typeset .cap h3 { color: var(--af-brand); }
+.md-typeset .cap p { margin: 0; font-size: 0.9rem; line-height: 1.55; color: var(--md-default-fg-color--light); }
+.md-typeset .cap code { font-size: 0.85em; }
+
+/* ------------------------------------------------------------ responsive - */
+
+@media screen and (max-width: 60em) {
+  .hero {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: 1.75rem;
+    padding: 2rem 1.25rem;
+  }
+  .hero-mark { width: 160px; height: 160px; align-self: center; }
+  .hero-body { width: 100%; max-width: 100%; }
+  .md-typeset .hero-title { font-size: 2.4rem !important; }
+  .hero-buttons { justify-content: center; }
+  .install-box { max-width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .btn, .cap { transition: none; }
+  .md-typeset .btn:hover, .cap:hover { transform: none; }
 }
