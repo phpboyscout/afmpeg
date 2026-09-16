@@ -8,18 +8,8 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 # Remux without re-encoding (stream copy)
 
-Most container changes don't need a transcode. Moving `mp4 → mkv`, or joining segments that
-already share a codec, is a **stream copy**: read the demuxed packets, optionally fix their
-bitstream framing, and mux them straight back out, with no decode and no encode. It's fast, lossless,
-and needs *no codec at all*, so it works for any codec in either licence variant, including
-streams the engine can't itself decode (spec [0013](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0013-remux-and-stream-copy)).
-
-The mechanism: name the input streams to copy in `Map` with **unbracketed specifiers**
-(`"0:v"`, `"0:a:0"`, `"0:0"`: an input index, a media type, an optional per-type index), and set
-the codec to the **`CodecCopy`** sentinel. Bracketed labels (`"[vout]"`) still mean graph pads
-that get encoded, so copy and transcode mix freely in one job.
-
-## Change the container, keep the bytes
+What `ffmpeg -i in.mp4 -c copy out.mkv` does on the command line (`-c:v copy -c:a copy`: copy
+the streams, change only the container), as an afmpeg job:
 
 ```go
 cmd := afmpeg.Command{
@@ -34,10 +24,23 @@ cmd := afmpeg.Command{
 _, err := rt.RunJob(ctx, fs, cmd)
 ```
 
-The video and audio are copied through byte-for-byte; only the wrapper changes. Any bitstream
-filter the target container requires (for example H.264's NAL framing differs between mp4 and
-MPEG-TS) is **auto-inserted by the muxer**, so you don't have to reason about it for the common
-case.
+Most container changes don't need a transcode. Moving `mp4 → mkv`, or joining segments that
+already share a codec, is a **stream copy**: read the demuxed packets, optionally fix their
+bitstream framing, and mux them straight back out, with no decode and no encode. It's fast, lossless,
+and needs *no codec at all*, so it works for any codec in either licence variant, including
+streams the engine can't itself decode (spec [0013](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0013-remux-and-stream-copy)).
+
+The mechanism: name the input streams to copy in `Map` with **unbracketed specifiers**
+(`"0:v"`, `"0:a:0"`, `"0:0"`: an input index, a media type, an optional per-type index), and set
+the codec to the **`CodecCopy`** sentinel. Bracketed labels (`"[vout]"`) still mean graph pads
+that get encoded, so copy and transcode mix freely in one job.
+
+## Change the container, keep the bytes
+
+In the job above the video and audio are copied through byte-for-byte; only the wrapper changes.
+Any bitstream filter the target container requires (for example H.264's NAL framing differs
+between mp4 and MPEG-TS) is **auto-inserted by the muxer**, so you don't have to reason about it
+for the common case.
 
 ## Copy one stream, re-encode another
 
