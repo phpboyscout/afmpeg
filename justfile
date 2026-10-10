@@ -101,9 +101,13 @@ deadcode:
     deadcode ./...
 
 # Run pre-commit checks and documentation linting
-check:
+check: lint-docs-options
     pre-commit run --all-files
     ./scripts/lint-docs-errors.sh
+
+# Check the option names the docs teach (afmpeg#11); the driver-backed half is in test-integration
+lint-docs-options:
+    go test ./internal/docsoptions/
 
 # Serve the documentation locally (zensical; pass ARGS, e.g. `just docs-serve "-a 0.0.0.0:8000"`)
 docs-serve ARGS="":
