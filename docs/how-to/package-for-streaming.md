@@ -14,8 +14,8 @@ writes the web-delivery containers (MPEG-TS, HLS, DASH, fragmented MP4) all to t
 serve however you like.
 
 Two knobs drive it: **`OutputFormat`** forces a muxer the path extension wouldn't imply, and
-**`FormatOption`** passes options to that muxer (as opposed to `WithOption`, which configures the
-encoder).
+**`FormatOption`** passes options to that muxer (as opposed to `VideoOption` and `AudioOption`, which
+configure the encoders).
 
 ## Remux to MPEG-TS, no re-encode
 

@@ -189,7 +189,7 @@ func OutputFormat(name string) OutputOption {
 
 // FormatOption sets one muxer option on an output (spec 0015) — segment timing/
 // naming, fragmentation flags, etc.; e.g. FormatOption("hls_time", "4"). Distinct
-// from WithOption, which sets an encoder option.
+// from EncoderOption and VideoOption, which set encoder options.
 func FormatOption(key, value string) OutputOption {
 	return func(out *Output) {
 		if out.FormatOptions == nil {
