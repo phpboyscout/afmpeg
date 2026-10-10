@@ -140,3 +140,21 @@ coverage-policy:
   script:
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - ./scripts/coverage-policy.sh
+
+# docs-options: the lexical check on option names the docs teach (afmpeg#11).
+# go-test runs it as well, but go-test's `changes` filter skips an MR that
+# touches only Markdown, which is exactly where a wrong option name arrives.
+docs-options:
+  stage: lint
+  image: registry.gitlab.com/phpboyscout/images/go-tools:v0.5.1
+  needs: []
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        paths:
+          - "docs/**/*"
+          - "README.md"
+          - "internal/docsoptions/**/*"
+          - ".gitlab-ci.yml"
+  script:
+    - go test ./internal/docsoptions/
