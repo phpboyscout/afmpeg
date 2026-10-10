@@ -134,3 +134,27 @@ The runtime provides the `env` setjmp/longjmp host module and the WebAssembly fe
 real FFmpeg build needs (spec [0004](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0004-runtime-and-api) R-0004-9), so a released
 [ffmpeg-wasi](https://ffmpeg-wasi.phpboyscout.uk) engine (spec
 [0007](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0007-libav-direct-engine)) loads and runs.
+
+### Option names in the docs
+
+A wrong option name in an example compiles, lints clean and fails only at runtime, so two
+checks cover the names `docs/` and the README teach
+([afmpeg#11](https://gitlab.com/phpboyscout/afmpeg/-/work_items/11)):
+
+- **The lexical check** in `internal/docsoptions` reads every key set through
+  `EncoderOption`, `VideoOption`, `AudioOption`, `SubtitleOption`, `FormatOption`,
+  `DemuxerOption` or one of the `Options` maps, and fails on a key with a `:` in it (`b:v`)
+  or on a muxer-only name in an encoder dictionary and the reverse (`movflags`). It runs in
+  `just test`, `just check` (as `just lint-docs-options`) and in every MR pipeline that
+  touches the docs. It cannot see a name that is merely wrong, such as `crff`.
+- **The driver check**, `TestIntegration_DocumentedOptionsAreAccepted` in
+  `pkg/afmpeg/native`, offers each key to the encoder, muxer or demuxer the docs set it on
+  and requires the job to succeed, which catches `crff` too. It is gated like the other
+  native tests, so the MR pipeline never runs it. One full/gpl driver covers every example:
+
+```sh
+AFMPEG_TEST_NATIVE_DRIVER_FULL_GPL=/path/to/ffmpeg-wasi-driver-linux-amd64-full-gpl \
+  go test ./pkg/afmpeg/native/ -run DocumentedOptions -v
+```
+
+A poorer driver runs what it can and skips the rest, naming the driver each example needs.
