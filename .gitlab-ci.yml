@@ -44,6 +44,11 @@ include:
 
   # Docs — main-branch zensical-pages deploy.
   - component: gitlab.com/phpboyscout/cicd/zensical-pages@main
+    inputs:
+      # Blocking: the docs have no em dashes, and this keeps it so (cicd spec 0115).
+      em_dash_lint: true
+      # Dated spike and review records stay as written (afmpeg#12).
+      em_dash_exclude: "docs/development/spikes/** docs/development/external-review/**"
 
   # Release MR machinery — our wrapper over apricote/releaser-pleaser
   # (carries the schedule-never guard, so it does not fire on the Renovate
