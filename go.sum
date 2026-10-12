@@ -1,5 +1,5 @@
-github.com/ProtonMail/go-crypto v1.4.1 h1:9RfcZHqEQUvP8RzecWEUafnZVtEvrBVL9BiF67IQOfM=
-github.com/ProtonMail/go-crypto v1.4.1/go.mod h1:e1OaTyu5SYVrO9gKOEhTc+5UcXtTUa+P3uLudwcgPqo=
+github.com/ProtonMail/go-crypto v1.5.2 h1:cucYnvqcY7UOXVD//mSyjeaPY0SSN3v5cDkYPxumINk=
+github.com/ProtonMail/go-crypto v1.5.2/go.mod h1:/RaSu30DaKO4RY+XdV/ACcCcZkGr7AhUIduq5sjzzCo=
 github.com/cloudflare/circl v1.6.3 h1:9GPOhQGF9MCYUeXyMYlqTR6a5gTrgR/fBLXvUgtVcg8=
 github.com/cloudflare/circl v1.6.3/go.mod h1:2eXP6Qfat4O/Yhh8BznvKnJ+uzEoTQ6jVKJRn81BiS4=
 github.com/cucumber/gherkin/go/v42 v42.0.0 h1:Ulh3E2awUUSSja+wonP/IOQ+ycmiZwZbgmzqk5H8JNI=
@@ -30,12 +30,12 @@ github.com/tetratelabs/wazero v1.12.0 h1:DuWcpNu/FzgEXgGBDp8J1Spc+CWOvvtvVyjKlaZ
 github.com/tetratelabs/wazero v1.12.0/go.mod h1:LvKtzl2RqO4gyF27BiXU+nKAjcV8f38U+kP/q2vgxh0=
 gitlab.com/phpboyscout/go/errors v0.3.0 h1:MNCCEGdWGj8rpaDFfcufBQZPPMqGY9HbHg8L13mfSVQ=
 gitlab.com/phpboyscout/go/errors v0.3.0/go.mod h1:Nzx3wIKEwQd5DlKGFgcFlaUptL9XTqWEFtBN1pAgi78=
-gitlab.com/phpboyscout/go/signing v0.8.2 h1:bPu1NIA+3atGiJKQjES5St7QTL3GYpIJ88eKLxxh0l0=
-gitlab.com/phpboyscout/go/signing v0.8.2/go.mod h1:A1A6qNPOtIqjozGxrpgKHsrkxFgztWyWFo0QfMnwOaA=
+gitlab.com/phpboyscout/go/signing v0.10.0 h1:/6OxMEZlJn5rVp15+vrO3MwTQrvvcms5C6gjrq9Jpyc=
+gitlab.com/phpboyscout/go/signing v0.10.0/go.mod h1:zjg9NwELBoGPRsd/tz/5IUVzbq20BZxL2HmlBnxjUj0=
 go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
 go.yaml.in/yaml/v3 v3.0.5/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=
-golang.org/x/crypto v0.56.0 h1:GUh5Ii4J5jtcseSMiRqr1jXCNHoxjeV9Fmekc2oLy6Y=
-golang.org/x/crypto v0.56.0/go.mod h1:OMW5y6CY9l38uPLmxU6l6pwcXp1obtLo3e6gT7gQR2I=
+golang.org/x/crypto v0.57.0 h1:3ZVCjf8Ggz7zneR/EHRVx68Ctf+2pmIMP2UFhh9cC6M=
+golang.org/x/crypto v0.57.0/go.mod h1:Fdz0i5U6CoizGwLda9DttjSk6qlZo25zYNtR+ycvuZA=
 golang.org/x/image v0.46.0 h1:b1+oYj0Jbp6K5MDT4i4/eZpYlk3V8SJhhDKh6LBHAyQ=
 golang.org/x/image v0.46.0/go.mod h1:3B3W05VGVQyuXucLINLjXKrqISASfi4Xj+iCVkLMwew=
 golang.org/x/sys v0.48.0 h1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=
