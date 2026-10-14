@@ -29,7 +29,7 @@ type Command struct {
 | Field | Builder option | Default | Meaning |
 |---|---|---|---|
 | `Inputs` | `WithInput`, `WithConcatInput` | empty | Inputs in order. Index 0 is the first, and that index is what a map specifier like `0:v` refers to. |
-| `FilterComplex` | `WithFilterComplex` | empty | The whole `filter_complex` graph as one string, parsed by libav's `avfilter_graph_parse2`. Omit it to mux or copy without a graph. |
+| `FilterComplex` | `WithFilterComplex` | empty | The whole `filter_complex` graph as one string, parsed by libav's `avfilter_graph_parse2`. Omit it to mux or copy without a graph. Each output pad's timestamps reach the encoder as the graph set them, so a variable-frame-rate source stays variable unless the graph ends in `fps` and `aresample=async=1`: see [get a constant frame rate](../how-to/get-a-constant-frame-rate.md). |
 | `Outputs` | `WithOutput` | empty | Outputs in order. |
 
 `JobSpec()` is pure (no I/O), so it is safe to render and log a job before running it.

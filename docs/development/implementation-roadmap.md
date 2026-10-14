@@ -133,8 +133,9 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   encode gap quantified, and answered by the native backend).
 - **Still gated:** HW-accel encoders (NVENC/VAAPI/…, the full profile's remaining members, needing a
   device); native `linux/arm64` + `darwin/arm64`; concat-over-IPC.
-- **[0025](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0025-av-sync-and-framerate) A/V sync**: deferred; the `fps` filter covers it
-  today. Build only on a real VFR complaint.
+- **[0025](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0025-av-sync-and-framerate) A/V sync**: **APPROVED** 2026-10-13. The
+  `fps` + `aresample=async` pattern is documented and tested on both backends; the per-output
+  frame-rate field needs an engine change and release first.
 
 ## Prerequisites & notes (what we'll need)
 
@@ -185,7 +186,7 @@ grab (most-ready first). A future session should confirm the trigger still holds
 | **[0022](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0022-build-size-matrix) arm64/darwin native** | Native Backend-B on `linux/arm64` + `darwin/arm64` | A consumer needing the native backend off `linux/amd64` (e.g. Apple Silicon). The real cost is the cross-build toolchains/runners, not the artifact count | Large | Only on a platform need |
 | **HW-accel encode** | NVENC/VAAPI/QSV/… (the full profile's remaining members) | **Blocked**: needs a GPU/accel device, not available on the headless dev box | Medium once a device exists | No , environment-blocked |
 | **[0026](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0026-engine-hot-path-performance) hot-path micro-opts** | Engine perf tuning | **Measure-first**: pair with the `0008` rig (`cmd/afmpeg-bench`); only land a change with a measured win | Small–Medium | Only with a profile showing a hotspot |
-| **[0025](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0025-av-sync-and-framerate) A/V-sync / framerate** | VFR handling beyond the `fps` filter | **Complaint-first**: the `fps` filter covers today's cases, build only on a real VFR bug | Medium | Only on a complaint |
+| **[0025](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0025-av-sync-and-framerate) A/V-sync / framerate** | A per-output frame-rate field over the `fps` + `aresample=async` pattern | **Approved 2026-10-13**: engine first (ffmpeg-wasi, vocab v11), then afmpeg | Medium | Yes, engine side first |
 | **[0033](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0033-native-progress-side-channel) native phase-B progress** | `Frame`/`OutTime`/`Speed` + accurate `Fraction` for the **native** backend (WASM parity) | **Need-first**: native already has phase-A byte progress; this only helps a *long generative* native job. Needs an engine change + a new native-driver release | Medium | Deferred : spec drafted, revive on a real consumer need |
 
 **How new work lands here:** the last two roadmap pulls (0031 phase A, then 0031/0032 phase B) were

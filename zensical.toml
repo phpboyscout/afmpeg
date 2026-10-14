@@ -28,6 +28,7 @@ nav = [
     { "Remux without re-encoding" = "how-to/remux-without-re-encoding.md" },
     { "Extract a clip" = "how-to/extract-a-clip.md" },
     { "Extract frames and thumbnails" = "how-to/extract-frames.md" },
+    { "Get a constant frame rate" = "how-to/get-a-constant-frame-rate.md" },
     { "Read a raw or headerless input" = "how-to/read-a-raw-input.md" },
     { "Read analysis-filter measurements" = "how-to/read-analysis-measurements.md" },
     { "Read and write metadata and chapters" = "how-to/edit-metadata-and-chapters.md" },

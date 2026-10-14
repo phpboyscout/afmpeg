@@ -34,7 +34,7 @@ conventions stay in `docs/`, because those change with the code.
 | [0022](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0022-build-size-matrix) | the build & distribution matrix | `IMPLEMENTED` |
 | [0023](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0023-hevc-and-av1) | HEVC & AV1 (heavy codecs) | `IMPLEMENTED` |
 | [0024](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0024-input-options-and-formats) | input demuxer options, forced/raw formats & stream selection | `IMPLEMENTED` |
-| [0025](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0025-av-sync-and-framerate) | A/V sync & frame-rate control | `IN REVIEW` |
+| [0025](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0025-av-sync-and-framerate) | A/V sync & frame-rate control | `APPROVED` |
 | [0026](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0026-engine-hot-path-performance) | engine hot-path performance | `IMPLEMENTED` |
 | [0027](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0027-runtime-security-hardening) | runtime security hardening | `IMPLEMENTED` |
 | [0028](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0028-native-subprocess-backend) | native backends (the hardware-acceleration escape hatch) | `IMPLEMENTED` |

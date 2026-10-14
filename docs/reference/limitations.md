@@ -94,7 +94,9 @@ last one written. See
 - **Chapters can be carried across, not authored.** `Output.Chapters` copies from an input or
   drops them; there is no way to write a chapter list from scratch.
 - **Pixel format and output frame rate live in the filtergraph**, not in fields: `format=yuv420p`,
-  `fps=30`. The engine derives them from the graph and the encoder.
+  `fps=30`. The engine derives them from the graph and the encoder, and passes the graph's
+  timestamps through unchanged, so a variable-frame-rate source stays variable unless the graph
+  says otherwise. See [get a constant frame rate](../how-to/get-a-constant-frame-rate.md).
 - **There are no workflow types.** No reel, no timeline, no thumbnail sheet. The builder models
   the structure of an ffmpeg job and stops there; higher-level shapes are yours to compose.
 - **`Concat` and `Path` are not combined.** Setting `Concat` makes `Path` inert on that input.

@@ -27,6 +27,9 @@ Available:
 - **[Extract a clip (seek and time ranges)](extract-a-clip.md)**: cut a time window without
   decoding from the file start: a cheap keyframe cut, a frame-accurate one, or a
   no-re-encode copy-trim.
+- **[Get a constant frame rate from a variable-frame-rate source](get-a-constant-frame-rate.md)**:
+  turn VFR phone or screen recordings into constant-rate output with the audio kept in sync,
+  using the `fps` and `aresample=async` filters.
 - **[Read a raw or headerless input](read-a-raw-input.md)**: decode raw `.yuv`/`.pcm` or a
   mislabelled file by forcing the demuxer and supplying its geometry via demuxer options.
 - **[Package for streaming (MPEG-TS, HLS, fragmented MP4)](package-for-streaming.md)**: write
