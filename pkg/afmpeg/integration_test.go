@@ -154,7 +154,8 @@ func makePNG(w, h int) []byte {
 // the network, verifies the live AWS-KMS signature against afmpeg's pinned key,
 // checks the checksums and provenance, and compiles the module. The capstone of
 // spec 0010 — production crypto, no fixtures. Gated on AFMPEG_TEST_LIVE_RELEASE
-// (it hits the GitLab package registry).
+// (it hits the release store). n9.0.1-8 is the first tag the GitLab package
+// registry never received.
 func TestIntegration_VerifiedRelease(t *testing.T) {
 	t.Parallel()
 
@@ -162,26 +163,36 @@ func TestIntegration_VerifiedRelease(t *testing.T) {
 		t.Skip("set AFMPEG_TEST_LIVE_RELEASE=1 to verify a live signed release over the network")
 	}
 
-	ctx := context.Background()
+	for _, want := range []struct{ tag, ffmpeg string }{
+		{"n8.1.2-4", "n8.1.2"},
+		{"n9.0.1-8", "n9.0.1"},
+	} {
+		t.Run(want.tag, func(t *testing.T) {
+			t.Parallel()
 
-	var prov afmpeg.Provenance
+			ctx := context.Background()
 
-	rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
-		"n8.1.2-4", afmpeg.VariantLGPL,
-		afmpeg.WithReleaseProvenance(&prov),
-	))
-	if err != nil {
-		t.Fatalf("WithModuleRelease (verify failed?): %v", err)
+			var prov afmpeg.Provenance
+
+			rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
+				want.tag, afmpeg.VariantLGPL,
+				afmpeg.WithReleaseProvenance(&prov),
+				afmpeg.WithReleaseCacheDir(t.TempDir()),
+			))
+			if err != nil {
+				t.Fatalf("WithModuleRelease (verify failed?): %v", err)
+			}
+
+			t.Cleanup(func() { _ = rt.Close(ctx) })
+
+			if prov.FFmpegVersion != want.ffmpeg || prov.BuildTag != want.tag {
+				t.Fatalf("verified provenance unexpected: %+v", prov)
+			}
+
+			t.Logf("verified + compiled %s lgpl: ffmpeg=%s license=%s",
+				want.tag, prov.FFmpegVersion, prov.Variants["lgpl"].License)
+		})
 	}
-
-	t.Cleanup(func() { _ = rt.Close(ctx) })
-
-	if prov.FFmpegVersion != "n8.1.2" || prov.BuildTag != "n8.1.2-4" {
-		t.Fatalf("verified provenance unexpected: %+v", prov)
-	}
-
-	t.Logf("verified + compiled n8.1.2-3 lgpl: ffmpeg=%s license=%s",
-		prov.FFmpegVersion, prov.Variants["lgpl"].License)
 }
 
 // makeWAVMono builds a minimal mono pcm_s16le WAV (a 440 Hz sine) in memory — a

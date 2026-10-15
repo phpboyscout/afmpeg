@@ -555,3 +555,43 @@ func TestWithModuleRelease_validatesVariant(t *testing.T) {
 		t.Fatalf("error should explain full is native-only, got: %v", err)
 	}
 }
+
+// recordingTransport refuses every request and remembers the URLs it was asked for.
+type recordingTransport struct{ urls []string }
+
+func (rt *recordingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.urls = append(rt.urls, req.URL.String())
+
+	return &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader("")), Request: req}, nil
+}
+
+// The registry holds nothing after n9.0.1-6, and the store holds every tag, so
+// both sides of that boundary must resolve to the store.
+func TestWithModuleRelease_defaultBaseURLResolvesToReleaseStore(t *testing.T) {
+	t.Parallel()
+
+	for _, tag := range []string{"n9.0.1-6", "n9.0.1-8"} {
+		t.Run(tag, func(t *testing.T) {
+			t.Parallel()
+
+			transport := &recordingTransport{}
+			cfg := &config{}
+
+			opt := WithModuleRelease(tag, VariantLGPL,
+				WithReleaseHTTPClient(&http.Client{Transport: transport}),
+				WithReleaseWKDEmail(""))
+			if err := opt(cfg); err != nil {
+				t.Fatalf("WithModuleRelease: %v", err)
+			}
+
+			if _, err := cfg.fetch(context.Background()); err == nil {
+				t.Fatal("want the refused fetch to fail, got nil")
+			}
+
+			want := "https://pkg.phpboyscout.uk/ffmpeg-wasi/" + tag + "/checksums.txt"
+			if len(transport.urls) == 0 || transport.urls[0] != want {
+				t.Fatalf("first request = %v, want %s", transport.urls, want)
+			}
+		})
+	}
+}

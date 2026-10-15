@@ -10,11 +10,12 @@ import (
 	"gitlab.com/phpboyscout/go/signing/verify"
 )
 
-// defaultReleaseBaseURL is the canonical ffmpeg-wasi generic-package layout on
-// GitLab (project 83847809). WithReleaseBaseURL overrides it for a mirror or an
-// internal store — the signature is over content, so the URL is untrusted input
-// (spec 0010 D-0010-I).
-const defaultReleaseBaseURL = "https://gitlab.com/api/v4/projects/83847809/packages/generic/ffmpeg-wasi"
+// defaultReleaseBaseURL is the ffmpeg-wasi release store. It holds every
+// published tag; the GitLab package registry stopped receiving releases after
+// n9.0.1-6. WithReleaseBaseURL overrides it for a mirror or an internal store —
+// the signature is over content, so the URL is untrusted input (spec 0010
+// D-0010-I).
+const defaultReleaseBaseURL = "https://pkg.phpboyscout.uk/ffmpeg-wasi"
 
 const provenanceFile = "provenance.json"
 
