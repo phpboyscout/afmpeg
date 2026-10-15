@@ -1,5 +1,28 @@
 # Changelog
 
+## [v0.16.2](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.16.2)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.16.1...v0.16.2)
+
+### Notes
+
+- WithModuleRelease and native.NewFromRelease now refuse a release whose signed provenance names a different tag from the one requested, returning ErrProvenanceMismatch. This applies to WithReleaseBundleDir too, so an offline bundle must be loaded under its own tag.
+
+- Download errors from WithModuleURL, WithModuleRelease and native.NewFromRelease now name the URL that failed (query string removed), for example `afmpeg: download https://pkg.phpboyscout.uk/ffmpeg-wasi/n9.0.1-8/checksums.txt: unexpected status 404 Not Found`, instead of always saying `afmpeg: download module`. Code matching on the old text needs updating.
+
+- WithModuleRelease and native.NewFromRelease now fetch from https://pkg.phpboyscout.uk/ffmpeg-wasi by default. It holds every engine release; the GitLab package registry stopped at n9.0.1-6, so engines from n9.0.1-8 onward could not be loaded without WithReleaseBaseURL.
+
+- Releases are announced to the estate's release feed and to Discord.
+
+### Bug Fixes
+
+- **deps**: take signing@v0.10.1 ([9566486](https://gitlab.com/phpboyscout/afmpeg/-/commit/9566486ce8cc1a9418af2bc9847e988a82f1b3da))
+- **release**: bind a verified release to the tag that was requested ([06b5054](https://gitlab.com/phpboyscout/afmpeg/-/commit/06b5054ec17a24b0229664282860eb0fa7df52c1))
+- **fetch**: name the file that failed to download ([db1f5f8](https://gitlab.com/phpboyscout/afmpeg/-/commit/db1f5f853ff6496cf5cab6179789c56cc275acd8))
+- **release**: fetch engine releases from the release store ([f370cb7](https://gitlab.com/phpboyscout/afmpeg/-/commit/f370cb76256529f3e6e9e2f2f258dd667e0d37e7))
+- **deps**: update module golang.org/x/image to v0.47.0 ([93f6822](https://gitlab.com/phpboyscout/afmpeg/-/commit/93f6822aee4fda9b80657e97946a89f21484f24e))
+- **deps**: update module gitlab.com/phpboyscout/go/signing to v0.10.0 ([f37e716](https://gitlab.com/phpboyscout/afmpeg/-/commit/f37e716417d2c4931549ab739107ffb9f502986f))
+
 ## [v0.16.1](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.16.1)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.16.0...v0.16.1)
