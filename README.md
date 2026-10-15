@@ -68,7 +68,7 @@ HEVC/AV1). Select it with
 `WithBackend` / `native.NewFromRelease`; WASM stays the default.
 
 ```go
-rt, _ := afmpeg.New(ctx, afmpeg.WithModuleRelease("n9.0.1-3", afmpeg.VariantLGPL)) // compile once, reuse
+rt, _ := afmpeg.New(ctx, afmpeg.WithModuleRelease("n9.0.1-8", afmpeg.VariantLGPL)) // compile once, reuse
 defer rt.Close(ctx)
 
 fs := afero.NewMemMapFs()            // or the caller's in-memory worktree

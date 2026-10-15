@@ -9,8 +9,8 @@ future session can grab. This document sequences the specs into phases with depe
 what's needed before/during each; the per-spec status is inline below. It supersedes 0012 §7's
 parity-only ordering by folding in the review-driven specs (0024–0028) and the 0022 bundling policy.
 
-> **Current anchors (2026-08-30):** afmpeg **v0.16.0**,
-> ffmpeg-wasi **n9.0.1-3**, job-spec **vocab v10**. The core roadmap is complete; everything below
+> **Current anchors (2026-10-15):** afmpeg **v0.16.1**,
+> ffmpeg-wasi **n9.0.1-8**, job-spec **vocab v10**. The core roadmap is complete; everything below
 > in "what remains" is optional and waits for its trigger (a consumer need, a device, or a measured
 > regression).
 

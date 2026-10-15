@@ -156,7 +156,7 @@ Other things this path enforces, none of them configurable:
 |---|---|---|
 | `WithReleaseProfile(p)` | `ProfileLean` | Selects the capability profile. `WithModuleRelease` accepts `ProfileLean` and `ProfileIntermediate` only. |
 | `WithReleaseProvenance(&p)` | not captured | Writes the verified `Provenance` into your variable, so you can log exactly what you loaded. |
-| `WithReleaseBaseURL(url)` | `https://gitlab.com/api/v4/projects/83847809/packages/generic/ffmpeg-wasi` | Fetch from a mirror or internal store. The signature is over content, so the URL is untrusted input and verification is unchanged. |
+| `WithReleaseBaseURL(url)` | `https://pkg.phpboyscout.uk/ffmpeg-wasi` | Fetch from a mirror or internal store. The signature is over content, so the URL is untrusted input and verification is unchanged. |
 | `WithReleaseBundleDir(dir)` | online | Verify a local directory of pre-fetched assets instead of downloading. Air-gapped. |
 | `WithReleaseCacheDir(dir)` | `os.UserCacheDir()/afmpeg` | Where the verified module is cached. |
 | `WithReleaseHTTPClient(c)` | `http.DefaultClient` | Client for the release assets *and* the WKD key fetch. |

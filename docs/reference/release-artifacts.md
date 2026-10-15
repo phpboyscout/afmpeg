@@ -62,7 +62,7 @@ hand. `<variant>` is `lgpl` or `gpl`.
 | intermediate | `ffmpeg-wasi-intermediate-<variant>.wasm` |
 
 Each is also published gzip-compressed with a `.gz` suffix, for use with
-`WithModuleURL(…, WithGunzip())`. The lean `lgpl` module of `n9.0.1-3` is about 5.3 MB
+`WithModuleURL(…, WithGunzip())`. The lean `lgpl` module of `n9.0.1-8` is about 5.3 MB
 uncompressed.
 
 Lean carries no profile segment in its name. That is deliberate backward compatibility with
@@ -103,9 +103,9 @@ signature and checksums were fine, but the release does not corroborate what you
 | `checksums.txt.sig` | armored OpenPGP detached signature over `checksums.txt` |
 | `provenance.json` | build manifest: FFmpeg version, build tag, commit, and the variants map |
 
-The default base URL is
-`https://gitlab.com/api/v4/projects/83847809/packages/generic/ffmpeg-wasi`, and an asset's URL
-is `<base>/<tag>/<name>`.
+The default base URL is `https://pkg.phpboyscout.uk/ffmpeg-wasi`, and an asset's URL is
+`<base>/<tag>/<name>`. That store holds every published tag. GitLab's package registry, the
+default before it, stopped receiving releases after `n9.0.1-6`.
 
 ## Trust keys
 

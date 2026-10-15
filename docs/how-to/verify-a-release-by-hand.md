@@ -17,8 +17,8 @@ confirming the chain yourself. It mirrors exactly what afmpeg does (spec
 Set the release you want:
 
 ```sh
-TAG=n9.0.1-3
-BASE="https://gitlab.com/api/v4/projects/83847809/packages/generic/ffmpeg-wasi/$TAG"
+TAG=n9.0.1-8
+BASE="https://pkg.phpboyscout.uk/ffmpeg-wasi/$TAG"
 ```
 
 ## 1. Get the signing keys from WKD
