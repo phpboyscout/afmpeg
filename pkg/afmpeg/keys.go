@@ -7,8 +7,8 @@ import (
 	"gitlab.com/phpboyscout/go/errors"
 )
 
-// keyFS holds afmpeg's pinned OpenPGP public keys (ASCII-armored): the
-// ffmpeg-wasi release-signing key and the shared org rotation-authority key.
+// keyFS holds afmpeg's pinned OpenPGP public keys (ASCII-armored): the two
+// ffmpeg-wasi release-signing keys, both under the -v2 identity during rotation.
 // Embedding them is the trust root (spec 0010 revised / 0011) — it ships inside
 // the verifying binary, so it can't be tampered with after build, and the WKD
 // cross-check (0011) compares the live domain copy against it.

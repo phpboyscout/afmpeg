@@ -38,8 +38,9 @@ rt, err := afmpeg.New(ctx, afmpeg.WithModuleRelease(
 
 Verification is **mandatory** (the key is embedded and there is no skip flag). On online
 fetches afmpeg also **cross-checks the embedded key against the copy published via WKD**
-on `openpgpkey.phpboyscout.uk`, a second anchor independent of GitLab; a mismatch fails,
-a WKD outage falls back to the pinned key. Any tamper fails with a typed error:
+on `openpgpkey.phpboyscout.uk`; a mismatch fails, a WKD outage falls back to the pinned
+key. That domain also serves the releases, so the pinned key, not WKD, is what stands
+apart from the host. Any tamper fails with a typed error:
 `ErrSignatureInvalid`, `ErrChecksumMismatch`, or `ErrProvenanceMismatch`. The verified
 module is cached, so later runs skip the download.
 

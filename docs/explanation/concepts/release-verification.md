@@ -1,6 +1,6 @@
 ---
 title: Verifying a release
-description: "How afmpeg certifies an ffmpeg-wasi release: the OpenPGP-signed checksums, the embedded signing key, the WKD second anchor, and what each layer does and does not defend."
+description: "How afmpeg certifies an ffmpeg-wasi release: the OpenPGP-signed checksums, the embedded signing key, the WKD cross-check, and what each layer does and does not defend."
 date: 2026-06-30
 tags: [explanation, security, releases, signing]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -42,20 +42,28 @@ Only then is the module compiled. Each failure is its own typed error:
 signature covers `checksums.txt` and `checksums.txt` covers everything else, **one signature
 certifies the whole release**.
 
-## The second anchor: WKD (spec 0011)
+## The WKD cross-check (spec 0011)
 
-The embedded key is pinned in the binary, but where did *that* key come from? On every **online**
-fetch afmpeg adds a second, independent check: it fetches the signing key from the **Web Key
-Directory** on `openpgpkey.phpboyscout.uk` and requires it to **match the embedded key by
-fingerprint** (`signing/verify`'s composite resolver). The domain is a control plane administered
-separately from GitLab and AWS, so the key has an anchor that does not depend on the platform that
-hosts the releases.
+On every **online** fetch afmpeg also fetches the signing keys from the **Web Key Directory** on
+`openpgpkey.phpboyscout.uk` and requires them to **match the embedded keys by fingerprint**
+(`signing/verify`'s composite resolver). The trust set afmpeg verifies against is always the
+embedded one. WKD can veto a load, but it can never add a key.
 
 - A **fingerprint mismatch** (embedded vs WKD) is a hard failure, and a tamper signal.
 - A **WKD outage** degrades gracefully to the pinned embedded key (which is already a strong
   anchor): a transient domain problem never blocks a legitimate load.
 - The **offline-bundle** path (`WithReleaseBundleDir`) skips WKD entirely, since it must not touch the
   network. `WithReleaseWKDEmail` overrides the WKD identity (for a mirror) or disables it (`""`).
+
+WKD is **not independent of the release files**. Both live under `phpboyscout.uk`: the keys on
+`openpgpkey.phpboyscout.uk`, the default release store on `pkg.phpboyscout.uk`. Whoever controls
+that zone, or the Cloudflare account serving it, controls the files and the key discovery
+together, so against that attacker the cross-check adds nothing. They can serve the genuine keys,
+serve none (afmpeg falls back to the embedded keys without a word), or serve different ones
+(every load fails). The anchor that sits outside the zone is the **pinned keys**: they come from
+afmpeg's source on gitlab.com, are compiled into your binary, and the private half stays in AWS
+KMS. However the zone is misused, afmpeg will not load a release whose `checksums.txt` is not
+signed by one of them.
 
 There are **two kinds** of OpenPGP key in the model, with distinct roles. The **signing
 identity** (`ffmpeg-wasi-release-v2@phpboyscout.uk`) is what afmpeg embeds and cross-checks, and it
@@ -80,22 +88,25 @@ verification; it is org infrastructure).
 ## What this does, and does not, defend
 
 The signature defends against a swapped or tampered artifact: leaked credentials, the apply
-runner, and non-tag pipelines all **cannot** produce a valid signature. The WKD cross-check adds
-**key/registry-substitution defense** (an attacker must compromise *both* the release platform and
-the independently-administered domain) and **independent key distribution** (third parties
-discover the key from the domain, not the repo).
+runner, and non-tag pipelines all **cannot** produce a valid signature. That holds whoever serves
+the files, including someone in control of `phpboyscout.uk`, because the keys it is checked
+against are pinned in afmpeg. The WKD cross-check is a consistency check between those pinned keys
+and what the domain publishes, and a way for third parties to discover the keys without reading
+afmpeg's source. It is not a second, independent anchor: the domain that serves the keys also
+serves the releases.
 
 What **no** signing scheme here closes is a **compromised GitLab account that can push a tag**:
 that triggers the legitimate release pipeline, which signs a genuine-but-malicious build with the
 real key. That is the domain of GitLab account hardening (protected tags, 2FA, required approvals)
 and reproducible builds are out of scope, and stated plainly rather than papered over. The WKD
-anchor narrows the attack surface; it does not eliminate that case.
+cross-check does not touch that case either.
 
 ## Verifying by hand
 
 You don't need afmpeg (or Go) to check a release. See
 [Verify a release by hand](../../how-to/verify-a-release-by-hand.md): fetch the keys from WKD,
-verify the OpenPGP signature over `checksums.txt`, then `sha256sum -c`.
+check them against the pinned fingerprints, verify the OpenPGP signature over `checksums.txt`,
+then `sha256sum -c`.
 
 The pinned fingerprints, the exact asset and provenance names, and where verified bytes are
 cached are in [engine releases](../../reference/release-artifacts.md).

@@ -21,8 +21,9 @@ const provenanceFile = "provenance.json"
 
 // defaultWKDEmail is the release-signing identity whose key is published via the
 // Web Key Directory on phpboyscout.uk. On every online fetch afmpeg cross-checks
-// its embedded signing key against the copy served here — a control plane
-// independent of GitLab (spec 0011). Empty disables the cross-check.
+// its embedded signing keys against the copy served there (spec 0011). The same
+// zone serves the default release store, so this is not independent of the
+// release host; the embedded keys are. Empty disables the cross-check.
 const defaultWKDEmail = "ffmpeg-wasi-release-v2@phpboyscout.uk"
 
 // releaseConfig configures a certified release fetch.
@@ -115,7 +116,7 @@ func WithReleaseProvenance(into *Provenance) ReleaseOption {
 // (ffmpeg-wasi-release@phpboyscout.uk) is correct for canonical releases; override
 // it for a mirror that publishes its own WKD, or pass "" to disable the
 // cross-check entirely (verification still happens against the pinned embedded
-// key — the cross-check is a second, independent anchor, not the trust root).
+// key — the cross-check can veto a load but is not the trust root).
 func WithReleaseWKDEmail(email string) ReleaseOption {
 	return func(c *releaseConfig) { c.wkdEmail = email }
 }

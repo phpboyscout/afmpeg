@@ -1,6 +1,6 @@
 ---
 title: Verify a release by hand
-description: "Check an ffmpeg-wasi release without afmpeg: fetch the signing key from WKD, verify the OpenPGP signature over checksums.txt, then sha256sum -c."
+description: "Check an ffmpeg-wasi release without afmpeg: fetch the signing key from WKD, check it against the pinned fingerprints, verify the OpenPGP signature over checksums.txt, then sha256sum -c."
 date: 2026-06-30
 tags: [how-to, security, releases, signing]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -24,8 +24,7 @@ BASE="https://pkg.phpboyscout.uk/ffmpeg-wasi/$TAG"
 ## 1. Get the signing keys from WKD
 
 The release-signing keys are published via the **Web Key Directory** on the `phpboyscout.uk`
-domain, a control plane independent of the GitLab repo that hosts the releases. Fetch them by
-email; `gpg` resolves WKD automatically:
+domain. Fetch them by email; `gpg` resolves WKD automatically:
 
 ```sh
 gpg --locate-external-keys ffmpeg-wasi-release-v2@phpboyscout.uk
@@ -48,6 +47,14 @@ gpg --fingerprint ffmpeg-wasi-release-v2@phpboyscout.uk
 ```
 
 If a fingerprint differs, stop. Do not trust the release.
+
+That comparison is the step that protects you, because WKD is not an independent source. The keys
+come from `openpgpkey.phpboyscout.uk` and the release files from `pkg.phpboyscout.uk`, so whoever
+controls the `phpboyscout.uk` zone, or the Cloudflare account serving it, can replace the keys and
+the files together, and the signature would still check out. This page is served from that zone
+as well. Take the fingerprints from somewhere the zone cannot reach: the keys afmpeg pins, in
+[`pkg/afmpeg/keys`](https://gitlab.com/phpboyscout/afmpeg/-/tree/main/pkg/afmpeg/keys) on
+gitlab.com, or the copy in the afmpeg module you already build against.
 
 ## 2. Verify the signature over the manifest
 
@@ -81,5 +88,6 @@ sha256sum --ignore-missing -c checksums.txt
 Expect `ffmpeg-wasi-lgpl.wasm: OK` and `provenance.json: OK`. (`--ignore-missing` checks only the
 files present; drop it once you've downloaded every asset.)
 
-That's the whole chain: **WKD key → OpenPGP signature over `checksums.txt` → SHA-256 of each
-asset**. `provenance.json` then tells you exactly what went into the build.
+That's the whole chain: **pinned fingerprint → OpenPGP signature over `checksums.txt` → SHA-256
+of each asset**, with WKD only as the convenient way to fetch the keys. `provenance.json` then
+tells you exactly what went into the build.

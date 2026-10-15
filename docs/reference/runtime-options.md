@@ -197,8 +197,8 @@ the binary, and the same identity published through the Web Key Directory on
 `phpboyscout.uk`. Then:
 
 - **they must agree by fingerprint.** A divergence is a hard failure: the release is not loaded;
-- **an unreachable WKD is tolerated.** The cross-check is a second anchor, not the trust root, so
-  an outage falls back to the embedded key rather than failing the build;
+- **an unreachable WKD is tolerated.** The cross-check is a check on the trust root, not the trust
+  root itself, so an outage falls back to the embedded key rather than failing the build;
 - **`WithReleaseWKDEmail("")` skips it entirely.** Verification still happens against the pinned
   embedded key.
 

@@ -21,7 +21,7 @@ alternatives that were weighed.
   error-handling convention.
 - **[Verifying a release](concepts/release-verification.md)**: how `WithModuleRelease`
   certifies a published module: the KMS-signed checksums, the pinned key, what each layer
-  defends, and the WKD second anchor that cross-checks the pinned key.
+  defends, and the WKD cross-check of the pinned key, which shares a domain with the releases.
 - **[Why a Runtime is capped, deadlined and serialised](concepts/safe-defaults.md)**: the
   reasoning behind the 512 MB memory cap, the one-hour invocation deadline, and one-job-at-a-time
   execution, and what none of them protects you from.
