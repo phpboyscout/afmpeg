@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,24 +103,26 @@ func fetchModule(ctx context.Context, url string, opts ...FetchOption) ([]byte, 
 	return module, nil
 }
 
-func download(ctx context.Context, fc *fetchConfig, url string) ([]byte, error) {
+func download(ctx context.Context, fc *fetchConfig, rawURL string) ([]byte, error) {
+	what := describeURL(rawURL)
+
 	//nolint:gosec // the module URL is caller-supplied by design (spec 0004 D-C)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "afmpeg: build module request")
+		return nil, errors.Wrapf(err, "afmpeg: build request for %s", what)
 	}
 
 	resp, err := fc.client.Do(req)
 	if err != nil {
-		return nil, errors.Wrap(err, "afmpeg: download module")
+		return nil, errors.Wrapf(err, "afmpeg: download %s", what)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Newf("afmpeg: download module: unexpected status %s", resp.Status)
+		return nil, errors.Newf("afmpeg: download %s: unexpected status %s", what, resp.Status)
 	}
 
-	module, err := readLimited(resp.Body)
+	module, err := readLimited(resp.Body, what)
 	if err != nil {
 		return nil, err
 	}
@@ -137,14 +140,25 @@ func download(ctx context.Context, fc *fetchConfig, url string) ([]byte, error) 
 	return module, nil
 }
 
-func readLimited(r io.Reader) ([]byte, error) {
+// describeURL names a download in an error. The query and userinfo are dropped
+// because a caller-supplied mirror URL can carry credentials in either.
+func describeURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "asset"
+	}
+
+	return (&url.URL{Scheme: u.Scheme, Host: u.Host, Path: u.Path}).String()
+}
+
+func readLimited(r io.Reader, what string) ([]byte, error) {
 	module, err := io.ReadAll(io.LimitReader(r, maxModuleBytes+1))
 	if err != nil {
-		return nil, errors.Wrap(err, "afmpeg: read module")
+		return nil, errors.Wrapf(err, "afmpeg: read %s", what)
 	}
 
 	if int64(len(module)) > maxModuleBytes {
-		return nil, errors.Newf("afmpeg: module exceeds the %d-byte limit", maxModuleBytes)
+		return nil, errors.Newf("afmpeg: %s exceeds the %d-byte limit", what, maxModuleBytes)
 	}
 
 	return module, nil
@@ -157,7 +171,7 @@ func gunzipBytes(data []byte) ([]byte, error) {
 	}
 	defer func() { _ = zr.Close() }()
 
-	module, err := readLimited(zr)
+	module, err := readLimited(zr, "decompressed module")
 	if err != nil {
 		return nil, errors.Wrap(err, "afmpeg: gunzip module")
 	}

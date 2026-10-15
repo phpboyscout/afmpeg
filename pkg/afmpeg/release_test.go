@@ -137,8 +137,28 @@ func TestFetchRelease(t *testing.T) {
 		srv := serveAssets(t, map[string][]byte{moduleFile: module}) // checksums.txt 404s
 		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: [][]byte{pub}, cacheDir: t.TempDir()}
 
-		if _, err := fetchRelease(context.Background(), "n8.1.2-4", VariantLGPL, rc); err == nil {
+		_, err := fetchRelease(context.Background(), "n8.1.2-4", VariantLGPL, rc)
+		if err == nil {
 			t.Fatal("want an error when checksums.txt is absent")
+		}
+
+		if msg := err.Error(); !strings.Contains(msg, "checksums.txt") || strings.Contains(msg, "download module") {
+			t.Fatalf("the error should name checksums.txt, not the module: %v", err)
+		}
+	})
+
+	t.Run("a download error names the URL without its query", func(t *testing.T) {
+		t.Parallel()
+
+		srv := serveAssets(t, map[string][]byte{})
+
+		_, err := download(context.Background(), &fetchConfig{client: srv.Client()}, srv.URL+"/n8.1.2-4/provenance.json?token=hunter2")
+		if err == nil {
+			t.Fatal("want an error for a 404")
+		}
+
+		if msg := err.Error(); !strings.Contains(msg, srv.URL+"/n8.1.2-4/provenance.json") || strings.Contains(msg, "hunter2") {
+			t.Fatalf("the error should name the asset URL and drop its query: %v", err)
 		}
 	})
 
@@ -399,7 +419,7 @@ func (rt wkdRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
 func wkdClient(rt wkdRoundTripper) *http.Client { return &http.Client{Transport: rt} }
 
 // binaryWKDKey serializes priv's public key into the binary form a WKD hu file
-// serves (UID ffmpeg-wasi-release@phpboyscout.uk, matching defaultWKDEmail).
+// serves (UID defaultWKDEmail).
 func binaryWKDKey(t *testing.T, priv *rsa.PrivateKey) []byte {
 	t.Helper()
 

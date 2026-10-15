@@ -113,7 +113,7 @@ func WithReleaseProvenance(into *Provenance) ReleaseOption {
 
 // WithReleaseWKDEmail overrides the Web Key Directory identity afmpeg cross-checks
 // its embedded signing key against (spec 0011). The default
-// (ffmpeg-wasi-release@phpboyscout.uk) is correct for canonical releases; override
+// (ffmpeg-wasi-release-v2@phpboyscout.uk) is correct for canonical releases; override
 // it for a mirror that publishes its own WKD, or pass "" to disable the
 // cross-check entirely (verification still happens against the pinned embedded
 // key — the cross-check can veto a load but is not the trust root).

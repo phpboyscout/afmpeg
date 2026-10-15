@@ -138,8 +138,10 @@ module and is bounded only by the context you pass to `New`, which is also what 
 Other things this path enforces, none of them configurable:
 
 - **A 256 MiB ceiling** on the downloaded, decompressed module. Over it:
-  `afmpeg: module exceeds the 268435456-byte limit`.
-- **Any non-200 response fails**: `afmpeg: download module: unexpected status …`.
+  `afmpeg: <url> exceeds the 268435456-byte limit` (`decompressed module` in place of `<url>`
+  when `WithGunzip` is on and the inflated bytes are what breach it).
+- **Any non-200 response fails**: `afmpeg: download <url>: unexpected status …`. In both
+  messages `<url>` is the requested URL without its query string or credentials.
 - **The cache is content-addressed when it can be.** With `WithSHA256` the filename is the
   digest, so two URLs serving identical bytes share one entry, and a corrupt entry fails its
   checksum and is re-fetched. Without a SHA the filename is a hash of the URL and a stale entry
