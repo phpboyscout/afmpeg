@@ -132,9 +132,10 @@ func withReleaseKeys(armoredKeys ...[]byte) ReleaseOption {
 // fetches the module plus its checksums, signature, and provenance, and verifies
 // — against afmpeg's pinned OpenPGP trust keys — the detached signature over the
 // checksums, the module's and provenance's checksums, and that provenance names
-// this variant (spec 0010, revised to gitlab.com/phpboyscout/go/signing). Only then
-// is the module compiled. Any tamper fails with a typed error
-// (signing/verify.ErrSignatureInvalid, ErrChecksumMismatch, ErrProvenanceMismatch).
+// this tag and this variant (spec 0010, revised to
+// gitlab.com/phpboyscout/go/signing). Only then is the module compiled. Any
+// tamper fails with a typed error (signing/verify.ErrSignatureInvalid,
+// ErrChecksumMismatch, ErrProvenanceMismatch).
 //
 // Unlike WithModuleURL (bring-your-own, uncertified), this path is for the
 // project's own published releases — there is no way to skip verification.
@@ -223,7 +224,7 @@ func fetchAsset(ctx context.Context, tag, provKey, assetFile string, rc *release
 			return nil, err
 		}
 
-		return fetchReleaseOffline(rc, provKey, assetFile, trust)
+		return fetchReleaseOffline(rc, tag, provKey, assetFile, trust)
 	}
 
 	trust, err := rc.resolveTrust(ctx, true) // online: embedded↔WKD cross-check
@@ -237,8 +238,9 @@ func fetchAsset(ctx context.Context, tag, provKey, assetFile string, rc *release
 // FetchReleaseAsset fetches and verifies a single named asset from an ffmpeg-wasi
 // release — the identical trust chain as WithModuleRelease: the KMS/OpenPGP
 // signature over checksums.txt against afmpeg's pinned keys (with the WKD
-// cross-check online), the asset's checksum, and that provenance names it under
-// provKey. It returns the verified bytes and the release provenance.
+// cross-check online), the asset's checksum, that provenance names tag as its
+// build tag, and that provenance names the asset under provKey. It returns the
+// verified bytes and the release provenance.
 //
 // This is the general primitive behind acquiring any signed release artifact; it
 // exists so the opt-in native backend (pkg/afmpeg/native) can fetch a certified
@@ -269,7 +271,7 @@ func FetchReleaseAsset(ctx context.Context, tag, assetFile, provKey string, opts
 // fetchReleaseOffline verifies a complete bundle read from a local directory
 // (D-0010-G air-gap): everything is in memory, so the whole bundle goes through
 // verifyRelease.
-func fetchReleaseOffline(rc *releaseConfig, variantKey, moduleFile string, trust *verify.TrustSet) ([]byte, error) {
+func fetchReleaseOffline(rc *releaseConfig, tag, variantKey, moduleFile string, trust *verify.TrustSet) ([]byte, error) {
 	module, err := readBundleFile(rc.bundleDir, moduleFile)
 	if err != nil {
 		return nil, err
@@ -299,7 +301,7 @@ func fetchReleaseOffline(rc *releaseConfig, variantKey, moduleFile string, trust
 		provFile:   provenanceFile,
 	}
 
-	prov, err := verifyRelease(bundle, variantKey, trust)
+	prov, err := verifyRelease(bundle, tag, variantKey, trust)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +333,7 @@ func fetchReleaseOnline(ctx context.Context, tag, variantKey, moduleFile string,
 		return nil, err
 	}
 
-	prov, moduleSHA, err := verifyManifest(trust, checksums, signature, provenance, variantKey, moduleFile, provenanceFile)
+	prov, moduleSHA, err := verifyManifest(trust, checksums, signature, provenance, tag, variantKey, moduleFile, provenanceFile)
 	if err != nil {
 		return nil, err
 	}

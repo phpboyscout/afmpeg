@@ -24,8 +24,8 @@ release by `(tag, variant)` and **verifies it before it runs**. The release's
 `checksums.txt` carries a detached **OpenPGP** signature made by a key held in AWS KMS
 (signable only by ffmpeg-wasi's tag pipeline), and afmpeg checks that signature against a
 **public key pinned inside afmpeg** (via `gitlab.com/phpboyscout/go/signing`), then the
-module's and provenance's checksums, then that the provenance names the variant you asked
-for:
+module's and provenance's checksums, then that the provenance names the tag and the variant
+you asked for:
 
 ```go
 var prov afmpeg.Provenance

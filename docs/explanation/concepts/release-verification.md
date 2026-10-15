@@ -34,7 +34,9 @@ verifies, in order:
    trust anchor.
 2. **The module's checksum**, read from the now-trusted `checksums.txt`.
 3. **`provenance.json`'s checksum**, binding it into the signed set.
-4. **Provenance agrees with the variant** you requested (e.g. `VariantLGPL` ↔
+4. **Provenance names the tag you requested** as its `build_tag`, binding the verified release
+   to that tag.
+5. **Provenance agrees with the variant** you requested (e.g. `VariantLGPL` ↔
    `ffmpeg-wasi-lgpl.wasm`).
 
 Only then is the module compiled. Each failure is its own typed error:

@@ -87,7 +87,7 @@ type ProvenanceVariant struct {
 }
 
 // ErrProvenanceMismatch is returned when a release's provenance does not
-// corroborate the requested variant. (Signature failures surface as
+// corroborate the requested tag or variant. (Signature failures surface as
 // signing/verify's ErrSignatureInvalid; checksum failures as ErrChecksumMismatch.)
 var ErrProvenanceMismatch = errors.NewSentinel("afmpeg.provenance_mismatch", "afmpeg: release provenance mismatch")
 
@@ -105,11 +105,11 @@ type releaseBundle struct {
 
 // verifyRelease enforces the trust chain on a complete (in-memory) bundle —
 // the OpenPGP signature over checksums.txt by a trusted key, then the module's
-// and provenance's checksums, then that provenance's entry under variantKey names
-// the module file. Used by the offline-bundle path and the unit tests; the online
+// and provenance's checksums, then that provenance names tag as its build tag and
+// its entry under variantKey names the module file. Used by the offline-bundle path and the unit tests; the online
 // path uses verifyManifest + a cached module fetch.
-func verifyRelease(b releaseBundle, variantKey string, trust *verify.TrustSet) (Provenance, error) {
-	prov, moduleSHA, err := verifyManifest(trust, b.checksums, b.signature, b.provenance, variantKey, b.moduleFile, b.provFile)
+func verifyRelease(b releaseBundle, tag, variantKey string, trust *verify.TrustSet) (Provenance, error) {
+	prov, moduleSHA, err := verifyManifest(trust, b.checksums, b.signature, b.provenance, tag, variantKey, b.moduleFile, b.provFile)
 	if err != nil {
 		return Provenance{}, err
 	}
@@ -123,11 +123,12 @@ func verifyRelease(b releaseBundle, variantKey string, trust *verify.TrustSet) (
 
 // verifyManifest verifies the signed manifest (steps 1, 3, 4 of the chain): the
 // OpenPGP detached signature over checksums.txt against the trust set, then
-// provenance.json's checksum and the variant. It returns the parsed provenance
+// provenance.json's checksum, its build tag against the requested tag, and the
+// variant. It returns the parsed provenance
 // and the module's trusted SHA-256 — so the (large) module can be fetched through
 // the content-addressed cache and checked against that SHA. variantKey is the
 // provenance `variants` map key (e.g. "lgpl" or "intermediate-lgpl").
-func verifyManifest(trust *verify.TrustSet, checksums, signature, provenance []byte, variantKey, moduleFile, provFile string) (Provenance, string, error) {
+func verifyManifest(trust *verify.TrustSet, checksums, signature, provenance []byte, tag, variantKey, moduleFile, provFile string) (Provenance, string, error) {
 	if err := trust.VerifyManifestSignature(checksums, signature); err != nil {
 		return Provenance{}, "", err
 	}
@@ -149,6 +150,11 @@ func verifyManifest(trust *verify.TrustSet, checksums, signature, provenance []b
 	var prov Provenance
 	if err := json.Unmarshal(provenance, &prov); err != nil {
 		return Provenance{}, "", errors.Wrap(err, "afmpeg: parse provenance")
+	}
+
+	if prov.BuildTag != tag {
+		return Provenance{}, "", errors.Wrapf(ErrProvenanceMismatch,
+			"release provenance names build tag %q, requested %q", prov.BuildTag, tag)
 	}
 
 	if pv, ok := prov.Variants[variantKey]; !ok || pv.File != moduleFile {

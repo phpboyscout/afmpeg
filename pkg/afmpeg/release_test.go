@@ -106,6 +106,42 @@ func TestFetchRelease(t *testing.T) {
 		}
 	})
 
+	t.Run("refuses a release served under a tag its provenance does not name", func(t *testing.T) {
+		t.Parallel()
+
+		srv := serveAssets(t, assets) // release n8.1.2-4's files, requested as n8.1.2-5
+		rc := &releaseConfig{baseURL: srv.URL, client: srv.Client(), keys: [][]byte{pub}, cacheDir: t.TempDir()}
+
+		got, err := fetchRelease(context.Background(), "n8.1.2-5", VariantLGPL, rc)
+		if !errors.Is(err, ErrProvenanceMismatch) {
+			t.Fatalf("want ErrProvenanceMismatch, got %v", err)
+		}
+
+		if got != nil {
+			t.Fatal("no module bytes may be returned for a refused release")
+		}
+
+		if !strings.Contains(err.Error(), `build tag "n8.1.2-4", requested "n8.1.2-5"`) {
+			t.Fatalf("error should name both tags: %v", err)
+		}
+	})
+
+	t.Run("refuses an offline bundle whose provenance names another tag", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		for name, data := range assets {
+			if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+				t.Fatalf("write bundle file: %v", err)
+			}
+		}
+
+		rc := &releaseConfig{bundleDir: dir, keys: [][]byte{pub}}
+		if _, err := fetchRelease(context.Background(), "n8.1.2-5", VariantLGPL, rc); !errors.Is(err, ErrProvenanceMismatch) {
+			t.Fatalf("want ErrProvenanceMismatch, got %v", err)
+		}
+	})
+
 	t.Run("rejects a tampered module", func(t *testing.T) {
 		t.Parallel()
 
@@ -326,12 +362,16 @@ func TestFetchReleaseAsset(t *testing.T) {
 		"provenance.json":   provBytes,
 	}
 
-	fetch := func(a map[string][]byte, provKey string) ([]byte, Provenance, error) {
+	fetchTag := func(a map[string][]byte, tag, provKey string) ([]byte, Provenance, error) {
 		srv := serveAssets(t, a)
 
-		return FetchReleaseAsset(context.Background(), "n8.1.2-7", driverFile, provKey,
+		return FetchReleaseAsset(context.Background(), tag, driverFile, provKey,
 			WithReleaseBaseURL(srv.URL), WithReleaseHTTPClient(srv.Client()), withReleaseKeys(pub),
 			WithReleaseWKDEmail(""), WithReleaseCacheDir(t.TempDir())) // "" disables WKD → the test key alone
+	}
+
+	fetch := func(a map[string][]byte, provKey string) ([]byte, Provenance, error) {
+		return fetchTag(a, "n8.1.2-7", provKey)
 	}
 
 	t.Run("verifies and returns a non-module asset + provenance", func(t *testing.T) {
@@ -359,6 +399,19 @@ func TestFetchReleaseAsset(t *testing.T) {
 
 		if _, _, err := fetch(tampered, "driver-linux-amd64-lgpl"); !errors.Is(err, ErrChecksumMismatch) {
 			t.Fatalf("want ErrChecksumMismatch, got %v", err)
+		}
+	})
+
+	t.Run("refuses an asset served under a tag its provenance does not name", func(t *testing.T) {
+		t.Parallel()
+
+		data, _, err := fetchTag(assets, "n8.1.2-8", "driver-linux-amd64-lgpl")
+		if !errors.Is(err, ErrProvenanceMismatch) {
+			t.Fatalf("want ErrProvenanceMismatch, got %v", err)
+		}
+
+		if data != nil {
+			t.Fatal("no asset bytes may be returned for a refused release")
 		}
 	})
 

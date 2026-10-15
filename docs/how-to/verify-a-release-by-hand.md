@@ -88,6 +88,12 @@ sha256sum --ignore-missing -c checksums.txt
 Expect `ffmpeg-wasi-lgpl.wasm: OK` and `provenance.json: OK`. (`--ignore-missing` checks only the
 files present; drop it once you've downloaded every asset.)
 
+Then confirm the now-verified provenance names the tag you asked for, as `WithModuleRelease` does:
+
+```sh
+grep -q "\"build_tag\": *\"$TAG\"" provenance.json && echo "build_tag: OK"
+```
+
 That's the whole chain: **pinned fingerprint → OpenPGP signature over `checksums.txt` → SHA-256
-of each asset**, with WKD only as the convenient way to fetch the keys. `provenance.json` then
-tells you exactly what went into the build.
+of each asset → provenance naming the tag you asked for**, with WKD only as the convenient way to
+fetch the keys. `provenance.json` then tells you exactly what went into the build.
