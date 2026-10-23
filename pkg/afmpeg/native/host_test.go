@@ -581,7 +581,10 @@ func TestServeConn_negotiatesTheVersionItWillSpeak(t *testing.T) {
 	}
 
 	_ = w.c.Close()
-	<-done
+
+	if err := <-done; !errors.Is(err, io.EOF) {
+		t.Fatalf("serveConn after a hang-up before any session = %v, want EOF", err)
+	}
 }
 
 // A v1 driver predates the negotiation and expects no answer to its preamble.
@@ -640,7 +643,10 @@ func TestServeConn_moveReplacesAtomically(t *testing.T) {
 	}
 
 	_ = w.c.Close()
-	<-done
+
+	if err := <-done; err != nil {
+		t.Fatalf("serveConn: %v", err)
+	}
 
 	// The point of the frame is that the destination holds the new bytes and the
 	// source is gone — a copy that left the .tmp behind would satisfy neither.
@@ -667,7 +673,10 @@ func TestServeConn_moveFailureIsReported(t *testing.T) {
 	}
 
 	_ = w.c.Close()
-	<-done
+
+	if err := <-done; err == nil {
+		t.Fatal("want serveConn to report the failed move")
+	}
 }
 
 // D4 — Exists, so a probe and an open resolve against the SAME filesystem.
@@ -688,7 +697,10 @@ func TestServeConn_existsAnswersForOneName(t *testing.T) {
 	}
 
 	_ = w.c.Close()
-	<-done
+
+	if err := <-done; err != nil {
+		t.Fatalf("serveConn: %v", err)
+	}
 
 	// A missing name is an ordinary answer, not a host fault: the engine probes
 	// for files that may not exist, which is how image2 finds a sequence's end.
@@ -700,7 +712,10 @@ func TestServeConn_existsAnswersForOneName(t *testing.T) {
 	}
 
 	_ = w2.c.Close()
-	<-done2
+
+	if err := <-done2; err != nil {
+		t.Fatalf("serveConn: %v", err)
+	}
 }
 
 // D2 — a Read reply can report a failure.
