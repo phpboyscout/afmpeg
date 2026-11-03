@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.16.4](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.16.4)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.16.3...v0.16.4)
+
+### Bug Fixes
+
+- **deps**: take go/signing v0.11.2 ([e8d67c1](https://gitlab.com/phpboyscout/afmpeg/-/commit/e8d67c154ac4c3a721e938d36caf309a40a84c2a))
+- **deps**: update phpboyscout modules ([623d9ef](https://gitlab.com/phpboyscout/afmpeg/-/commit/623d9ef3e1968b50f8be1996cd0d61342066805e))
+
 ## [v0.16.3](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.16.3)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.16.2...v0.16.3)
