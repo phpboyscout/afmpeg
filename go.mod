@@ -7,7 +7,7 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/tetratelabs/wazero v1.12.0
 	gitlab.com/phpboyscout/go/errors v0.4.0
-	gitlab.com/phpboyscout/go/signing v0.11.2
+	gitlab.com/phpboyscout/go/signing v0.11.3
 	golang.org/x/image v0.47.0
 )
 
