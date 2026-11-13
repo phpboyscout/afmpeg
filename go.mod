@@ -1,6 +1,6 @@
 module gitlab.com/phpboyscout/afmpeg
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/cucumber/godog v0.16.0
@@ -8,7 +8,7 @@ require (
 	github.com/tetratelabs/wazero v1.12.0
 	gitlab.com/phpboyscout/go/errors v0.4.0
 	gitlab.com/phpboyscout/go/signing v0.11.3
-	golang.org/x/image v0.47.0
+	golang.org/x/image v0.48.0
 )
 
 require (
@@ -22,6 +22,6 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 )
