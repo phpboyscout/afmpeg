@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.16.6](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.16.6)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.16.5...v0.16.6)
+
+### Bug Fixes
+
+- **deps**: update go modules ([5e75844](https://gitlab.com/phpboyscout/afmpeg/-/commit/5e75844062340cfd26065cce729598711685f42a))
+
 ## [v0.16.5](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.16.5)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.16.4...v0.16.5)
