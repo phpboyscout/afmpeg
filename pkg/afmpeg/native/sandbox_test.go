@@ -205,8 +205,15 @@ func TestBackend_Sandbox_backsOffAFailingQuery(t *testing.T) {
 	clock := newFakeClock(b)
 
 	for range 5 {
-		if _, err := b.Invoke(context.Background(), afero.NewMemMapFs(), `{"op":"probe"}`); err != nil {
+		res, err := b.Invoke(context.Background(), afero.NewMemMapFs(), `{"op":"probe"}`)
+		if err != nil {
 			t.Fatalf("Invoke: %v", err)
+		}
+		if res.Sandbox != "" || res.Sandbox.Confined() {
+			t.Fatalf("Sandbox during the back-off = %q, want empty and not confined", res.Sandbox)
+		}
+		if state, err := b.Sandbox(context.Background()); err == nil || state != "" {
+			t.Fatalf("Sandbox() during the back-off = %q, %v; want an error and no state", state, err)
 		}
 	}
 	if got := d.capsAsked.Load(); got != 1 {
