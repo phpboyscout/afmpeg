@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.17.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.17.0)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.16.6...v0.17.0)
+
+### Notes
+
+- The native backend now reports whether the driver was sandboxed: `Backend.Sandbox(ctx)` before a job, and a `Sandbox` field on `Result`, `Probe` and `FramesResult` after each one. On a host without Landlock the driver still runs, but unconfined, and afmpeg logs a warning the first time it happens. If your code must not let a job read host disk, check `Sandbox.Confined()` and act on it, because afmpeg will not stop the job for you.
+
+### Features
+
+- **native**: report the driver's sandbox state, and warn when it ran unconfined ([6c6ec6b](https://gitlab.com/phpboyscout/afmpeg/-/commit/6c6ec6b02dccebe67f0199ea0d385ba2810ccd0a))
+- **afmpeg**: say what confinement each run had, in Result.Sandbox ([91eae6c](https://gitlab.com/phpboyscout/afmpeg/-/commit/91eae6c70b2b8094231c1116a765b0f630cad4af))
+
 ## [v0.16.6](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.16.6)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.16.5...v0.16.6)
