@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.18.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.18.0)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.17.0...v0.18.0)
+
+### Notes
+
+- The native backend now also warns, once, when the driver doesn't report whether it was sandboxed, as a driver older than the sandbox doesn't. Treat such runs as unconfined; `Sandbox.Confined()` already reports them as not confined.
+
+### Features
+
+- **native**: warn when the driver doesn't report its sandbox state ([b86027e](https://gitlab.com/phpboyscout/afmpeg/-/commit/b86027effe973f7572fa5af333b142928e80e6da))
+
+### Bug Fixes
+
+- **native**: word the unknown-state warning for a driver never asked ([0156af4](https://gitlab.com/phpboyscout/afmpeg/-/commit/0156af449faa87d534893243a7315a2682f1e9f2))
+
+### Performance Improvements
+
+- **native**: back off a sandbox query that keeps failing ([18d73f6](https://gitlab.com/phpboyscout/afmpeg/-/commit/18d73f61ccd504781e01af6e58d71eb36ac61963))
+
 ## [v0.17.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.17.0)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.16.6...v0.17.0)
