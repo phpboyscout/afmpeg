@@ -129,6 +129,51 @@ path. Only the runtime underneath changes. See the
     process's privileges. Load it only from a source you trust: `NewFromRelease` gives you the
     signature-verified project artifact; `WithNativeBinary` trusts whatever path you supply.
 
+## Check that the driver is sandboxed
+
+Served over its socket, the driver confines itself with Landlock, so a filter option that
+names a file (`lut3d=file=`, for one) cannot reach host disk. A host whose kernel has no
+Landlock, or whose container runtime's seccomp profile refuses its syscalls, cannot install
+that sandbox. The driver then **still runs**, unconfined, and says so
+([spec 0047](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0047-say-when-the-native-driver-is-unconfined)).
+afmpeg does not stop the job: if you must not read host disk, check the state and act on it.
+
+```go
+b, err := native.NewFromRelease(ctx, "n9.0.1-1", afmpeg.VariantGPL)
+if err != nil {
+    return err
+}
+
+// Before choosing the backend: what this host gives the driver.
+state, err := b.Sandbox(ctx)
+if err != nil {
+    return err
+}
+if !state.Confined() {
+    // e.g. use the WASM backend instead, or refuse
+}
+
+// After each job: what that job ran under.
+res, err := rt.RunJob(ctx, fs, cmd)
+if err == nil && !res.Sandbox.Confined() {
+    // the job ran unconfined
+}
+```
+
+| `Sandbox` | means | `Confined()` |
+|---|---|---|
+| `landlock` | the driver's sandbox is installed | yes |
+| `wasi` | the WASM backend, confined by the WASI runtime | yes |
+| `unavailable` | this host cannot sandbox the driver; it ran unconfined | no |
+| `disabled` | switched off on purpose with `AFMPEG_NO_SANDBOX=1` | no |
+| empty | the backend does not report it | no |
+
+`Probe` and `FramesResult` carry the same `Sandbox` field as `Result`.
+
+The first unconfined run on a backend is also logged as a warning through `log/slog`, on
+`slog.Default` unless you construct the backend with `native.WithLogger`. A `disabled`
+sandbox is logged once at info instead, since someone chose it.
+
 ## What you give up by switching
 
 Three things stop working when you swap the WASM backend out, and none of them is obvious from

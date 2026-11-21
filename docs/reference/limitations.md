@@ -59,8 +59,11 @@ because the `/dev/afmpeg-progress` device is served by the WASM backend. On an e
 that also means `Fraction` falls back to the byte source, which runs out of signal.
 
 **The sandbox.** The driver is a native subprocess running with your process's privileges, not a
-WASM sandbox. `WithMemoryLimit` has no effect on it. This is the trade you are making when you
-opt in, and it is why the default stays WASM.
+WASM sandbox. `WithMemoryLimit` has no effect on it. It confines its own filesystem access with
+Landlock, but only where the host supports it: elsewhere it runs unconfined and reports
+`unavailable` in `Result.Sandbox`, and afmpeg does not stop the job. This is the trade you are
+making when you opt in, and it is why the default stays WASM. See
+[checking that the driver is sandboxed](../how-to/use-the-native-backend.md#check-that-the-driver-is-sandboxed).
 
 ## Combinations that are rejected
 

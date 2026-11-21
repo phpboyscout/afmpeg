@@ -3,6 +3,7 @@ package native
 import (
 	"bytes"
 	"context"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -26,6 +27,9 @@ const socketEnv = "AFMPEG_NATIVE_SOCKET"
 type Backend struct {
 	binary string
 	spawn  spawnFunc // seam for tests; defaults to execDriver
+	logger *slog.Logger
+
+	sandbox sandboxReport
 }
 
 var _ afmpeg.Backend = (*Backend)(nil)
@@ -65,7 +69,28 @@ func (b *Backend) Close(context.Context) error { return nil }
 // argv and the socket in its environment, serves fs to the driver over that socket
 // until the process exits, and returns the driver's Result. All media I/O flows
 // through the socket into fs — no host-disk file for inputs or outputs.
+//
+// The Result carries the confinement the job ran under, and the first unconfined
+// run is logged (spec 0047).
 func (b *Backend) Invoke(ctx context.Context, fs afero.Fs, args ...string) (afmpeg.Result, error) {
+	res, err := b.invoke(ctx, fs, args...)
+	if err != nil {
+		return res, err
+	}
+
+	res.Sandbox = reportedSandbox(res.Stdout)
+	if res.Sandbox == "" {
+		// Only process results and --capabilities carry the field, but the driver
+		// installs the same sandbox for every op it serves over the socket.
+		res.Sandbox, _ = b.Sandbox(ctx)
+	}
+
+	b.observe(res.Sandbox)
+
+	return res, nil
+}
+
+func (b *Backend) invoke(ctx context.Context, fs afero.Fs, args ...string) (afmpeg.Result, error) {
 	dir, err := os.MkdirTemp("", "afmpeg-native-")
 	if err != nil {
 		return afmpeg.Result{}, errors.Wrap(err, "native: temp dir for socket")
