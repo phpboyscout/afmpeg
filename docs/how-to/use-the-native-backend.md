@@ -166,15 +166,17 @@ if err == nil && !res.Sandbox.Confined() {
 | `wasi` | the WASM backend, confined by the WASI runtime | yes |
 | `unavailable` | this host cannot sandbox the driver; it ran unconfined | no |
 | `disabled` | switched off on purpose with `AFMPEG_NO_SANDBOX=1` | no |
-| empty | the backend does not report it | no |
+| empty | the backend or driver does not report it | no |
 
 `Probe` and `FramesResult` carry the same `Sandbox` field as `Result`. The engine does not
 report the state for a probe or frames job, so on the native backend those two fields hold the
 backend's cached answer from `--capabilities`, the same value `Sandbox(ctx)` returns.
 
 The first unconfined run on a backend is also logged as a warning through `log/slog`, on
-`slog.Default` unless you construct the backend with `native.WithLogger`. A `disabled`
-sandbox is logged once at info instead, since someone chose it.
+`slog.Default` unless you construct the backend with `native.WithLogger`. So is the first run
+whose state is empty or unrecognised, such as a driver older than the sandbox: whether it was
+confined is unknown, so treat it as unconfined. A `disabled` sandbox is logged once at info
+instead, since someone chose it.
 
 ## What you give up by switching
 

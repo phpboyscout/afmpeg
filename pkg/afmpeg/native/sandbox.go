@@ -19,7 +19,7 @@ func WithLogger(l *slog.Logger) Option {
 }
 
 // sandboxReport caches the host's answer to --capabilities and makes sure each
-// unconfined state is logged once per Backend rather than once per job.
+// state that is not confined is logged once per Backend rather than once per job.
 type sandboxReport struct {
 	mu      sync.Mutex
 	queried bool
@@ -27,11 +27,13 @@ type sandboxReport struct {
 	err     error
 
 	warnUnavailable sync.Once
+	warnUnknown     sync.Once
 	noteDisabled    sync.Once
 }
 
 // Sandbox reports the confinement the driver gets on this host, from its
-// --capabilities. The driver is asked once and the answer is cached.
+// --capabilities. A definite answer is cached for the Backend's lifetime; a
+// failed query is asked again by the next caller.
 func (b *Backend) Sandbox(ctx context.Context) (afmpeg.Sandbox, error) {
 	b.sandbox.mu.Lock()
 	defer b.sandbox.mu.Unlock()
@@ -98,6 +100,14 @@ func (b *Backend) observe(state afmpeg.Sandbox) {
 				"sandbox", string(state), "driver", b.binary)
 		})
 	case afmpeg.SandboxLandlock, afmpeg.SandboxWASI:
+	default:
+		// Matt's choice, 2026-11-21 (spec 0047): an unreported state warns too.
+		b.sandbox.warnUnknown.Do(func() {
+			b.log().Warn("afmpeg: the native driver did not report its filesystem sandbox "+
+				"state, so whether it is confined is unknown; treat it as unconfined "+
+				"(afmpeg spec 0047)",
+				"sandbox", string(state), "driver", b.binary)
+		})
 	}
 }
 

@@ -157,15 +157,39 @@ func TestBackend_Sandbox_aDriverThatDoesNotReportIt(t *testing.T) {
 		t.Fatal("Sandbox: want an error for a driver that predates spec 0043")
 	}
 
-	res, err := b.Invoke(context.Background(), afero.NewMemMapFs(), `{"op":"probe"}`)
-	if err != nil {
-		t.Fatalf("Invoke: %v (an unreported state must not fail the job)", err)
+	for range 3 {
+		res, err := b.Invoke(context.Background(), afero.NewMemMapFs(), `{"op":"probe"}`)
+		if err != nil {
+			t.Fatalf("Invoke: %v (an unreported state must not fail the job)", err)
+		}
+		if res.Sandbox != "" || res.Sandbox.Confined() {
+			t.Fatalf("Sandbox = %q, want empty and not confined", res.Sandbox)
+		}
 	}
-	if res.Sandbox != "" || res.Sandbox.Confined() {
-		t.Fatalf("Sandbox = %q, want empty and not confined", res.Sandbox)
+
+	// Matt's choice, 2026-11-21 (spec 0047): unknown warns, once per backend.
+	if got := strings.Count(logs.String(), "level=WARN"); got != 1 || !strings.Contains(logs.String(), "unknown") {
+		t.Errorf("want exactly one warning that the state is unknown, got %d:\n%s", got, logs)
 	}
-	if logs.String() != "" {
-		t.Errorf("logged for an unreported state:\n%s", logs)
+}
+
+func TestBackend_Invoke_warnsOnAnUnrecognisedState(t *testing.T) {
+	t.Parallel()
+
+	b, logs := stubBackend(&stubDriver{job: `{"sandbox":"seccomp-only","outputs":[]}`})
+
+	for range 2 {
+		res, err := b.Invoke(context.Background(), afero.NewMemMapFs(), `{"op":"process"}`)
+		if err != nil {
+			t.Fatalf("Invoke: %v", err)
+		}
+		if res.Sandbox.Confined() {
+			t.Fatalf("Sandbox %q reads as confined", res.Sandbox)
+		}
+	}
+
+	if got := strings.Count(logs.String(), "level=WARN"); got != 1 {
+		t.Errorf("warnings = %d, want 1\n%s", got, logs)
 	}
 }
 
