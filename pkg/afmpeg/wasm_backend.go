@@ -97,7 +97,10 @@ func (b *wasmBackend) Invoke(ctx context.Context, fs afero.Fs, args ...string) (
 		return Result{}, err
 	}
 
-	return Result{ExitCode: exitCode, Stdout: stdout.String(), Stderr: stderr.String()}, nil
+	// The engine's own "sandbox" field says "unavailable" here, because its
+	// Landlock code is compiled out of the wasm build; the WASI runtime is what
+	// confines it (spec 0047 D3).
+	return Result{ExitCode: exitCode, Stdout: stdout.String(), Stderr: stderr.String(), Sandbox: SandboxWASI}, nil
 }
 
 // mountConfig builds a wazero FSConfig that mounts the vfs bridge over fs at the

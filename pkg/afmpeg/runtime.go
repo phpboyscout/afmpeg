@@ -76,6 +76,10 @@ type Result struct {
 	ExitCode int
 	Stdout   string
 	Stderr   string
+
+	// Sandbox is the filesystem confinement this invocation ran under (spec
+	// 0047). It is empty when the backend does not report one.
+	Sandbox Sandbox
 }
 
 // Probe describes a media input: its container format, duration, start offset,
@@ -90,6 +94,9 @@ type Probe struct {
 	Tags map[string]string
 	// Chapters is the container's chapter list (spec 0020).
 	Chapters []Chapter
+
+	// Sandbox is the filesystem confinement the probe ran under (spec 0047).
+	Sandbox Sandbox
 }
 
 // Chapter is one chapter of a probed input (spec 0020): its bounds in seconds and
@@ -432,6 +439,7 @@ func (r *Runtime) ProbeInput(ctx context.Context, fs afero.Fs, input Input) (Pro
 	return Probe{
 		Format: in.Format, DurationSec: in.DurationSec, StartSec: in.StartSec,
 		Streams: in.Streams, Tags: in.Tags, Chapters: in.Chapters,
+		Sandbox: res.Sandbox,
 	}, nil
 }
 

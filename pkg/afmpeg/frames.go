@@ -69,6 +69,9 @@ type ExtractedFrame struct {
 type FramesResult struct {
 	Frames []ExtractedFrame
 	Count  int
+
+	// Sandbox is the filesystem confinement the job ran under (spec 0047).
+	Sandbox Sandbox
 }
 
 // jobFrames is the JSON the engine's "frames" op consumes.
@@ -173,5 +176,5 @@ func (r *Runtime) Frames(ctx context.Context, fs afero.Fs, job FrameJob) (Frames
 		return FramesResult{}, errors.Wrap(err, "afmpeg: frames: parse engine output")
 	}
 
-	return FramesResult{Frames: out.Frames, Count: out.Count}, nil
+	return FramesResult{Frames: out.Frames, Count: out.Count, Sandbox: res.Sandbox}, nil
 }

@@ -114,3 +114,40 @@ func TestWithBackend_injectsAndSkipsModule(t *testing.T) {
 		t.Fatalf("unexpected result: %+v", res)
 	}
 }
+
+// The typed results must carry the state the backend reported, or a caller of
+// Probe or Frames could never check it (spec 0047 D2).
+func TestRuntime_typedResultsCarryTheSandbox(t *testing.T) {
+	t.Parallel()
+
+	newRT := func(t *testing.T, stdout string) *Runtime {
+		t.Helper()
+
+		fb := &fakeBackend{res: Result{Stdout: stdout, Sandbox: SandboxUnavailable}}
+		rt, err := New(context.Background(), WithBackend(fb))
+		if err != nil {
+			t.Fatalf("New: %v", err)
+		}
+		t.Cleanup(func() { _ = rt.Close(context.Background()) })
+
+		return rt
+	}
+
+	p, err := newRT(t, `{"inputs":[{"format":"mp4"}]}`).Probe(context.Background(), afero.NewMemMapFs(), "in.mp4")
+	if err != nil {
+		t.Fatalf("Probe: %v", err)
+	}
+	if p.Sandbox != SandboxUnavailable {
+		t.Errorf("Probe.Sandbox = %q, want unavailable", p.Sandbox)
+	}
+
+	at := 0.0
+	f, err := newRT(t, `{"frames":[],"count":0}`).Frames(context.Background(), afero.NewMemMapFs(),
+		FrameJob{Input: "in.mp4", Select: FrameSelect{Timestamp: &at}, Path: "f.png"})
+	if err != nil {
+		t.Fatalf("Frames: %v", err)
+	}
+	if f.Sandbox != SandboxUnavailable {
+		t.Errorf("FramesResult.Sandbox = %q, want unavailable", f.Sandbox)
+	}
+}
