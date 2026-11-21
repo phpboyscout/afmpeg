@@ -9,6 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/spf13/afero"
 
@@ -193,6 +194,61 @@ func TestBackend_Invoke_warnsOnAnUnrecognisedState(t *testing.T) {
 	}
 }
 
+// A driver whose --capabilities always fails is asked again only after the
+// back-off, not on every job.
+func TestBackend_Sandbox_backsOffAFailingQuery(t *testing.T) {
+	t.Parallel()
+
+	d := &stubDriver{caps: `{"sandbox":"landlock"}`, job: `{"format":"mp4"}`, capsExit: 1}
+	d.capsFails.Store(1 << 20)
+	b, _ := stubBackend(d)
+	clock := newFakeClock(b)
+
+	for range 5 {
+		if _, err := b.Invoke(context.Background(), afero.NewMemMapFs(), `{"op":"probe"}`); err != nil {
+			t.Fatalf("Invoke: %v", err)
+		}
+	}
+	if got := d.capsAsked.Load(); got != 1 {
+		t.Fatalf("--capabilities asked %d times within the back-off, want 1", got)
+	}
+
+	clock.advance(sandboxRetryInterval)
+
+	if _, err := b.Invoke(context.Background(), afero.NewMemMapFs(), `{"op":"probe"}`); err != nil {
+		t.Fatalf("Invoke: %v", err)
+	}
+	if got := d.capsAsked.Load(); got != 2 {
+		t.Errorf("--capabilities asked %d times after the back-off, want 2", got)
+	}
+}
+
+type fakeClock struct {
+	mu sync.Mutex
+	t  time.Time
+}
+
+func newFakeClock(b *Backend) *fakeClock {
+	c := &fakeClock{t: time.Unix(0, 0)}
+	b.sandbox.now = c.now
+
+	return c
+}
+
+func (c *fakeClock) now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.t
+}
+
+func (c *fakeClock) advance(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.t = c.t.Add(d)
+}
+
 func TestBackend_Sandbox_aCancelledQueryIsNotCached(t *testing.T) {
 	t.Parallel()
 
@@ -225,10 +281,13 @@ func TestBackend_Sandbox_aFailedQueryFailsOpenNowhere(t *testing.T) {
 			d.caps, d.job = `{"sandbox":"landlock"}`, `{"format":"mp4"}`
 			d.capsFails.Store(1)
 			b, _ := stubBackend(d)
+			clock := newFakeClock(b)
 
 			if state, err := b.Sandbox(context.Background()); err == nil || state != "" {
 				t.Fatalf("Sandbox = %q, %v; want an error and no state", state, err)
 			}
+
+			clock.advance(sandboxRetryInterval)
 
 			res, err := b.Invoke(context.Background(), afero.NewMemMapFs(), `{"op":"probe"}`)
 			if err != nil {
