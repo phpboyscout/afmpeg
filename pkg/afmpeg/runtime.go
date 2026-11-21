@@ -95,7 +95,9 @@ type Probe struct {
 	// Chapters is the container's chapter list (spec 0020).
 	Chapters []Chapter
 
-	// Sandbox is the filesystem confinement the probe ran under (spec 0047).
+	// Sandbox is the filesystem confinement the probe ran under (spec 0047). The
+	// engine does not report it for a probe, so the native backend gives its
+	// cached --capabilities answer (ffmpeg-wasi#73).
 	Sandbox Sandbox
 }
 

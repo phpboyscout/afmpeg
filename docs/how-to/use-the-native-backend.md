@@ -168,7 +168,9 @@ if err == nil && !res.Sandbox.Confined() {
 | `disabled` | switched off on purpose with `AFMPEG_NO_SANDBOX=1` | no |
 | empty | the backend does not report it | no |
 
-`Probe` and `FramesResult` carry the same `Sandbox` field as `Result`.
+`Probe` and `FramesResult` carry the same `Sandbox` field as `Result`. The engine does not
+report the state for a probe or frames job, so on the native backend those two fields hold the
+backend's cached answer from `--capabilities`, the same value `Sandbox(ctx)` returns.
 
 The first unconfined run on a backend is also logged as a warning through `log/slog`, on
 `slog.Default` unless you construct the backend with `native.WithLogger`. A `disabled`

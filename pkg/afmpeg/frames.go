@@ -70,7 +70,9 @@ type FramesResult struct {
 	Frames []ExtractedFrame
 	Count  int
 
-	// Sandbox is the filesystem confinement the job ran under (spec 0047).
+	// Sandbox is the filesystem confinement the job ran under (spec 0047). The
+	// engine does not report it for a frames job, so the native backend gives its
+	// cached --capabilities answer (ffmpeg-wasi#73).
 	Sandbox Sandbox
 }
 
