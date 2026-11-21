@@ -125,10 +125,11 @@ func (b *Backend) observe(state afmpeg.Sandbox) {
 		})
 	case afmpeg.SandboxLandlock, afmpeg.SandboxWASI:
 	default:
-		// Matt's choice, 2026-11-21 (spec 0047): an unreported state warns too.
+		// Matt's choice, 2026-11-21 (spec 0047): an unknown state warns too, whether the
+		// driver did not report it or could not be asked.
 		b.sandbox.warnUnknown.Do(func() {
-			b.log().Warn("afmpeg: the native driver did not report its filesystem sandbox "+
-				"state, so whether it is confined is unknown; treat it as unconfined "+
+			b.log().Warn("afmpeg: the native driver's filesystem sandbox state could not be "+
+				"determined, so whether it is confined is unknown; treat it as unconfined "+
 				"(afmpeg spec 0047)",
 				"sandbox", string(state), "driver", b.binary)
 		})
