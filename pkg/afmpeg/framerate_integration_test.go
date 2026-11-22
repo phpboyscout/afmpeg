@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -23,6 +24,9 @@ const (
 	vfrSpanSec   = 3.0
 	vfrTargetFPS = 25
 )
+
+// handWrittenCFR is the spec 0025 pattern that Output.FrameRate("25") applies.
+const handWrittenCFR = "[0:v]fps=25[v];[0:a]aresample=async=1[a]"
 
 // TestIntegration_VFRToCFR proves the spec 0025 filter pattern on a real
 // variable-frame-rate source through the real engine, on both backends: `fps`
@@ -61,7 +65,7 @@ func TestIntegration_VFRToCFR(t *testing.T) {
 			t.Cleanup(func() { _ = rt.Close(ctx) })
 
 			t.Run("the fixture is VFR with an audio hole", func(t *testing.T) {
-				v, a := transcodeTracks(ctx, t, rt, src, "[0:v]null[v];[0:a]anull[a]")
+				v, a := transcodeTracks(ctx, t, rt, src, "[0:v]null[v];[0:a]anull[a]", "")
 
 				if distinct(v.deltas) < 2 {
 					t.Fatalf("passthrough video has uniform frame durations %v; the fixture is not VFR", v.deltas)
@@ -74,7 +78,7 @@ func TestIntegration_VFRToCFR(t *testing.T) {
 			})
 
 			t.Run("fps and aresample=async give CFR in sync", func(t *testing.T) {
-				v, a := transcodeTracks(ctx, t, rt, src, "[0:v]fps=25[v];[0:a]aresample=async=1[a]")
+				v, a := transcodeTracks(ctx, t, rt, src, handWrittenCFR, "")
 
 				want := v.timescale / vfrTargetFPS
 				for i, d := range v.deltas {
@@ -98,6 +102,21 @@ func TestIntegration_VFRToCFR(t *testing.T) {
 				if gap := math.Abs(a.duration() - v.duration()); gap > audioFrame+v.seconds(want) {
 					t.Fatalf("audio runs %.3fs and video %.3fs; %.3fs apart is more than one frame of each",
 						a.duration(), v.duration(), gap)
+				}
+			})
+
+			t.Run("FrameRate gives what the hand-written graph gives", func(t *testing.T) {
+				hv, ha := transcodeTracks(ctx, t, rt, src, handWrittenCFR, "")
+				fv, fa := transcodeTracks(ctx, t, rt, src, "[0:v]null[v];[0:a]anull[a]", "25")
+
+				if !slices.Equal(fv.deltas, hv.deltas) || fv.timescale != hv.timescale {
+					t.Errorf("video: FrameRate gives %d samples at timescale %d, the hand-written graph %d at %d; want identical tables",
+						len(fv.deltas), fv.timescale, len(hv.deltas), hv.timescale)
+				}
+
+				if !slices.Equal(fa.deltas, ha.deltas) || fa.timescale != ha.timescale {
+					t.Errorf("audio: FrameRate gives %d samples (longest %d), the hand-written graph %d (longest %d); want identical tables",
+						len(fa.deltas), fa.longest(), len(ha.deltas), ha.longest())
 				}
 			})
 		})
@@ -159,8 +178,8 @@ func anyNativeDriver(t *testing.T) string {
 }
 
 // transcodeTracks runs the fixture through graph into an mp4 and returns its
-// video and audio sample timing.
-func transcodeTracks(ctx context.Context, t *testing.T, rt *afmpeg.Runtime, src []byte, graph string) (video, audio mp4Track) {
+// video and audio sample timing. A non-empty frameRate sets Output.FrameRate.
+func transcodeTracks(ctx context.Context, t *testing.T, rt *afmpeg.Runtime, src []byte, graph, frameRate string) (video, audio mp4Track) {
 	t.Helper()
 
 	fs := afero.NewMemMapFs()
@@ -173,7 +192,7 @@ func transcodeTracks(ctx context.Context, t *testing.T, rt *afmpeg.Runtime, src 
 		FilterComplex: graph,
 		Outputs: []afmpeg.Output{{
 			Path: "out.mp4", Map: []string{"[v]", "[a]"},
-			VideoCodec: "libopenh264", AudioCodec: "aac",
+			VideoCodec: "libopenh264", AudioCodec: "aac", FrameRate: frameRate,
 		}},
 	})
 	if err != nil {

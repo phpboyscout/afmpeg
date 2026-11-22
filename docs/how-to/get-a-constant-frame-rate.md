@@ -1,6 +1,6 @@
 ---
 title: Get a constant frame rate from a variable-frame-rate source
-description: "Turn variable-frame-rate video, such as phone or screen recordings, into constant-frame-rate output with the audio kept in sync, using the fps and aresample filters."
+description: "Turn variable-frame-rate video, such as phone or screen recordings, into constant-frame-rate output with the audio kept in sync, with Output.FrameRate or the fps and aresample filters."
 date: 2026-10-14
 tags: [how-to, command, filter, frame-rate, sync]
 authors: [Matt Cockayne <matt@phpboyscout.uk>]
@@ -8,9 +8,27 @@ authors: [Matt Cockayne <matt@phpboyscout.uk>]
 
 # Get a constant frame rate from a variable-frame-rate source
 
-Put `fps=<rate>` on the video chain and `aresample=async=1` on the audio chain of the
-filtergraph. The first gives every output frame the same duration, and the second keeps the
-audio on the same timeline as that video:
+Set `FrameRate` on the output. The engine then gives every video frame the same duration and
+keeps the audio on the same timeline as that video:
+
+```go
+cmd := afmpeg.NewCommand(
+    afmpeg.WithInput("in.mkv"),
+    afmpeg.WithOutput("out.mp4",
+        afmpeg.VideoCodec("libopenh264"), afmpeg.AudioCodec("aac"),
+        afmpeg.FrameRate("25")),
+)
+```
+
+Any rate FFmpeg's `fps` filter accepts works: `"25"`, `"30000/1001"`, `"ntsc"`. `FrameRate`
+needs ffmpeg-wasi `n9.0.1-10` or later, and it needs an encoded video stream: afmpeg refuses it
+on an output whose video is `CodecCopy` or that has no encoded video.
+
+## The same thing in a filtergraph
+
+`FrameRate("25")` puts `fps=25` in front of each video pad the output maps and
+`aresample=async=1` in front of each audio pad. Writing those filters into the graph yourself
+gives the same result, and lets you place them somewhere other than the end:
 
 ```go
 cmd := afmpeg.NewCommand(
@@ -69,10 +87,12 @@ then transcodes it to H.264 and AAC in MP4, with and without the two filters:
 | `fps=25` / `aresample=async=1` | 73 frames, every one 0.040s | every sample but the last 0.128s; the hole is silence |
 
 The results are the same on both backends, measured against ffmpeg-wasi `n9.0.1-6`.
+`FrameRate("25")` on a `null` / `anull` graph produces sample tables identical to the
+hand-written filters, on both backends, measured against `n9.0.1-10`.
 
 ## Where it fits in a larger graph
 
-Put `fps` and `aresample` last, just before the pads the output maps, so nothing after them can
+`FrameRate` already sits there. When writing the filters yourself, put `fps` and `aresample` last, just before the pads the output maps, so nothing after them can
 make the timing irregular again. A filter that rewrites timestamps, such as `setpts`, undoes a
 constant rate if it comes after `fps`.
 

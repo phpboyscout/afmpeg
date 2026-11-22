@@ -3,6 +3,7 @@ package afmpeg
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -118,6 +119,12 @@ type Output struct {
 	// aligned across outputs (spec 0014).
 	CopyTS bool
 
+	// FrameRate holds the output at a constant rate, in any form FFmpeg's fps
+	// filter accepts ("25", "30000/1001", "ntsc"): the engine drops and duplicates
+	// video frames to it and keeps the audio in sync with aresample=async=1
+	// (spec 0025). It needs an encoded video stream; "" leaves the timing alone.
+	FrameRate string
+
 	// Format forces the muxer by name (e.g. "hls", "dash", "segment", "mpegts")
 	// instead of guessing from the path extension — needed where the extension
 	// doesn't imply the muxer (spec 0015).
@@ -195,6 +202,7 @@ type jobOutput struct {
 	Duration         float64               `json:"duration,omitempty"`
 	End              float64               `json:"end,omitempty"`
 	CopyTS           bool                  `json:"copy_ts,omitempty"`
+	FrameRate        string                `json:"frame_rate,omitempty"`
 	Format           string                `json:"format,omitempty"`
 	FormatOptions    map[string]string     `json:"format_options,omitempty"`
 	Metadata         map[string]string     `json:"metadata,omitempty"`
@@ -256,15 +264,41 @@ func (c Command) validate() error {
 				return err
 			}
 		}
+
+		if err := validateFrameRate(out); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
+// validateFrameRate refuses a frame rate the engine would refuse for want of a
+// stream to apply it to (spec 0025 §4.2). A map naming no graph pad is all
+// stream copies. Only the engine can tell whether a pad carries video, and
+// only it parses the rate.
+func validateFrameRate(out Output) error {
+	if out.FrameRate == "" {
+		return nil
+	}
+
+	if out.VideoCodec == CodecCopy {
+		return errors.Newf("afmpeg: output %q: FrameRate cannot apply to a copied video stream", out.Path)
+	}
+
+	if out.VideoCodec == "" || (len(out.Map) > 0 && !slices.ContainsFunc(out.Map, isGraphPad)) {
+		return errors.Newf("afmpeg: output %q: FrameRate needs an encoded video stream, and the output has no encoded video", out.Path)
+	}
+
+	return nil
+}
+
+func isGraphPad(m string) bool { return strings.HasPrefix(m, "[") }
+
 // validateCopyEntry rejects a copied map entry ("0:v") whose input carries an
 // accurate seek; graph pads and entries the engine will report itself pass.
 func (c Command) validateCopyEntry(outPath, m string) error {
-	if strings.HasPrefix(m, "[") {
+	if isGraphPad(m) {
 		return nil // graph pad (encoded), not a copy
 	}
 

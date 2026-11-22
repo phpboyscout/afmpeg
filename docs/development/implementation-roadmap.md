@@ -9,8 +9,8 @@ future session can grab. This document sequences the specs into phases with depe
 what's needed before/during each; the per-spec status is inline below. It supersedes 0012 §7's
 parity-only ordering by folding in the review-driven specs (0024–0028) and the 0022 bundling policy.
 
-> **Current anchors (2026-10-15):** afmpeg **v0.16.1**,
-> ffmpeg-wasi **n9.0.1-8**, job-spec **vocab v10**. The core roadmap is complete; everything below
+> **Current anchors (2026-11-22):** afmpeg **v0.18.0**,
+> ffmpeg-wasi **n9.0.1-10**, job-spec **vocab v11**. The core roadmap is complete; everything below
 > in "what remains" is optional and waits for its trigger (a consumer need, a device, or a measured
 > regression).
 
@@ -131,11 +131,11 @@ Codec track. Establish the profile machinery, then flood the intermediate profil
   single-threaded on wasm). Only HW-accel remains.
 - **[0008](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0008-performance-strategy) perf spike**: **DONE** (`cmd/afmpeg-bench`; the
   encode gap quantified, and answered by the native backend).
+- **[0025](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0025-av-sync-and-framerate) A/V sync**: **SHIPPED**. The
+  `fps` + `aresample=async` pattern is documented and tested on both backends, and
+  `Output.FrameRate` applies it per output (vocab v11, ffmpeg-wasi `n9.0.1-10`).
 - **Still gated:** HW-accel encoders (NVENC/VAAPI/…, the full profile's remaining members, needing a
   device); native `linux/arm64` + `darwin/arm64`; concat-over-IPC.
-- **[0025](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0025-av-sync-and-framerate) A/V sync**: **APPROVED** 2026-10-13. The
-  `fps` + `aresample=async` pattern is documented and tested on both backends; the per-output
-  frame-rate field needs an engine change and release first.
 
 ## Prerequisites & notes (what we'll need)
 
@@ -186,12 +186,11 @@ grab (most-ready first). A future session should confirm the trigger still holds
 | **[0022](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0022-build-size-matrix) arm64/darwin native** | Native Backend-B on `linux/arm64` + `darwin/arm64` | A consumer needing the native backend off `linux/amd64` (e.g. Apple Silicon). The real cost is the cross-build toolchains/runners, not the artifact count | Large | Only on a platform need |
 | **HW-accel encode** | NVENC/VAAPI/QSV/… (the full profile's remaining members) | **Blocked**: needs a GPU/accel device, not available on the headless dev box | Medium once a device exists | No , environment-blocked |
 | **[0026](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0026-engine-hot-path-performance) hot-path micro-opts** | Engine perf tuning | **Measure-first**: pair with the `0008` rig (`cmd/afmpeg-bench`); only land a change with a measured win | Small–Medium | Only with a profile showing a hotspot |
-| **[0025](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0025-av-sync-and-framerate) A/V-sync / framerate** | A per-output frame-rate field over the `fps` + `aresample=async` pattern | **Approved 2026-10-13**: engine first (ffmpeg-wasi, vocab v11), then afmpeg | Medium | Yes, engine side first |
 | **[0033](https://gitlab.com/phpboyscout/afmpeg/-/wikis/specs/0033-native-progress-side-channel) native phase-B progress** | `Frame`/`OutTime`/`Speed` + accurate `Fraction` for the **native** backend (WASM parity) | **Need-first**: native already has phase-A byte progress; this only helps a *long generative* native job. Needs an engine change + a new native-driver release | Medium | Deferred : spec drafted, revive on a real consumer need |
 
 **How new work lands here:** the last two roadmap pulls (0031 phase A, then 0031/0032 phase B) were
 driven by a **keyrx** consumer need, not by this list. If keyrx (or another consumer) surfaces the
 next requirement, that sets priority for free. Draft a spec, get it to `approved` with the human
 (see the `spec-driven-development` skill), then implement. Vocabulary-affecting engine work bumps the
-job-spec version additively (next is **v10**) and is cross-repo (ffmpeg-wasi engine change → tag/
+job-spec version additively (next is **v12**) and is cross-repo (ffmpeg-wasi engine change → tag/
 release → afmpeg consumes behind the version gate).

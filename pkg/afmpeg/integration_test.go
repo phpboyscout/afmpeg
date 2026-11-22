@@ -154,8 +154,8 @@ func makePNG(w, h int) []byte {
 // the network, verifies the live AWS-KMS signature against afmpeg's pinned key,
 // checks the checksums and provenance, and compiles the module. The capstone of
 // spec 0010 — production crypto, no fixtures. Gated on AFMPEG_TEST_LIVE_RELEASE
-// (it hits the release store). n9.0.1-8 is the first tag the GitLab package
-// registry never received.
+// (it hits the release store). n9.0.1-10 is the oldest engine this vocabulary
+// passes preflight on, and the GitLab package registry never received it.
 func TestIntegration_VerifiedRelease(t *testing.T) {
 	t.Parallel()
 
@@ -165,7 +165,7 @@ func TestIntegration_VerifiedRelease(t *testing.T) {
 
 	for _, want := range []struct{ tag, ffmpeg string }{
 		{"n8.1.2-4", "n8.1.2"},
-		{"n9.0.1-8", "n9.0.1"},
+		{"n9.0.1-10", "n9.0.1"},
 	} {
 		t.Run(want.tag, func(t *testing.T) {
 			t.Parallel()

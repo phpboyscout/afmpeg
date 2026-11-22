@@ -41,11 +41,14 @@ import (
 //	    encoder becomes configurable at all. Output.Options keeps its v9 meaning
 //	    — every encoder the output opens — so a v9 spec runs unchanged on a v10
 //	    engine.
+//	11 — constant frame rate (spec 0025): Output.FrameRate, which the engine
+//	    applies as fps on the output's video and aresample=async=1 on its audio.
+//	    Needs ffmpeg-wasi n9.0.1-10 or later.
 //
 // Every process/probe spec is stamped with it; the engine rejects a spec whose
 // version exceeds what it supports, so a new field can never be silently dropped
 // by an older engine (it fails the whole spec instead).
-const vocabVersion = 10
+const vocabVersion = 11
 
 // engineVocab is the engine's reply to the op:"version" query — its highest
 // supported vocabulary version and the FFmpeg build it links.

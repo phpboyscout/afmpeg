@@ -94,6 +94,7 @@ type Output struct {
     Duration         float64
     End              float64
     CopyTS           bool
+    FrameRate        string
     Format           string
     FormatOptions    map[string]string
     Metadata         map[string]string
@@ -115,6 +116,7 @@ type Output struct {
 | `Duration` | `Duration(sec)` | 0 (to the end) | Stop after this many seconds (ffmpeg's `-t`). |
 | `End` | `End(sec)` | 0 (to the end) | Stop at this position (ffmpeg's `-to`). |
 | `CopyTS` | `CopyTS()` | false | Keep source timestamps instead of zero-basing the output. Under `CopyTS`, `End` is an absolute source position. |
+| `FrameRate` | `FrameRate(rate)` | `""` (source timing) | Hold the output at a constant frame rate, in any form FFmpeg's `fps` filter accepts (`"25"`, `"30000/1001"`, `"ntsc"`), with the audio kept in sync. Needs an encoded video stream: refused on `CodecCopy` video and on an output with no encoded video. Needs ffmpeg-wasi `n9.0.1-10` or later. See [Get a constant frame rate](../how-to/get-a-constant-frame-rate.md). |
 | `Format` | `OutputFormat(name)` | from the path extension | Force the muxer (`hls`, `dash`, `segment`, `mpegts`, …). |
 | `FormatOptions` | `FormatOption(k, v)` | nil | **Muxer** options passed to `write_header`: `hls_time`, `hls_segment_filename`, `movflags`, … Distinct from `Options`, which reach the encoder. |
 | `Metadata` | (set the field) | nil | Container-level tags on the output (`title`, `artist`, …). |

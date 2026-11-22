@@ -181,6 +181,12 @@ func CopyTS() OutputOption {
 	return func(out *Output) { out.CopyTS = true }
 }
 
+// FrameRate holds the output at a constant frame rate, such as "25" or
+// "30000/1001", with the audio kept in sync (spec 0025).
+func FrameRate(rate string) OutputOption {
+	return func(out *Output) { out.FrameRate = rate }
+}
+
 // OutputFormat forces the muxer by name (e.g. "hls", "dash", "segment",
 // "mpegts") when the path extension doesn't imply it (spec 0015).
 func OutputFormat(name string) OutputOption {
