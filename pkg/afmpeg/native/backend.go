@@ -80,8 +80,8 @@ func (b *Backend) Invoke(ctx context.Context, fs afero.Fs, args ...string) (afmp
 
 	res.Sandbox = reportedSandbox(res.Stdout)
 	if res.Sandbox == "" {
-		// Only process results and --capabilities carry the field, but the driver
-		// installs the same sandbox for every op it serves over the socket.
+		// Drivers before ffmpeg-wasi n9.0.1-11 carry the field only on process
+		// results, but install the same sandbox for every op served over the socket.
 		res.Sandbox, _ = b.Sandbox(ctx)
 	}
 
