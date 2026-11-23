@@ -1,5 +1,21 @@
 # Changelog
 
+## [v0.19.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.19.0)
+
+[Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.18.0...v0.19.0)
+
+### Notes
+
+- `Output.FrameRate` (and `FrameRate(rate)`) holds an output at a constant frame rate with the audio kept in sync. This release emits job-spec vocabulary v11, so it needs ffmpeg-wasi `n9.0.1-10` or later: `New` refuses an older engine, so move any pinned `WithModuleRelease` or `native.NewFromRelease` tag to `n9.0.1-10`.
+
+### Features
+
+- **command**: set a constant output frame rate with Output.FrameRate ([4f779f8](https://gitlab.com/phpboyscout/afmpeg/-/commit/4f779f89134e3895e971da92851216975e34cdfa))
+
+### Bug Fixes
+
+- **deps**: update module gitlab.com/phpboyscout/go/signing to v0.15.2 ([b5c74fd](https://gitlab.com/phpboyscout/afmpeg/-/commit/b5c74fde2b433e21078a2649878c04de2618f686))
+
 ## [v0.18.0](https://gitlab.com/phpboyscout/afmpeg/-/releases/v0.18.0)
 
 [Compare to previous version](https://gitlab.com/phpboyscout/afmpeg/-/compare/v0.17.0...v0.18.0)
